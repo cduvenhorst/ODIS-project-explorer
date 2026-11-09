@@ -193,3 +193,148 @@ def write_project(folder, pools, ascii_strings, unicode_strings):
                         raise RuntimeError('pblKfInsert failed for %s' % name)
         finally:
             library.pblKfClose(key_file)
+
+
+# ---------------------------------------------------------------------------
+# Shared builders for the layout protection tests
+# ---------------------------------------------------------------------------
+
+
+OPEN, CLOSED, INFINITE = 1, 2, 3
+
+
+LIMIT_NAMES = {OPEN: 'eLIMIT_OPEN', CLOSED: 'eLIMIT_CLOSED', INFINITE: 'eLIMIT_INFINITE'}
+
+
+def uint_value(body, number):
+    return body.u8(11).u32(number)
+
+
+def uint(number):
+    return {'data_type': 'eA_UINT32', 'value': number}
+
+
+def limit_body(number=5, kind=OPEN):
+    return uint_value(ObjectBytes(), number).u8(kind)
+
+
+def limit(number=5, kind=OPEN):
+    return {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': uint(number), 'limit_type': LIMIT_NAMES[kind]}
+
+
+def diag_coded_type_body():
+    return ObjectBytes().u8(0).u32(8).u8(0).u8(3).flag(False).flag(False)
+
+
+def diag_coded_type():
+    return {'#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'type': 'eLEADING_LENGTH_INFO_TYPE',
+            'bit_length': 8, 'base_data_type': 'eDB_INT32',
+            'base_data_type_as_mcd_data_type': 'eA_INT32', 'encoding': 'e2C',
+            'is_high_low_byte_order': False, 'is_condensed': False}
+
+
+def case_base_body(structure_ref=False):
+    body = ObjectBytes().ascii('Case').unicode('Case long').unicode(None)
+    body.ascii(None).ascii(None).ascii(None)
+    if structure_ref:
+        return body.flag(True).ascii('STRUCT').ascii('POOL')
+    return body.flag(False)
+
+
+def case_base(structure_ref=None):
+    return {'short_name': 'Case', 'long_name': 'Case long', 'description': None,
+            'structure_dop_ref': structure_ref}
+
+
+def case_body():
+    return ObjectBytes().nested('DB_LIMIT', limit_body(1, CLOSED)).nested('DB_LIMIT', limit_body(9, OPEN))
+
+
+def case_expected():
+    return {'lower_limit': limit(1, CLOSED), 'upper_limit': limit(9, OPEN)}
+
+
+def case(structure_ref=None, type_name='DB_CASE'):
+    result = {'#OBJECT_TYPE': type_name}
+    if type_name == 'DB_CASE':
+        result.update(case_expected())
+    result.update(case_base(structure_ref))
+    return result
+
+
+def typed(type_name, fields):
+    return {'#OBJECT_TYPE': type_name, **fields}
+
+
+def ref_body(body, object_id='OBJ', pool_id='POOL'):
+    """DbObjectReference without the third string."""
+    return body.ascii(object_id).ascii(pool_id)
+
+
+def ref(object_id='OBJ', pool_id='POOL'):
+    return {'object_id': object_id, 'pool_id': pool_id}
+
+
+NAMED_REFS = [('N1', 'R1', 'P1'), ('N2', 'R2', None)]
+
+
+def named_refs_body(body, entries=()):
+    body.u16(len(entries))
+    for name, object_id, pool_id in entries:
+        body.ascii(name).ascii(object_id).ascii(pool_id)
+    return body
+
+
+def named_refs(entries=()):
+    return [{'name': name, 'reference': ref(object_id, pool_id)}
+            for name, object_id, pool_id in entries]
+
+
+def attributed_ref_body(body, strings=()):
+    body.ascii('OBJ').ascii('POOL').u8(len(strings))
+    for text in strings:
+        body.ascii(text)
+    return body
+
+
+def attributed_ref(strings=()):
+    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings)}
+
+
+def diag_com_ref_body(body, with_strings):
+    """DbDiagComObjectReference, type eMCDAUDIENCE."""
+    attributed_ref_body(body, ['A1'] if with_strings else [])
+    body.u8(3).u16(0x0DAC).u8(1 if with_strings else 0)
+    if with_strings:
+        body.u16(2).ascii('V1').ascii('V2')
+    return body
+
+
+def diag_com_ref(with_strings):
+    result = {'attrib_obj_ref': attributed_ref(['A1'] if with_strings else []),
+              'number': 3, 'mcd_object_type': 'eMCDAUDIENCE'}
+    if with_strings:
+        result['strings'] = ['V1', 'V2']
+    return result
+
+
+def diag_com_refs_body(body):
+    """Named collection of two DbDiagComObjectReference, loaded with and without strings."""
+    body.u16(2).ascii('D1')
+    diag_com_ref_body(body, True)
+    body.ascii('D2')
+    return diag_com_ref_body(body, False)
+
+
+def diag_com_refs():
+    return [{'name': 'D1', 'reference': diag_com_ref(True)},
+            {'name': 'D2', 'reference': diag_com_ref(False)}]
+
+
+def audience_body():
+    return ObjectBytes().u8(1).u8(0).u8(1).u8(0).u8(1)
+
+
+def audience():
+    return typed('MCD_AUDIENCE', {'supplier': 1, 'development': 0, 'manufacturing': 1,
+                                  'after_sales': 0, 'after_market': 1})

@@ -6,10 +6,9 @@ asserted, in strict mode.  Branches in which the loaders raise today are not pin
 import unittest
 
 from tests import support
-from tests.support import ObjectBytes, concat
-
-OPEN, CLOSED, INFINITE = 1, 2, 3
-LIMIT_NAMES = {OPEN: 'eLIMIT_OPEN', CLOSED: 'eLIMIT_CLOSED', INFINITE: 'eLIMIT_INFINITE'}
+from tests.support import (ObjectBytes, concat, CLOSED, INFINITE, OPEN, case, case_base_body,
+                           case_body, diag_coded_type, diag_coded_type_body, limit, limit_body,
+                           uint, uint_value)
 
 
 def load(type_name, body):
@@ -19,22 +18,6 @@ def load(type_name, body):
 def no_value(body):
     """MCD value of type eNO_TYPE (loads as None)."""
     return body.u8(0xFF)
-
-
-def uint_value(body, number):
-    return body.u8(11).u32(number)
-
-
-def uint(number):
-    return {'data_type': 'eA_UINT32', 'value': number}
-
-
-def limit_body(number=5, kind=OPEN):
-    return uint_value(ObjectBytes(), number).u8(kind)
-
-
-def limit(number=5, kind=OPEN):
-    return {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': uint(number), 'limit_type': LIMIT_NAMES[kind]}
 
 
 def coeffs_body():
@@ -87,17 +70,6 @@ def compu_method():
             'compu_phys_to_internal': None, 'compu_internal_to_phys': None}
 
 
-def diag_coded_type_body():
-    return ObjectBytes().u8(0).u32(8).u8(0).u8(3).flag(False).flag(False)
-
-
-def diag_coded_type():
-    return {'#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'type': 'eLEADING_LENGTH_INFO_TYPE',
-            'bit_length': 8, 'base_data_type': 'eDB_INT32',
-            'base_data_type_as_mcd_data_type': 'eA_INT32', 'encoding': 'e2C',
-            'is_high_low_byte_order': False, 'is_condensed': False}
-
-
 def physical_type_body():
     return ObjectBytes().u8(0).flag(False).u8(10)
 
@@ -106,35 +78,6 @@ def physical_type():
     return {'#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_INT32',
             'base_data_type_as_mcd_data_type': 'eA_INT32', 'is_precision_available': False,
             'display_radix': 10}
-
-
-def case_base_body(structure_ref=False):
-    body = ObjectBytes().ascii('Case').unicode('Case long').unicode(None)
-    body.ascii(None).ascii(None).ascii(None)
-    if structure_ref:
-        return body.flag(True).ascii('STRUCT').ascii('POOL')
-    return body.flag(False)
-
-
-def case_base(structure_ref=None):
-    return {'short_name': 'Case', 'long_name': 'Case long', 'description': None,
-            'structure_dop_ref': structure_ref}
-
-
-def case(structure_ref=None, type_name='DB_CASE'):
-    result = {'#OBJECT_TYPE': type_name}
-    if type_name == 'DB_CASE':
-        result.update(case_expected())
-    result.update(case_base(structure_ref))
-    return result
-
-
-def case_body():
-    return ObjectBytes().nested('DB_LIMIT', limit_body(1, CLOSED)).nested('DB_LIMIT', limit_body(9, OPEN))
-
-
-def case_expected():
-    return {'lower_limit': limit(1, CLOSED), 'upper_limit': limit(9, OPEN)}
 
 
 def interval_body(lower=None, upper=None, flags=0):

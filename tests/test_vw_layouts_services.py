@@ -8,91 +8,15 @@ diagnostic communication primitive, job) are exercised through the tests below.
 import unittest
 
 from tests import support
-from tests.support import ObjectBytes, concat
-from tests.test_vw_layouts_compu import (case, case_base_body, case_body, diag_coded_type,
-                                         diag_coded_type_body, uint, uint_value)
+from tests.support import (NAMED_REFS, ObjectBytes, concat, attributed_ref, attributed_ref_body,
+                           audience, audience_body, case, case_base_body, case_body, diag_coded_type,
+                           diag_coded_type_body, diag_com_ref, diag_com_ref_body, diag_com_refs,
+                           diag_com_refs_body, named_refs, named_refs_body, ref, ref_body, typed,
+                           uint, uint_value)
 
 
 def load(type_name, body):
     return support.load(type_name, body)
-
-
-def typed(type_name, fields):
-    return {'#OBJECT_TYPE': type_name, **fields}
-
-
-def ref_body(body, object_id='OBJ', pool_id='POOL'):
-    """DbObjectReference without the third string."""
-    return body.ascii(object_id).ascii(pool_id)
-
-
-def ref(object_id='OBJ', pool_id='POOL'):
-    return {'object_id': object_id, 'pool_id': pool_id}
-
-
-NAMED_REFS = [('N1', 'R1', 'P1'), ('N2', 'R2', None)]
-
-
-def named_refs_body(body, entries=()):
-    body.u16(len(entries))
-    for name, object_id, pool_id in entries:
-        body.ascii(name).ascii(object_id).ascii(pool_id)
-    return body
-
-
-def named_refs(entries=()):
-    return [{'name': name, 'reference': ref(object_id, pool_id)}
-            for name, object_id, pool_id in entries]
-
-
-def attributed_ref_body(body, strings=()):
-    body.ascii('OBJ').ascii('POOL').u8(len(strings))
-    for text in strings:
-        body.ascii(text)
-    return body
-
-
-def attributed_ref(strings=()):
-    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings)}
-
-
-def diag_com_ref_body(body, with_strings):
-    """DbDiagComObjectReference, type eMCDAUDIENCE."""
-    attributed_ref_body(body, ['A1'] if with_strings else [])
-    body.u8(3).u16(0x0DAC).u8(1 if with_strings else 0)
-    if with_strings:
-        body.u16(2).ascii('V1').ascii('V2')
-    return body
-
-
-def diag_com_ref(with_strings):
-    result = {'attrib_obj_ref': attributed_ref(['A1'] if with_strings else []),
-              'number': 3, 'mcd_object_type': 'eMCDAUDIENCE'}
-    if with_strings:
-        result['strings'] = ['V1', 'V2']
-    return result
-
-
-def diag_com_refs_body(body):
-    """Named collection of two DbDiagComObjectReference, loaded with and without strings."""
-    body.u16(2).ascii('D1')
-    diag_com_ref_body(body, True)
-    body.ascii('D2')
-    return diag_com_ref_body(body, False)
-
-
-def diag_com_refs():
-    return [{'name': 'D1', 'reference': diag_com_ref(True)},
-            {'name': 'D2', 'reference': diag_com_ref(False)}]
-
-
-def audience_body():
-    return ObjectBytes().u8(1).u8(0).u8(1).u8(0).u8(1)
-
-
-def audience():
-    return typed('MCD_AUDIENCE', {'supplier': 1, 'development': 0, 'manufacturing': 1,
-                                  'after_sales': 0, 'after_market': 1})
 
 
 # ---------------------------------------------------------------------------
