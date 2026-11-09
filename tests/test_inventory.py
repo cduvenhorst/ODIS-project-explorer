@@ -73,6 +73,61 @@ class InventoryTests(unittest.TestCase):
         self.assertTrue(err)
         self.assertFalse(os.path.exists(target))
 
+    def test_clone_root_is_resolved_relative_to_repository_not_cwd(self):
+        outside = self.make_folder()
+        previous = os.getcwd()
+        self.addCleanup(os.chdir, previous)
+        os.chdir(outside)
+        with mock.patch.object(inventory, 'git_output', side_effect=lambda *a: '.git' if 'rev-parse' in a and '--git-common-dir' in a else REPOSITORY_ROOT):
+            roots = inventory.protected_roots()
+            self.assertNotIn(os.path.realpath(outside), roots)
+            project = self.make_folder()
+            write_sample_project(project)
+            accepted, _, _ = run_main(['--output', os.path.join(outside, 'result'), project])
+            refused, _, err = run_main(['--output', os.path.join(REPOSITORY_ROOT, 'out'), project])
+        self.assertEqual(accepted, 0)
+        self.assertEqual(refused, 2)
+        self.assertTrue(err)
+        self.assertFalse(os.path.exists(os.path.join(REPOSITORY_ROOT, 'out')))
+
+    def test_project_without_string_files_is_a_project_error_and_run_continues(self):
+        root = self.make_folder()
+        good = os.path.join(root, 'A', 'Projects-V', 'Good')
+        bad = os.path.join(root, 'A', 'Projects-V', 'Bad')
+        write_sample_project(good)
+        os.makedirs(bad)
+        output = os.path.join(root, 'result')
+        code, _, _ = run_main(['--output', output, bad, good])
+        self.assertEqual(code, 0)
+        with open(os.path.join(output, 'A-Bad.json')) as handle:
+            self.assertTrue(json.load(handle)['project_error'])
+        with open(os.path.join(output, 'A-Good.json')) as handle:
+            self.assertNotIn('project_error', json.load(handle))
+        with open(os.path.join(output, 'summary.txt')) as handle:
+            self.assertEqual(len(handle.read().splitlines()), 2)
+
+    def test_bad_library_exits_2_before_writing(self):
+        root = self.make_folder()
+        project = os.path.join(root, 'P')
+        write_sample_project(project)
+        output = os.path.join(root, 'result')
+        code, _, err = run_main(['--output', output, '--library', os.path.join(root, 'missing.dylib'), project])
+        self.assertEqual(code, 2)
+        self.assertIn('library', err)
+        self.assertFalse(os.path.exists(output))
+
+    def test_uncreatable_output_exits_2_without_traceback(self):
+        root = self.make_folder()
+        project = os.path.join(root, 'P')
+        write_sample_project(project)
+        blocker = os.path.join(root, 'file')
+        with open(blocker, 'w') as handle:
+            handle.write('x')
+        for target in (blocker, os.path.join(blocker, 'sub')):
+            code, _, err = run_main(['--output', target, project])
+            self.assertEqual(code, 2)
+            self.assertIn('Cannot create output folder', err)
+
     def test_refuses_output_inside_repository_via_dotdot_and_symlink(self):
         outside = self.make_folder()
         link = os.path.join(outside, 'link')

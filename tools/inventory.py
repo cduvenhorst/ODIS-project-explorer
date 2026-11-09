@@ -59,13 +59,19 @@ def inventory_project(project_folder, library_path):
 
     pool_error of a pool is None when the pool was read completely, otherwise
     the text `<ExceptionClassName>: <message>` of the error that stopped it.
+    A project whose strings or library cannot be opened has no pools and a
+    top-level `project_error` with the same kind of text.
     """
     started = time.time()
-    records = PblRecordManager(library_path)
-    loader = ObjectLoader(None, StringStorage(project_folder), strict=True)
     types = {}
     errors = {}
     pools = {}
+    try:
+        records = PblRecordManager(library_path)
+        loader = ObjectLoader(None, StringStorage(project_folder), strict=True)
+    except Exception as error:  # noqa: BLE001 - a broken project must not stop the run
+        return {'project': project_folder, 'seconds': round(time.time() - started, 2),
+                'project_error': error_text(error), 'types': types, 'errors': errors, 'pools': pools}
     for pool in pool_names(project_folder):
         counts = {'ok': 0, 'failed': 0, 'unknown': 0, 'pool_error': None}
         pools[pool] = counts
@@ -123,7 +129,8 @@ def protected_roots():
     roots = [os.path.realpath(REPOSITORY_ROOT)]
     try:
         roots.append(os.path.realpath(git_output('rev-parse', '--show-toplevel')))
-        common = os.path.realpath(git_output('rev-parse', '--git-common-dir'))
+        # Relative to the repository, not to the current directory (git prints `.git` in a plain clone)
+        common = os.path.realpath(os.path.join(REPOSITORY_ROOT, git_output('rev-parse', '--git-common-dir')))
         roots.append(os.path.dirname(common))
     except (OSError, subprocess.CalledProcessError):
         print('Warning: git is not available; only {} is protected against output.'
@@ -154,8 +161,11 @@ def summary_lines(name, result):
     failed = sum(entry['failed'] for entry in result['types'].values())
     unknown = sum(entry['unknown'] for entry in result['types'].values())
     broken = sum(1 for entry in pools if entry['pool_error'])
-    return '{}: ok={} failed={} unknown={} pool_errors={} (pools: {}, {} s)'.format(
+    line = '{}: ok={} failed={} unknown={} pool_errors={} (pools: {}, {} s)'.format(
         name, ok, failed, unknown, broken, len(result['pools']), result['seconds'])
+    if result.get('project_error'):
+        line += ' project_error: {}'.format(result['project_error'])
+    return line
 
 
 def main(arguments=None):
@@ -180,7 +190,16 @@ def main(arguments=None):
         print('Two projects would write the same output file.', file=sys.stderr)
         return 2
 
-    os.makedirs(options.output, exist_ok=True)
+    try:
+        PblRecordManager(options.library)
+    except Exception as error:  # noqa: BLE001 - any load failure means the library is unusable
+        print('Cannot load library {}: {}'.format(options.library, error_text(error)), file=sys.stderr)
+        return 2
+    try:
+        os.makedirs(options.output, exist_ok=True)
+    except OSError as error:
+        print('Cannot create output folder {}: {}'.format(options.output, error), file=sys.stderr)
+        return 2
     lines = []
     for project, name in zip(options.projects, names):
         result = inventory_project(project, options.library)

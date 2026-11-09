@@ -72,7 +72,7 @@ Passing `strict=True` to `ObjectLoader` (or to `DbObject.load_object`) turns bot
 
 ## Inventory
 
-`tools/inventory.py` reads every pool of one or more projects in strict mode and counts, per object type, how many objects decode cleanly (`ok`), fail (`failed`, including unread bytes) or have no loader (`unknown`). A pool that cannot be read (for example a `.key` file without its `.db` file) gets its `pool_error` set to the error text, and the run continues with the next pool.
+`tools/inventory.py` reads every pool of one or more projects in strict mode and counts, per object type, how many objects decode cleanly (`ok`), fail (`failed`, including unread bytes) or have no loader (`unknown`). A pool that cannot be read (for example a `.key` file without its `.db` file) gets its `pool_error` set to the error text, and the run continues with the next pool. A project whose string files are missing or unreadable gets a top-level `project_error` instead (with no pools); it is also appended to its line in `summary.txt`, and the run continues with the next project. A missing or unloadable `--library`, or an output path that cannot be created, ends the run with exit code 2 before anything is written.
 
 ```
 python3 tools/inventory.py --output DIR PROJECT [PROJECT ...]
