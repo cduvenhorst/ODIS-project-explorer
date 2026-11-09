@@ -70,6 +70,19 @@ and for `parseMWB` everything will use its default LONG-NAME from ODX.
 Loading is lenient by default: bytes left over after an object is parsed, and content that is recognised but not read, are reported on the console.
 Passing `strict=True` to `ObjectLoader` (or to `DbObject.load_object`) turns both into `UnreadContentError` exceptions, which is useful for verifying that a loader covers its object layout completely.
 
+## Inventory
+
+`tools/inventory.py` reads every pool of one or more projects in strict mode and counts, per object type, how many objects decode cleanly (`ok`), fail (`failed`, including unread bytes) or have no loader (`unknown`). A pool that cannot be read (for example a `.key` file without its `.db` file) gets its `pool_error` set to the error text, and the run continues with the next pool.
+
+```
+python3 tools/inventory.py --output DIR PROJECT [PROJECT ...]
+```
+
+For each project it writes `DIR/<installation>-<project>.json` (installation is the name of the folder above `Projects-V`, otherwise the parent folder's name) and a short `DIR/summary.txt`. Failures are grouped under `"<type> | <ExceptionClassName>: <first message line>"` in `errors`. The tool exits with 0 after a completed run, even if objects failed.
+
+> [!WARNING]
+> The output contains per-project counts of proprietary data. **Never commit inventory output.** The tool refuses (exit code 2) to write anywhere inside the git working tree it belongs to, before creating any file.
+
 ## Script info
 
 ### `dumpProject` / `dumpAllProjects`
