@@ -16,6 +16,14 @@ def load(type_name, body):
     return support.load(type_name, body)
 
 
+def concat(first, second):
+    """New body with the bytes and strings of first followed by those of second."""
+    body = ObjectBytes().raw(first._data).raw(second._data)
+    body.ascii_strings = first.ascii_strings + second.ascii_strings
+    body.unicode_strings = first.unicode_strings + second.unicode_strings
+    return body
+
+
 def no_value(body):
     """MCD value of type eNO_TYPE (loads as None)."""
     return body.u8(0xFF)
@@ -121,6 +129,14 @@ def case_base(structure_ref=None):
             'structure_dop_ref': structure_ref}
 
 
+def case(structure_ref=None, type_name='DB_CASE'):
+    result = {'#OBJECT_TYPE': type_name}
+    if type_name == 'DB_CASE':
+        result.update(case_expected())
+    result.update(case_base(structure_ref))
+    return result
+
+
 def case_body():
     return ObjectBytes().nested('DB_LIMIT', limit_body(1, CLOSED)).nested('DB_LIMIT', limit_body(9, OPEN))
 
@@ -211,9 +227,7 @@ class LimitTests(unittest.TestCase):
         ]
         for value_bytes, expected in cases:
             with self.subTest(data_type=expected['data_type']):
-                body = ObjectBytes().raw(value_bytes._data).u8(CLOSED)
-                body.ascii_strings += value_bytes.ascii_strings
-                body.unicode_strings += value_bytes.unicode_strings
+                body = concat(value_bytes, ObjectBytes().u8(CLOSED))
                 self.assertEqual(load('DB_LIMIT', body),
                                  {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': expected,
                                   'limit_type': 'eLIMIT_CLOSED'})
@@ -330,35 +344,22 @@ class CompuMethodTests(unittest.TestCase):
 
 class CaseTests(unittest.TestCase):
     def test_db_case_minimal(self):
-        body = case_body().raw(case_base_body()._data)
-        body.ascii_strings += case_base_body().ascii_strings
-        body.unicode_strings += case_base_body().unicode_strings
-        expected = {'#OBJECT_TYPE': 'DB_CASE'}
-        expected.update(case_expected())
-        expected.update(case_base())
-        self.assertEqual(load('DB_CASE', body), expected)
+        self.assertEqual(load('DB_CASE', concat(case_body(), case_base_body())), case())
 
     def test_db_case_all_branches(self):
-        base = case_base_body(structure_ref=True)
-        body = case_body().raw(base._data)
-        body.ascii_strings += base.ascii_strings
-        body.unicode_strings += base.unicode_strings
-        expected = {'#OBJECT_TYPE': 'DB_CASE'}
-        expected.update(case_expected())
-        expected.update(case_base({'object_id': 'STRUCT', 'pool_id': 'POOL'}))
-        self.assertEqual(load('DB_CASE', body), expected)
+        body = concat(case_body(), case_base_body(structure_ref=True))
+        self.assertEqual(load('DB_CASE', body),
+                         case({'object_id': 'STRUCT', 'pool_id': 'POOL'}))
 
 
 class DefaultCaseTests(unittest.TestCase):
     def test_db_default_case_minimal(self):
-        expected = {'#OBJECT_TYPE': 'DB_DEFAULT_CASE'}
-        expected.update(case_base())
-        self.assertEqual(load('DB_DEFAULT_CASE', case_base_body()), expected)
+        self.assertEqual(load('DB_DEFAULT_CASE', case_base_body()),
+                         case(type_name='DB_DEFAULT_CASE'))
 
     def test_db_default_case_all_branches(self):
-        expected = {'#OBJECT_TYPE': 'DB_DEFAULT_CASE'}
-        expected.update(case_base({'object_id': 'STRUCT', 'pool_id': 'POOL'}))
-        self.assertEqual(load('DB_DEFAULT_CASE', case_base_body(structure_ref=True)), expected)
+        self.assertEqual(load('DB_DEFAULT_CASE', case_base_body(structure_ref=True)),
+                         case({'object_id': 'STRUCT', 'pool_id': 'POOL'}, 'DB_DEFAULT_CASE'))
 
 
 class CasesTests(unittest.TestCase):
@@ -367,16 +368,9 @@ class CasesTests(unittest.TestCase):
 
     def test_db_cases_all_branches(self):
         def one():
-            base = case_base_body()
-            body = case_body().raw(base._data)
-            body.ascii_strings += base.ascii_strings
-            body.unicode_strings += base.unicode_strings
-            return body
+            return concat(case_body(), case_base_body())
         body = ObjectBytes().u32(2).nested('DB_CASE', one()).nested('DB_CASE', one())
-        expected_case = {'#OBJECT_TYPE': 'DB_CASE'}
-        expected_case.update(case_expected())
-        expected_case.update(case_base())
-        self.assertEqual(load('DB_CASES', body), [expected_case, expected_case])
+        self.assertEqual(load('DB_CASES', body), [case(), case()])
 
 
 class ComParamSpecTests(unittest.TestCase):
@@ -451,7 +445,11 @@ class DiagCodedTypeTests(unittest.TestCase):
             with self.subTest(termination=name):
                 body = ObjectBytes().u8(1).u32(4).u32(1).u8(code).u8(0).u8(3)
                 body.flag(False).flag(False)
-                self.assertEqual(load('DB_DIAG_CODED_TYPE', body)['termination'], name)
+                expected = diag_coded_type()
+                del expected['bit_length']
+                expected.update({'type': 'eMIN_MAX_LENGTH_TYPE', 'max_length': 4,
+                                 'min_length': 1, 'termination': name})
+                self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
     def test_db_diag_coded_type_leading_length_info_type_data_types(self):
         # (EDbDataType code, name, MCD data type, EDbEncoding code, encoding name)
@@ -470,10 +468,11 @@ class DiagCodedTypeTests(unittest.TestCase):
             with self.subTest(base_data_type=name):
                 body = ObjectBytes().u8(0).u32(8).u8(data_code).u8(encoding_code)
                 body.flag(False).flag(False)
-                result = load('DB_DIAG_CODED_TYPE', body)
-                self.assertEqual(result['base_data_type'], name)
-                self.assertEqual(result['base_data_type_as_mcd_data_type'], mcd_name)
-                self.assertEqual(result['encoding'], encoding)
+                expected = diag_coded_type()
+                expected.update({'base_data_type': name,
+                                 'base_data_type_as_mcd_data_type': mcd_name,
+                                 'encoding': encoding})
+                self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
 
 class PhysicalTypeTests(unittest.TestCase):
@@ -494,9 +493,11 @@ class PhysicalTypeTests(unittest.TestCase):
                  (5, 'eDB_BYTEFIELD', 'eA_BYTEFIELD')]
         for code, name, mcd_name in cases:
             with self.subTest(base_data_type=name):
-                result = load('DB_PHYSICAL_TYPE', ObjectBytes().u8(code).flag(False).u8(10))
-                self.assertEqual(result['base_data_type'], name)
-                self.assertEqual(result['base_data_type_as_mcd_data_type'], mcd_name)
+                expected = physical_type()
+                expected.update({'base_data_type': name,
+                                 'base_data_type_as_mcd_data_type': mcd_name})
+                self.assertEqual(
+                    load('DB_PHYSICAL_TYPE', ObjectBytes().u8(code).flag(False).u8(10)), expected)
 
 
 class DopDtcTests(unittest.TestCase):
@@ -695,7 +696,11 @@ class UnitTests(unittest.TestCase):
 
     def test_mcd_db_unit_empty_group_collection(self):
         body = self.head().unicode(None).double(1.0).double(0.0).absent().flag(True).u16(0)
-        self.assertEqual(load('MCD_DB_UNIT', body)['unit_group_refs'], [])
+        self.assertEqual(load('MCD_DB_UNIT', body), {
+            '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
+            'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
+            'display_name': None, 'factor_si_to_unit': 1.0, 'offset_si_to_unit': 0.0,
+            'physical_dimension': None, 'unit_group_refs': []})
 
 
 class UnitGroupTests(unittest.TestCase):
