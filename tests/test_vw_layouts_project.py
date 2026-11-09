@@ -5,8 +5,10 @@ asserted, in strict mode.  Branches in which the loaders raise today are not pin
 Where a loader reads an object of any type, MCD_AUDIENCE stands in because its body is
 the smallest; the loader does not look at the type.
 """
+import importlib
 import unittest
 
+import object_loaders
 from tests.support import (NAMED_REFS, ObjectBytes, attributed_ref, attributed_ref_body, audience,
                            audience_body, concat, diag_com_refs, diag_com_refs_body, load,
                            named_refs, named_refs_body, object_type_code, ref_body, typed)
@@ -726,3 +728,32 @@ class AudienceTests(unittest.TestCase):
 
     def test_mcd_audience_all_branches(self):
         self.assertEqual(load('MCD_AUDIENCE', audience_body()), audience())
+
+
+# ---------------------------------------------------------------------------
+# Completeness
+# ---------------------------------------------------------------------------
+
+LAYOUT_TEST_MODULES = ['tests.test_vw_layouts_compu', 'tests.test_vw_layouts_services',
+                       'tests.test_vw_layouts_project']
+
+
+def layout_test_names():
+    """Names of all test methods in the layout test modules."""
+    names = set()
+    for module_name in LAYOUT_TEST_MODULES:
+        module = importlib.import_module(module_name)
+        for value in vars(module).values():
+            if (isinstance(value, type) and issubclass(value, unittest.TestCase)
+                    and value.__module__ == module_name):
+                names.update(unittest.defaultTestLoader.getTestCaseNames(value))
+    return names
+
+
+class CompletenessTests(unittest.TestCase):
+    def test_every_registered_loader_is_pinned(self):
+        names = layout_test_names()
+        missing = ['test_%s_%s' % (loader.lower(), suffix)
+                   for loader in object_loaders.__all__ for suffix in ('minimal', 'all_branches')
+                   if 'test_%s_%s' % (loader.lower(), suffix) not in names]
+        self.assertFalse(missing, 'Loaders without layout tests: ' + ', '.join(missing))
