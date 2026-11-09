@@ -119,6 +119,13 @@ class ObjectBytes:
         return bytearray(struct.pack('<H', object_type_code(type_name))) + self._data + END_MARKER
 
 
+def unit_body():
+    """Body of a valid MCD_DB_UNIT."""
+    return (ObjectBytes().ascii('U_km').unicode('Kilometer').unicode(None).ascii('UID')
+            .ascii(None).ascii(None).unicode('km').double(1000.0).double(0.0)
+            .absent().flag(False))
+
+
 def concat(first, second):
     """New body with the bytes and strings of first followed by those of second."""
     body = ObjectBytes().raw(first._data).raw(second._data)

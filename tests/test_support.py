@@ -7,7 +7,7 @@ from classes.ObjectLoader import ObjectLoader
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from tests import support
-from tests.support import ObjectBytes, REPOSITORY_ROOT
+from tests.support import ObjectBytes, REPOSITORY_ROOT, unit_body
 
 EXPECTED_UNIT = {
     '#OBJECT_TYPE': 'MCD_DB_UNIT',
@@ -22,12 +22,6 @@ EXPECTED_UNIT = {
     'physical_dimension': None,
     'unit_group_refs': None,
 }
-
-
-def unit_body():
-    return (ObjectBytes().ascii('U_km').unicode('Kilometer').unicode(None).ascii('UID')
-            .ascii(None).ascii(None).unicode('km').double(1000.0).double(0.0)
-            .absent().flag(False))
 
 
 class SupportTests(unittest.TestCase):

@@ -4,8 +4,7 @@ import unittest
 
 from common_utils import diagnostics
 from tests import support
-from tests.support import ObjectBytes
-from tests.test_support import unit_body
+from tests.support import ObjectBytes, unit_body
 
 
 def logical_link_body(refs_counter):
