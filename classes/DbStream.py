@@ -21,6 +21,7 @@ class DbStream:
         # Private variables
         self.__stream = data
         self.__string_storage = string_storage
+        self.report_unread_on_delete = True
         
         # Store the Object's type enum (first 2 bytes)
         self.__stream_object_type = struct.unpack('<H', self.__stream[:2])[0]
@@ -30,13 +31,18 @@ class DbStream:
     def __del__(self):
         # After an Object is fully loaded, its stream must be '#>\0' (3 characters)
         # If more than 3 bytes are present, some data was left unparsed, print this to the console
-        if self.get_length() > 3:
+        if self.report_unread_on_delete and self.get_length() > 3:
             print('Object stream ({:04X}) not empty: {}'.format(self.__stream_object_type, DbStream.bytearray_to_string(self.__stream[:-3])))
     
     
     # Converter to string (returns current stream bytes as formatted string)
     def __str__(self):
         return DbStream.bytearray_to_string(self.__stream)
+    
+    
+    # Getter for the Object's type enum (first 2 bytes of the data)
+    def get_object_type_enum(self):
+        return self.__stream_object_type
     
     
     # Getter for amount of bytes remaining in the stream

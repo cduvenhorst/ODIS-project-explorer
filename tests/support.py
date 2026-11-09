@@ -144,9 +144,8 @@ def string_storage(ascii_strings, unicode_strings):
 
 
 def load(type_name, body, strict=True):
-    # `strict` is accepted now and passed on once DbObject.load_object supports it.
     storage = string_storage(body.ascii_strings, body.unicode_strings)
-    return DbObject.load_object(body.build(type_name), storage)
+    return DbObject.load_object(body.build(type_name), storage, strict=strict)
 
 
 def _open_pbl():

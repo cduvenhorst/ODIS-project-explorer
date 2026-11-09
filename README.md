@@ -65,6 +65,11 @@ The scripts which have the option of text translation (`dumpDTC` and `parseMWB`)
 If you do not provide such a database, for `dumpDTC` you will not have the "more detailed description",
 and for `parseMWB` everything will use its default LONG-NAME from ODX.
 
+## Strict reading
+
+Loading is lenient by default: bytes left over after an object is parsed, and content that is recognised but not read, are reported on the console.
+Passing `strict=True` to `ObjectLoader` (or to `DbObject.load_object`) turns both into `UnreadContentError` exceptions, which is useful for verifying that a loader covers its object layout completely.
+
 ## Script info
 
 ### `dumpProject` / `dumpAllProjects`

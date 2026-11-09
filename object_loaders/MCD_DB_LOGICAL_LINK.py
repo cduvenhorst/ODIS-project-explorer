@@ -1,4 +1,5 @@
 from common_utils import common_loaders
+from common_utils import diagnostics
 from common_utils import enum_converters
 from classes import DbObject
 
@@ -36,7 +37,7 @@ def load(stream):
     
     counter = stream.loadNumericType(2)
     if counter:
-        print('logical link refs not 0')
+        diagnostics.report_unread('logical link refs not 0')
     
     obj['physical_vehicle_link_or_interface_ref'] = common_loaders.load_reference(stream)
     

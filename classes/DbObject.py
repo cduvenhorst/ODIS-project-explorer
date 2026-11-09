@@ -3,6 +3,7 @@
 
 import struct
 
+from common_utils import diagnostics
 from common_utils import enum_converters
 from classes.DbStream import DbStream
 
@@ -50,9 +51,22 @@ def load_object_from_stream_if_exists(stream):
     return None
 
 
-def load_object(object_data, string_storage):
+def load_object(object_data, string_storage, strict=False):
     # Construct a DbStream instance from the binary data
     stream = DbStream(object_data, string_storage)
     
-    # Load and return the Object
-    return load_object_from_stream(stream)
+    if not strict:
+        # Load and return the Object
+        return load_object_from_stream(stream)
+    
+    # In strict mode leftover bytes are an error, so the destructor must not print them as well
+    stream.report_unread_on_delete = False
+    with diagnostics.strict_reading():
+        obj = load_object_from_stream(stream)
+        
+        # Exactly the 3 end bytes must remain
+        remaining = stream.get_length() - 3
+        if remaining != 0:
+            object_type = enum_converters.get_object_type_enum(stream.get_object_type_enum())
+            raise diagnostics.UnreadBytesError(object_type, remaining)
+    return obj

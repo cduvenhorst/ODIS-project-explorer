@@ -42,9 +42,11 @@ class ObjectLoader:
     ###### this is not necessary for all methods (see method descriptions)
     ### string_storage = instance of StringStorage class, loaded from the current Project
     ###### this is not necessary for all methods (see method descriptions)
-    def __init__(self, pbl_record_manager, string_storage):
+    ### strict = if True, unread Object content raises an error instead of printing a message
+    def __init__(self, pbl_record_manager, string_storage, strict=False):
         self.__pbl_record_manager = pbl_record_manager
         self.__string_storage = string_storage
+        self.__strict = strict
         
         # PBL records will be stored per instance, for each loaded Pool
         self.__loaded_pbl_records = {}
@@ -60,7 +62,7 @@ class ObjectLoader:
         if self.__string_storage is None:
             raise RuntimeError('Cannot use method with invalid StringStorage')
         
-        return DbObject.load_object(object_data, self.__string_storage)
+        return DbObject.load_object(object_data, self.__string_storage, self.__strict)
     
     
     # Load an Object by its PBL data record and PoolID
