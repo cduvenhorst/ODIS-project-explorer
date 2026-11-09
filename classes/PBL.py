@@ -3,16 +3,28 @@ import sys
 from ctypes import *
 
 
+# Path of the PBL library for the given platform, below base_dir (the folder containing "bin")
+def default_library_path(base_dir, platform=sys.platform):
+    if platform == 'win32':
+        name = 'pbl.dll'
+    elif platform == 'darwin':
+        name = 'pbl_macos.dylib'
+    else:
+        name = 'pbl_linux.so'
+    return os.path.join(base_dir, 'bin', name)
+
+
 class PBL:
     # Constructor
     ### dll_path = path to "pbl.dll"
     def __init__(self, dll_path):
-        # On Linux, use the native .so instead of the Windows .dll
+        # Outside Windows, use the native library next to the given .dll (macOS: .dylib, Linux: .so)
         if sys.platform != 'win32':
-            linux_so = os.path.join(os.path.dirname(dll_path), 'pbl_linux.so')
-            if not os.path.isfile(linux_so):
-                raise FileNotFoundError(f'pbl_linux.so not found at {linux_so}')
-            dll_path = linux_so
+            bin_dir = os.path.dirname(dll_path)
+            native_library = default_library_path(os.path.dirname(bin_dir))
+            if not os.path.isfile(native_library):
+                raise FileNotFoundError(f'{os.path.basename(native_library)} not found at {native_library}')
+            dll_path = native_library
 
         # Load the DLL from the given path
         dll = CDLL(dll_path)

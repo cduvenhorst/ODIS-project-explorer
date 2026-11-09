@@ -43,6 +43,18 @@ Therefore, JPype will need to be installed:
 pip install jpype1
 ```
 
+On macOS, `bin/pbl_macos.dylib` (universal arm64 + x86_64) is used automatically instead of `bin/pbl.dll`.
+It is built from the PBL sources in the `third_party/pbl` submodule; to rebuild it:
+```
+git submodule update --init
+python3 tools/build_pbl.py
+```
+
+To run the tests:
+```
+python3 -m unittest discover -s tests -t . -v
+```
+
 For usage info of each script, call them with argument '**-h**' (or just look at the source code).
 
 The scripts which have the option of text translation (`dumpDTC` and `parseMWB`) will need a database.
