@@ -6,7 +6,7 @@ asserted, in strict mode.  Branches in which the loaders raise today are not pin
 import unittest
 
 from tests import support
-from tests.support import ObjectBytes
+from tests.support import ObjectBytes, concat
 
 OPEN, CLOSED, INFINITE = 1, 2, 3
 LIMIT_NAMES = {OPEN: 'eLIMIT_OPEN', CLOSED: 'eLIMIT_CLOSED', INFINITE: 'eLIMIT_INFINITE'}
@@ -14,14 +14,6 @@ LIMIT_NAMES = {OPEN: 'eLIMIT_OPEN', CLOSED: 'eLIMIT_CLOSED', INFINITE: 'eLIMIT_I
 
 def load(type_name, body):
     return support.load(type_name, body)
-
-
-def concat(first, second):
-    """New body with the bytes and strings of first followed by those of second."""
-    body = ObjectBytes().raw(first._data).raw(second._data)
-    body.ascii_strings = first.ascii_strings + second.ascii_strings
-    body.unicode_strings = first.unicode_strings + second.unicode_strings
-    return body
 
 
 def no_value(body):

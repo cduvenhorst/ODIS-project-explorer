@@ -119,6 +119,14 @@ class ObjectBytes:
         return bytearray(struct.pack('<H', object_type_code(type_name))) + self._data + END_MARKER
 
 
+def concat(first, second):
+    """New body with the bytes and strings of first followed by those of second."""
+    body = ObjectBytes().raw(first._data).raw(second._data)
+    body.ascii_strings = first.ascii_strings + second.ascii_strings
+    body.unicode_strings = first.unicode_strings + second.unicode_strings
+    return body
+
+
 def _write_string_files(folder, ascii_strings, unicode_strings):
     for prefix, kind, strings, encoding in (('A', 'A', ascii_strings, 'cp1252'),
                                             ('U', 'U', unicode_strings, 'utf-16-le')):
