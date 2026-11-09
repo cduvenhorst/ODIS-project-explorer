@@ -107,20 +107,45 @@ def output_name(project_folder):
     return '{}-{}'.format(os.path.basename(parent), project)
 
 
-def repository_root():
-    """Top level of the git working tree that contains this tool."""
+def git_output(*arguments):
+    result = subprocess.run(['git', *arguments], cwd=REPOSITORY_ROOT,
+                            capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+
+def protected_roots():
+    """Folders that must never receive output; the first is always the folder above tools/.
+
+    With git these are also the working tree top level and the clone root (the folder
+    holding the common .git directory), which covers every worktree of the clone.
+    Without git a warning is printed and only the folder above tools/ is protected.
+    """
+    roots = [os.path.realpath(REPOSITORY_ROOT)]
     try:
-        result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=REPOSITORY_ROOT,
-                                capture_output=True, text=True, check=True)
-        top = result.stdout.strip()
+        roots.append(os.path.realpath(git_output('rev-parse', '--show-toplevel')))
+        common = os.path.realpath(git_output('rev-parse', '--git-common-dir'))
+        roots.append(os.path.dirname(common))
     except (OSError, subprocess.CalledProcessError):
-        top = ''
-    return os.path.realpath(top or REPOSITORY_ROOT)
+        print('Warning: git is not available; only {} is protected against output.'
+              .format(roots[0]), file=sys.stderr)
+    return roots
 
 
 def is_inside(path, folder):
-    path, folder = os.path.realpath(path), os.path.realpath(folder)
-    return os.path.commonpath([path, folder]) == folder
+    """True if path is folder or below it.
+
+    Existing ancestors of path are compared with os.path.samefile, so symlinks, `..`
+    and a different spelling of the case on case-insensitive file systems cannot
+    bypass the check. A path that does not exist yet is judged by its ancestors.
+    """
+    current = os.path.realpath(path)
+    while True:
+        if os.path.exists(current) and os.path.exists(folder) and os.path.samefile(current, folder):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
 
 
 def summary_lines(name, result):
@@ -141,10 +166,11 @@ def main(arguments=None):
     options = parser.parse_args(arguments)
 
     # All checks come before the first directory or file is created
-    if is_inside(options.output, repository_root()):
-        print('Refusing to write inside the git working tree {}: inventory output must never be committed.'
-              .format(repository_root()), file=sys.stderr)
-        return 2
+    for root in protected_roots():
+        if is_inside(options.output, root):
+            print('Refusing to write inside {}: inventory output must never be committed.'.format(root),
+                  file=sys.stderr)
+            return 2
     names = [output_name(project) for project in options.projects]
     for project in options.projects:
         if not os.path.isdir(project):

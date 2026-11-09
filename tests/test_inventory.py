@@ -3,8 +3,10 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from classes.PBL import default_library_path
 from tests import support
@@ -81,6 +83,36 @@ class InventoryTests(unittest.TestCase):
             self.assertEqual(code, 2)
         self.assertFalse(os.path.exists(os.path.join(REPOSITORY_ROOT, 'new')))
         self.assertFalse(os.path.exists(os.path.join(REPOSITORY_ROOT, 'tools', 'new')))
+
+    def test_refuses_output_in_clone_root_and_sibling_worktrees(self):
+        common = subprocess.run(['git', 'rev-parse', '--git-common-dir'], cwd=REPOSITORY_ROOT,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        clone_root = os.path.dirname(os.path.realpath(os.path.join(REPOSITORY_ROOT, common)))
+        for target in (os.path.join(clone_root, 'inventory-out'),
+                       os.path.join(clone_root, '.worktrees', 'other', 'inventory-out')):
+            existed = os.path.exists(os.path.dirname(target))
+            code, _, err = run_main(['--output', target, self.make_folder()])
+            self.assertEqual(code, 2)
+            self.assertTrue(err)
+            self.assertFalse(os.path.exists(target))
+            self.assertEqual(os.path.exists(os.path.dirname(target)), existed)
+
+    def test_refuses_inside_repository_root_when_git_fails(self):
+        target = os.path.join(REPOSITORY_ROOT, 'out')
+        with mock.patch.object(inventory.subprocess, 'run', side_effect=OSError('no git')):
+            code, _, err = run_main(['--output', target, self.make_folder()])
+        self.assertEqual(code, 2)
+        self.assertIn('Warning: git is not available', err)
+        self.assertFalse(os.path.exists(target))
+
+    def test_refuses_output_spelled_with_different_case(self):
+        swapped = REPOSITORY_ROOT.swapcase()
+        if not os.path.exists(swapped):
+            self.skipTest('file system is case-sensitive')
+        target = os.path.join(swapped, 'out')
+        code, _, _ = run_main(['--output', target, self.make_folder()])
+        self.assertEqual(code, 2)
+        self.assertFalse(os.path.exists(os.path.join(REPOSITORY_ROOT, 'out')))
 
     def test_same_project_name_in_two_installations(self):
         root = self.make_folder()
