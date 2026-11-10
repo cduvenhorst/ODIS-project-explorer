@@ -7,6 +7,9 @@ kernel: they appear as the keys unique_object_id, long_name_id and description_i
 when empty) instead of being required empty.
 The parameter embedded in the length information type follows the kernel names: description_id
 (formerly some_id) and the always present key dop_base (None without flag 1 << 4).
+The DTC DOP loader follows the kernel: the second counter introduces the collection
+linked_dtc_dops instead of having to be 0, and unique_object_identifier is named
+unique_object_id.
 """
 import unittest
 
@@ -453,8 +456,8 @@ class DopDtcTests(unittest.TestCase):
         result = {'#OBJECT_TYPE': 'DB_DOP_DTC', 'diag_trouble_codes_ref_map': [],
                   'compu_method': None, 'diag_coded_type': None, 'physical_type': None,
                   'short_name': 'DTC_DOP', 'long_name': 'Long', 'description': None,
-                  'unique_object_identifier': 'UID', 'long_name_id': None,
-                  'description_id': 'DID'}
+                  'unique_object_id': 'UID', 'long_name_id': None,
+                  'description_id': 'DID', 'linked_dtc_dops': []}
         result.update(changes)
         return result
 
@@ -475,6 +478,16 @@ class DopDtcTests(unittest.TestCase):
                 {'map_key': 0x20, 'reference': {'object_id': 'DTC2', 'pool_id': 'POOL'}}],
             compu_method=compu_method(), diag_coded_type=diag_coded_type(),
             physical_type=physical_type()))
+
+
+    def test_db_dop_dtc_linked_dtc_dops(self):
+        body = ObjectBytes().u16(0).u16(2)
+        body.u16(2).ascii('V1').ascii('V2').ascii('DOP1').ascii('POOL')
+        body.u16(0).ascii('DOP2').ascii(None)
+        body.absent().absent().absent()
+        self.assertEqual(load('DB_DOP_DTC', self.strings(body)), self.expected(linked_dtc_dops=[
+            {'strings': ['V1', 'V2'], 'reference': {'object_id': 'DOP1', 'pool_id': 'POOL'}},
+            {'strings': [], 'reference': {'object_id': 'DOP2', 'pool_id': None}}]))
 
 
 class DopSimpleBaseTests(unittest.TestCase):

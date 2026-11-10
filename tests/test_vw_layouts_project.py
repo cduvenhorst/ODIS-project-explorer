@@ -10,6 +10,10 @@ first being required empty.
 The functional class, vehicle information, physical vehicle link, vehicle connector and
 connector pin loaders do the same for description_id, long_name_id and unique_object_id,
 which stand before the description in their name block.
+The vehicle information data loader follows the kernel: the second counter introduces the
+collection base_var_prot_id_to_link_info_map instead of having to be 0.  The access key
+loader accepts an empty or short last string (stored as layer_data_object_id) instead of
+indexing into it.
 """
 import importlib
 import unittest
@@ -121,12 +125,14 @@ POOL_ID = 'A.B.C@VARIANT.vi'
 ACCESS_KEY_STRING = '[Protocol]PROT.[FunctionalGroup]FG.[EcuBaseVariant]BV.[EcuVariant]EV'
 
 
-def access_key_body(full=False, location=0x0101):
+def access_key_body(full=False, location=0x0101, last=''):
     """MCD_ACCESS_KEY; full sets every name and uses a pool identifier as last string."""
     body = ObjectBytes()
     for text in (['BV', 'BVID', 'EV', 'EVID', 'FG', 'MEJ', 'PROT'] if full else [None] * 7):
         body.ascii(text)
-    return body.u16(location).ascii(POOL_ID if full else 'LAYER-1')
+    if last == '':
+        last = POOL_ID if full else 'LAYER-1'
+    return body.u16(location).ascii(last)
 
 
 def access_key_fields(full=False, location_type='ECU_BASE_VARIANT'):
@@ -190,6 +196,19 @@ class AccessKeyTests(unittest.TestCase):
             with self.subTest(location=name):
                 body = access_key_body(location=code)
                 self.assertEqual(load('MCD_ACCESS_KEY', body), access_key(location_type=name))
+
+
+    def test_mcd_access_key_empty_last_string(self):
+        expected = access_key_fields()
+        expected['layer_data_object_id'] = None
+        self.assertEqual(load('MCD_ACCESS_KEY', access_key_body(last=None)),
+                         typed('MCD_ACCESS_KEY', expected))
+
+    def test_mcd_access_key_short_last_string(self):
+        expected = access_key_fields()
+        expected['layer_data_object_id'] = 'L1'
+        self.assertEqual(load('MCD_ACCESS_KEY', access_key_body(last='L1')),
+                         typed('MCD_ACCESS_KEY', expected))
 
 
 class EcuTests(unittest.TestCase):
@@ -544,12 +563,21 @@ class VehicleInfoDataTests(unittest.TestCase):
     def test_db_vehicle_info_data_minimal(self):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body),
-                         typed('DB_VEHICLE_INFO_DATA', {'vehicle_information_refs': []}))
+                         typed('DB_VEHICLE_INFO_DATA', {'vehicle_information_refs': [],
+                                         'base_var_prot_id_to_link_info_map': []}))
 
     def test_db_vehicle_info_data_all_branches(self):
         body = ref_map_body(ObjectBytes(), 'Info', 2).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_information_refs': ref_map('Info', 2)}))
+            'vehicle_information_refs': ref_map('Info', 2),
+            'base_var_prot_id_to_link_info_map': []}))
+
+    def test_db_vehicle_info_data_link_info_map(self):
+        body = ref_map_body(ObjectBytes(), 'Info', 0).u16(2)
+        body.ascii('K1').ascii('V1').ascii('K2').ascii(None)
+        self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
+            'vehicle_information_refs': [], 'base_var_prot_id_to_link_info_map': [
+                {'map_key': 'K1', 'value': 'V1'}, {'map_key': 'K2', 'value': None}]}))
 
 
 # ---------------------------------------------------------------------------

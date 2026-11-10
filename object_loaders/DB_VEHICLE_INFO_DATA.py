@@ -6,8 +6,13 @@ def load(stream):
     
     obj['vehicle_information_refs'] = common_loaders.loadStringToReferenceMap(stream)
     
-    counter = stream.loadNumericType(2)
-    for i in range(counter):
-        raise RuntimeError('Counter not 0')
+    # BaseVarProtIdToLinkInfoMap
+    obj['base_var_prot_id_to_link_info_map'] = []
+    map_items = stream.loadNumericType(2)
+    for i in range(map_items):
+        item = {}
+        item['map_key'] = stream.loadAsciiString()[0]
+        item['value'] = stream.loadAsciiString()[0]
+        obj['base_var_prot_id_to_link_info_map'].append(item)
     
     return obj
