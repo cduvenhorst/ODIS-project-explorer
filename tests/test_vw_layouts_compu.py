@@ -479,7 +479,6 @@ class DopDtcTests(unittest.TestCase):
             compu_method=compu_method(), diag_coded_type=diag_coded_type(),
             physical_type=physical_type()))
 
-
     def test_db_dop_dtc_linked_dtc_dops(self):
         body = ObjectBytes().u16(0).u16(2)
         body.u16(2).ascii('V1').ascii('V2').ascii('DOP1').ascii('POOL')

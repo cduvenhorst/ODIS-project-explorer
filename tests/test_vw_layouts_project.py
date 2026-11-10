@@ -197,7 +197,6 @@ class AccessKeyTests(unittest.TestCase):
                 body = access_key_body(location=code)
                 self.assertEqual(load('MCD_ACCESS_KEY', body), access_key(location_type=name))
 
-
     def test_mcd_access_key_empty_last_string(self):
         expected = access_key_fields()
         expected['layer_data_object_id'] = None
@@ -562,9 +561,8 @@ class ProjectDataTests(unittest.TestCase):
 class VehicleInfoDataTests(unittest.TestCase):
     def test_db_vehicle_info_data_minimal(self):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(0)
-        self.assertEqual(load('DB_VEHICLE_INFO_DATA', body),
-                         typed('DB_VEHICLE_INFO_DATA', {'vehicle_information_refs': [],
-                                         'base_var_prot_id_to_link_info_map': []}))
+        self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
+            'vehicle_information_refs': [], 'base_var_prot_id_to_link_info_map': []}))
 
     def test_db_vehicle_info_data_all_branches(self):
         body = ref_map_body(ObjectBytes(), 'Info', 2).u16(0)

@@ -21,6 +21,7 @@ def load(stream):
     
     obj['location_type'] = enum_converters.get_location_type_enum(stream.loadEnumMediumRange())
     
+    # The kernel accepts an empty location string or one shorter than a pool ID
     var_id = stream.loadAsciiString()[0]
     if var_id is not None and len(var_id) > 5 and var_id[1] == '.' and var_id[3] == '.' and var_id[5] == '@' and var_id[-3] == '.':
         obj['pool_id'] = var_id
