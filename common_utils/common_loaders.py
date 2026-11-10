@@ -121,6 +121,15 @@ def loadDbAttributedObjectReference(stream, dummy = 0):
     return obj
 
 
+# DbValueAttributedObjectReference
+def loadDbValueAttributedObjectReference(stream: DbStream, dummy: int = 0) -> dict[str, object]:
+    """Read an attributed object reference followed by an MCD value."""
+    obj = loadDbAttributedObjectReference(stream)
+    obj['value'] = loadMCDValueFromObjectStream(stream)
+    
+    return obj
+
+
 # MCDValue (data type + value)
 def loadMCDValueFromObjectStream(stream):
     obj = {}

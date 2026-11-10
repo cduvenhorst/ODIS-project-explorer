@@ -5,9 +5,11 @@ Where a loader reads an object of any type, MCD_AUDIENCE stands in.
 """
 import unittest
 
+from classes.DbStream import DbStream
+from common_utils import common_loaders
 from tests import support
-from tests.support import (NAMED_REFS, ObjectBytes, audience, audience_body, concat, named_refs,
-                           named_refs_body, typed)
+from tests.support import (NAMED_REFS, ObjectBytes, attributed_ref_body, audience, audience_body,
+                           concat, named_refs, named_refs_body, typed, uint, uint_value)
 from tests.test_vw_layouts_services import parameter_body
 
 
@@ -262,3 +264,95 @@ class DataConnectorTests(unittest.TestCase):
     def test_db_diag_com_data_connectors_all_branches(self):
         body = ObjectBytes().u32(2).nested('DB_DIAG_COM_DATA_CONNECTOR', connector_body(True)).absent()
         self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTORS', body), [connector(True), None])
+
+
+def value_attributed_ref_body(body, strings=(), value=None):
+    attributed_ref_body(body, strings)
+    return body.u8(255) if value is None else uint_value(body, value)
+
+
+def value_attributed_ref(strings=(), value=None):
+    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings),
+            'value': None if value is None else uint(value)}
+
+
+def coding_data_body(full=False):
+    body = ObjectBytes()
+    if not full:
+        body.ascii(None).unicode(None).unicode(None).ascii(None).ascii(None).ascii(None)
+        return body.ascii(None).flag(False)
+    body.ascii('Short').unicode('Long').unicode('Desc').ascii('UID').ascii('LongId').ascii('DescId')
+    return body.ascii('coding.bin').flag(True)
+
+
+def coding_data(full=False):
+    if not full:
+        return typed('MCD_DB_CODING_DATA', {
+            'short_name': None, 'long_name': None, 'description': None, 'unique_object_id': None,
+            'long_name_id': None, 'description_id': None, 'file_name': None, 'is_late_bound': False})
+    return typed('MCD_DB_CODING_DATA', {
+        'short_name': 'Short', 'long_name': 'Long', 'description': 'Desc', 'unique_object_id': 'UID',
+        'long_name_id': 'LongId', 'description_id': 'DescId', 'file_name': 'coding.bin',
+        'is_late_bound': True})
+
+
+def data_record_body(full=False, has_coding_data=None, coding=None):
+    body = ObjectBytes()
+    if not full:
+        body.ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.absent().u8(0).u16(0)
+        body.u8(255).flag(False).absent().u8(0).ascii(None).ascii(None).u32(0).ascii(None)
+        return body.u8(0).u8(0)
+    body.ascii('DescId').ascii('LongId').ascii('UID').unicode('Desc').unicode('Long').ascii('Rec')
+    body.nested('MCD_AUDIENCE', audience_body()).u8(1).u32(2).raw(b'\x01\x02').u16(0x6B01)
+    uint_value(body, 42).flag(True if has_coding_data is None else has_coding_data)
+    body.nested('MCD_DB_CODING_DATA', coding_data_body(True) if coding is None else coding)
+    body.u8(1).u16(1).u32(5).ascii('KEY').ascii('RULE').u32(16).ascii('PARENT').u8(1)
+    named_refs_body(body, NAMED_REFS)
+    return body.u8(1).u16(0)
+
+
+def data_record(full=False, **changes):
+    if not full:
+        return typed('MCD_DB_DATA_RECORD', {
+            'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+            'description': None, 'long_name': None, 'short_name': None, 'audience_state': None,
+            'binary_data': bytearray(), 'data_format': 0, 'data_id': None,
+            'has_coding_data': False, 'coding_data': None, 'special_data_group_refs': None,
+            'key': None, 'rule': None, 'configuration_record_value_size': 0,
+            'parent_config_data_short_name': None, 'disabled_additional_audiences': None,
+            'enabled_additional_audiences': None})
+    return typed('MCD_DB_DATA_RECORD', {
+        'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
+        'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
+        'audience_state': audience(), 'binary_data': b'\x01\x02', 'data_format': 0x6B01,
+        'data_id': uint(42), 'has_coding_data': True, 'coding_data': coding_data(True),
+        'special_data_group_refs': [{'object_id': 5}], 'key': 'KEY', 'rule': 'RULE',
+        'configuration_record_value_size': 16, 'parent_config_data_short_name': 'PARENT',
+        'disabled_additional_audiences': named_refs(NAMED_REFS),
+        'enabled_additional_audiences': [], **changes})
+
+
+class DataRecordTests(unittest.TestCase):
+    def test_value_attributed_reference_with_uint_value(self):
+        body = value_attributed_ref_body(ObjectBytes(), ['A1'], 5)
+        stream = DbStream(body.build('MCD_AUDIENCE'), support.string_storage(body.ascii_strings, []))
+        stream.loadEnumMediumRange()  # skip the object type
+        self.assertEqual(common_loaders.loadDbValueAttributedObjectReference(stream),
+                         value_attributed_ref(['A1'], 5))
+
+    def test_mcd_db_coding_data_minimal(self):
+        self.assertEqual(load('MCD_DB_CODING_DATA', coding_data_body()), coding_data())
+
+    def test_mcd_db_coding_data_all_branches(self):
+        self.assertEqual(load('MCD_DB_CODING_DATA', coding_data_body(True)), coding_data(True))
+
+    def test_mcd_db_data_record_minimal(self):
+        self.assertEqual(load('MCD_DB_DATA_RECORD', data_record_body()), data_record())
+
+    def test_mcd_db_data_record_all_branches(self):
+        self.assertEqual(load('MCD_DB_DATA_RECORD', data_record_body(True)), data_record(True))
+
+    def test_mcd_db_data_record_coding_data_without_has_flag(self):
+        self.assertEqual(load('MCD_DB_DATA_RECORD', data_record_body(True, has_coding_data=False)),
+                         data_record(True, has_coding_data=False))
