@@ -308,6 +308,21 @@ def attributed_ref(strings=()):
     return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings)}
 
 
+NAMED_ATTRIBUTED_REFS = [('S1', ('A1', 'A2')), ('S2', ())]
+
+
+def named_attributed_refs_body(body, entries=()):
+    body.u16(len(entries))
+    for name, strings in entries:
+        body.ascii(name)
+        attributed_ref_body(body, strings)
+    return body
+
+
+def named_attributed_refs(entries=()):
+    return [{'name': name, 'reference': attributed_ref(strings)} for name, strings in entries]
+
+
 def diag_com_ref_body(body, with_strings):
     """DbDiagComObjectReference, type eMCDAUDIENCE."""
     attributed_ref_body(body, ['A1'] if with_strings else [])

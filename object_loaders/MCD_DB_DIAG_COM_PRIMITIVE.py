@@ -30,12 +30,14 @@ def load(stream):
     obj['diagnostic_class'] = stream.loadEnumSmallRange()
     
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateTransitionImpl
-    obj['ecu_state_transition_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    # maybe wrong handling
+    obj['ecu_state_transition_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+        stream, common_loaders.loadDbAttributedObjectReference)
+    # Elements are DbSemanticAttributedObjectReference
     
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateImpl
-    obj['ecu_state_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    # maybe wrong handling
+    obj['ecu_state_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+        stream, common_loaders.loadDbAttributedObjectReference)
+    # Elements are DbSemanticAttributedObjectReference
     
     obj['has_suppress_positive_response_capability'] = bool(stream.loadOneByteType())
     

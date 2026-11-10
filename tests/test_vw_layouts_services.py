@@ -4,14 +4,17 @@ Every body is built exactly as the loader reads it today and the complete result
 asserted, in strict mode.  Branches in which the loaders raise today are not pinned.
 The helper loaders these loaders call (field base, diagnostic service, data primitive,
 diagnostic communication primitive, job) are exercised through the tests below.
+The ECU state collections of the communication primitive follow the kernel (attributed
+references), not the former upstream layout.
 """
 import unittest
 
 from tests import support
-from tests.support import (NAMED_REFS, ObjectBytes, concat, attributed_ref, attributed_ref_body,
+from tests.support import (NAMED_ATTRIBUTED_REFS, NAMED_REFS, ObjectBytes, concat, attributed_ref, attributed_ref_body,
                            audience, audience_body, case, case_base_body, case_body, diag_coded_type,
                            diag_coded_type_body, diag_com_ref, diag_com_ref_body, diag_com_refs,
-                           diag_com_refs_body, named_refs, named_refs_body, ref, ref_body, typed,
+                           diag_com_refs_body, named_attributed_refs, named_attributed_refs_body,
+                           named_refs, named_refs_body, ref, ref_body, typed,
                            uint, uint_value)
 
 
@@ -605,8 +608,8 @@ def primitive_body(full=False, transmission=0x6A01, suppression=None):
         named_refs_body(body)
         named_refs_body(body)
     body.ascii(None).u16(transmission).u8(1).u8(0).u8(2)
-    named_refs_body(body, NAMED_REFS if full else ())
-    named_refs_body(body, NAMED_REFS if full else ())
+    named_attributed_refs_body(body, NAMED_ATTRIBUTED_REFS if full else ())
+    named_attributed_refs_body(body, NAMED_ATTRIBUTED_REFS if full else ())
     if suppression is None:
         return body.u8(0)
     body.u8(1)
@@ -622,6 +625,7 @@ def primitive_body(full=False, transmission=0x6A01, suppression=None):
 def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None):
     suppression = suppression or ('path' if full else None)
     refs = named_refs(NAMED_REFS) if full else []
+    state_refs = named_attributed_refs(NAMED_ATTRIBUTED_REFS) if full else []
     fields = {'id': 'ID', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
               'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive'}
     if full:
@@ -631,7 +635,7 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
         'functional_class_ref_collection': refs, 'semantic': None,
         'transmission_mode': transmission_mode, 'is_api_executable': True,
         'is_no_operataion': False, 'diagnostic_class': 2,
-        'ecu_state_transition_ref_collection': refs, 'ecu_state_ref_collection': refs,
+        'ecu_state_transition_ref_collection': state_refs, 'ecu_state_ref_collection': state_refs,
         'has_suppress_positive_response_capability': suppression is not None})
     if suppression is not None:
         by_path = suppression != 'name'
