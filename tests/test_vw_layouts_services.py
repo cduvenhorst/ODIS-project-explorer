@@ -522,20 +522,31 @@ class TableParameterTests(unittest.TestCase):
 # Requests and responses
 # ---------------------------------------------------------------------------
 
-def request_body(parameters=False):
+def sdg_bytes(body, sdgs):
+    if sdgs is None:
+        return body.u8(0)
+    body.u8(1).u16(len(sdgs))
+    for object_id in sdgs:
+        body.u32(object_id)
+    return body
+
+
+def request_body(parameters=False, description_id=None, sdgs=None):
     body = ObjectBytes().ascii('Request').unicode('Request long').unicode('Request description')
-    body.ascii('ID').ascii('LongId').ascii(None)
+    body.ascii('ID').ascii('LongId').ascii(description_id)
     if parameters:
         body.nested('MCD_DB_REQUEST_PARAMETERS', two_parameters_body())
     else:
         body.absent()
-    return body.u8(0)
+    return sdg_bytes(body, sdgs)
 
 
-def request(parameters=None):
+def request(parameters=None, description_id=None, sdgs=None):
     return {'short_name': 'Request', 'long_name': 'Request long',
             'description': 'Request description', 'id': 'ID', 'long_name_id': 'LongId',
-            'request_parameters': parameters}
+            'description_id': description_id, 'request_parameters': parameters,
+            'special_data_group_refs':
+                None if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
 class RequestTests(unittest.TestCase):
@@ -544,25 +555,33 @@ class RequestTests(unittest.TestCase):
                          typed('MCD_DB_REQUEST', request()))
 
     def test_mcd_db_request_all_branches(self):
-        self.assertEqual(load('MCD_DB_REQUEST', request_body(True)),
-                         typed('MCD_DB_REQUEST', request(two_parameters())))
+        self.assertEqual(load('MCD_DB_REQUEST', request_body(True, 'DescId', [11, 22])),
+                         typed('MCD_DB_REQUEST',
+                               request(two_parameters(), 'DescId', [11, 22])))
+
+    def test_mcd_db_request_empty_special_data_groups(self):
+        self.assertEqual(load('MCD_DB_REQUEST', request_body(sdgs=[])),
+                         typed('MCD_DB_REQUEST', request(sdgs=[])))
 
 
-def response_body(parameters=False, response_type=0x6F01):
+def response_body(parameters=False, response_type=0x6F01, description_id=None, sdgs=None):
     body = ObjectBytes().ascii('Response').unicode('Response long')
-    body.unicode('Response description').ascii('UID').ascii('LongId').ascii(None)
+    body.unicode('Response description').ascii('UID').ascii('LongId').ascii(description_id)
     if parameters:
         body.nested('MCD_DB_RESPONSE_PARAMETERS', two_parameters_body())
     else:
         body.absent()
-    return body.u16(response_type).u8(0)
+    return sdg_bytes(body.u16(response_type), sdgs)
 
 
-def response(parameters=None, response_type='ePOSITIVE_RESPONSE'):
+def response(parameters=None, response_type='ePOSITIVE_RESPONSE', description_id=None,
+             sdgs=None):
     return {'short_name': 'Response', 'long_name': 'Response long',
             'description': 'Response description', 'unique_object_id': 'UID',
-            'long_name_id': 'LongId', 'response_parameters': parameters,
-            'response_type': response_type}
+            'long_name_id': 'LongId', 'description_id': description_id,
+            'response_parameters': parameters, 'response_type': response_type,
+            'special_data_group_refs':
+                None if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
 class ResponseTests(unittest.TestCase):
@@ -571,8 +590,10 @@ class ResponseTests(unittest.TestCase):
                          typed('MCD_DB_RESPONSE', response()))
 
     def test_mcd_db_response_all_branches(self):
-        self.assertEqual(load('MCD_DB_RESPONSE', response_body(True)),
-                         typed('MCD_DB_RESPONSE', response(two_parameters())))
+        self.assertEqual(load('MCD_DB_RESPONSE', response_body(True, description_id='DescId', sdgs=[11, 22])),
+                         typed('MCD_DB_RESPONSE',
+                               response(two_parameters(), description_id='DescId',
+                                        sdgs=[11, 22])))
 
     def test_mcd_db_response_types(self):
         names = {0x6F01: 'ePOSITIVE_RESPONSE', 0x6F02: 'eLOCAL_NEG_RESPONSE',

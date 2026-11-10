@@ -1,4 +1,4 @@
-from common_utils import enum_converters
+from common_utils import common_loaders, enum_converters
 from classes import DbObject
 
 
@@ -11,17 +11,14 @@ def load(stream):
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     obj['long_name_id'] = stream.loadAsciiString()[0]
     
-    s3 = stream.loadAsciiString()[0]
-    
-    if s3 is not None:
-        raise RuntimeError('Not None: {}'.format(s3))
+    obj['description_id'] = stream.loadAsciiString()[0]
     
     obj['response_parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbResponseParametersImpl
     
     obj['response_type'] = enum_converters.get_MCDResponseType(stream.loadEnumMediumRange())
     
-    # obj['special_data_group_refs'] = None
+    obj['special_data_group_refs'] = None
     if stream.loadOneByteType():
-        raise RuntimeError('SDGs present')
+        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     return obj
