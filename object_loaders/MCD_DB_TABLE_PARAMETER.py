@@ -3,6 +3,45 @@ from classes import DbObject
 from classes.DbStream import DbStream
 
 
+from common_utils import common_loaders
+
+STREAM_BEGIN = bytes.fromhex('233E00')  # '#>' 0
+STREAM_END = bytes.fromhex('233E01')  # '#>' 1
+STREAM_SEPARATOR = bytes.fromhex('233C00')  # '#<' 0
+MARKER_LENGTH = 3
+
+
+def _expect_marker(stream: DbStream, marker: bytes) -> None:
+    data = stream.read(MARKER_LENGTH)
+    if data != marker:
+        raise RuntimeError('Unexpected marker in named streams: {}'.format(DbStream.bytearray_to_string(data)))
+
+
+def load_named_streams(stream: DbStream) -> dict[str, object]:
+    # Named streams are read by name, as the kernel does: A = IsApiExecutable (1 byte),
+    # B = PreConditionStates (named attributed references).
+    # The length check assumes the table parameter is a standalone object: only the
+    # object end marker (3 bytes, not consumed here) may remain after the last stream.
+    streams: dict[str, object] = {}
+    if stream.get_length() == MARKER_LENGTH:
+        return streams
+    _expect_marker(stream, STREAM_BEGIN)
+    while True:
+        name = chr(stream.read(1)[0])
+        match name:
+            case 'A':
+                streams[name] = bool(stream.loadOneByteType())
+            case 'B':
+                streams[name] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+                    stream, common_loaders.loadDbAttributedObjectReference)
+            case _:
+                raise RuntimeError('Unknown named stream: {}'.format(name))
+        _expect_marker(stream, STREAM_END)
+        if stream.get_length() == MARKER_LENGTH:
+            return streams
+        _expect_marker(stream, STREAM_SEPARATOR)
+
+
 def load(stream):
     obj = {}
     
@@ -10,38 +49,20 @@ def load(stream):
     
     obj['audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl
     
+    # DisabledAdditionalAudiences, EnabledAdditionalAudiences: presence byte, then named references
     obj['disabled_additional_audiences'] = None
     if stream.loadOneByteType():
-        raise RuntimeError('disabled_additional_audiences present')
+        obj['disabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
     obj['enabled_additional_audiences'] = None
     if stream.loadOneByteType():
-        raise RuntimeError('enabled_additional_audiences present')
+        obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
     obj['parameter'] = {'#OBJECT_TYPE': 'MCD_DB_PARAMETER'}
     obj['parameter'].update(MCD_DB_PARAMETER.load(stream))
     
-    # Following are two "named streams", which I didn't dwell to much on since all projects seem to have the same sequence of bytes
-    # I don't really know how to parse them properly
-    # The streams may or not be present; one is named 'A' and the other is named 'B':
-    # A = isApiExecutable (expected: 01 = True)
-    # B = preconStateRefs (expected: 0000 = 0 refs)
-    # The stream always ends with 3 bytes (233E00) which shouldn't be parsed, but are included in the 'length'
-    match stream.get_length():
-        case 20:
-            # A and B present (True, 0 refs)
-            stream_bytes = stream.read(17)
-            if stream_bytes != bytearray.fromhex('233E00 4101 233E01 233C00 420000 233E01'):
-                raise RuntimeError('Values of named objects (A and B) not expected: {}'.format(DbStream.bytearray_to_string(stream_bytes)))
-        case 11:
-            # Only A present (True)
-            stream_bytes = stream.read(8)
-            if stream_bytes != bytearray.fromhex('233E00 4101 233E01'):
-                raise RuntimeError('Values of named objects (A and B) not expected: {}'.format(DbStream.bytearray_to_string(stream_bytes)))
-        case _:
-            raise RuntimeError('Unexpected length of named objects (A and B): {}'.format(stream.get_length()))
-    
-    obj['is_api_executable'] = True
-    obj['pre_condition_state_refs'] = None
+    streams = load_named_streams(stream)
+    obj['is_api_executable'] = streams.get('A', True)
+    obj['pre_condition_state_refs'] = streams.get('B')
     
     return obj

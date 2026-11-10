@@ -12,6 +12,9 @@ as keys (None when empty).
 The identifiers follow the kernel names: the communication primitive reads description_id
 (formerly id), the request unique_object_id (formerly id) and the parameter description_id
 (formerly some_id); the parameter also always has dop_base (None without flag 1 << 4).
+The table parameter reads its additional audience collections and its named streams A and B
+like the kernel.  Deviation from the former behaviour: a present but empty named stream B
+gives pre_condition_state_refs == [] instead of None (None only when B is absent).
 """
 import unittest
 
@@ -571,15 +574,25 @@ NAMED_STREAMS_A = bytes.fromhex('233E00 4101 233E01')
 NAMED_STREAMS_A_AND_B = bytes.fromhex('233E00 4101 233E01 233C00 420000 233E01')
 
 
-def table_parameter_body(audience_object=False, both_streams=False):
+def table_parameter_body(audience_object=False, both_streams=False, audiences=(None, None),
+                         streams=None):
+    """audiences: two ObjectBytes (or None for an absent collection); streams: ObjectBytes or bytes."""
     body = ObjectBytes().unicode('Key')
     if audience_object:
         body.nested('MCD_AUDIENCE', audience_body())
     else:
         body.absent()
-    body.u8(0).u8(0)
+    for collection in audiences:
+        if collection is None:
+            body.u8(0)
+        else:
+            body = concat(body.u8(1), collection)
     body = concat(body, parameter_body())
-    return body.raw(NAMED_STREAMS_A_AND_B if both_streams else NAMED_STREAMS_A)
+    if streams is None:
+        streams = NAMED_STREAMS_A_AND_B if both_streams else NAMED_STREAMS_A
+    if isinstance(streams, ObjectBytes):
+        return concat(body, streams)
+    return body.raw(streams)
 
 
 def table_parameter(audience_state=None):
@@ -595,8 +608,55 @@ class TableParameterTests(unittest.TestCase):
                          typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
 
     def test_mcd_db_table_parameter_all_branches(self):
+        expected = {**table_parameter(audience()), 'pre_condition_state_refs': []}
         self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(True, True)),
-                         typed('MCD_DB_TABLE_PARAMETER', table_parameter(audience())))
+                         typed('MCD_DB_TABLE_PARAMETER', expected))
+
+
+    def test_mcd_db_table_parameter_precondition_states(self):
+        streams = concat(ObjectBytes().raw(bytes.fromhex('233E00 4101 233E01 233C00 42')),
+                         named_attributed_refs_body(ObjectBytes(), NAMED_ATTRIBUTED_REFS))
+        streams.raw(bytes.fromhex('233E01'))
+        expected = table_parameter()
+        expected['pre_condition_state_refs'] = named_attributed_refs(NAMED_ATTRIBUTED_REFS)
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams)),
+                         typed('MCD_DB_TABLE_PARAMETER', expected))
+
+    def test_mcd_db_table_parameter_api_not_executable(self):
+        streams = bytes.fromhex('233E00 4100 233E01')
+        expected = {**table_parameter(), 'is_api_executable': False}
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams)),
+                         typed('MCD_DB_TABLE_PARAMETER', expected))
+
+    def test_mcd_db_table_parameter_without_named_streams(self):
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=b'')),
+                         typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
+
+    def test_mcd_db_table_parameter_unknown_named_stream(self):
+        streams = bytes.fromhex('233E00 4301 233E01')
+        with self.assertRaisesRegex(RuntimeError, 'Unknown named stream: C'):
+            load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams))
+
+    def test_mcd_db_table_parameter_unexpected_marker(self):
+        streams = bytes.fromhex('233E01 4101 233E01')
+        with self.assertRaisesRegex(RuntimeError, '23 3E 01'):
+            load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams))
+
+    def test_mcd_db_table_parameter_empty_additional_audiences(self):
+        body = table_parameter_body(audiences=(ObjectBytes().u16(0), ObjectBytes().u16(0)))
+        expected = {**table_parameter(), 'disabled_additional_audiences': [],
+                    'enabled_additional_audiences': []}
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', body),
+                         typed('MCD_DB_TABLE_PARAMETER', expected))
+
+    def test_mcd_db_table_parameter_additional_audiences(self):
+        disabled = named_refs_body(ObjectBytes(), [('AUD1', 'OBJ1', 'POOL')])
+        body = table_parameter_body(audiences=(disabled, ObjectBytes().u16(0)))
+        expected = {**table_parameter(),
+                    'disabled_additional_audiences': named_refs([('AUD1', 'OBJ1', 'POOL')]),
+                    'enabled_additional_audiences': []}
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', body),
+                         typed('MCD_DB_TABLE_PARAMETER', expected))
 
 
 # ---------------------------------------------------------------------------
