@@ -6,7 +6,8 @@ Where a loader reads an object of any type, MCD_AUDIENCE stands in.
 import unittest
 
 from tests import support
-from tests.support import ObjectBytes, audience, audience_body, concat, typed
+from tests.support import (NAMED_REFS, ObjectBytes, audience, audience_body, concat, named_refs,
+                           named_refs_body, typed)
 from tests.test_vw_layouts_services import parameter_body
 
 
@@ -104,3 +105,91 @@ class ConfigurationItemTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_SYSTEM_ITEMS', body),
                          [typed('MCD_DB_SYSTEM_ITEM', {**item_base(), 'system_parameter_name': 'S'}),
                           None])
+
+
+def item_value_body(full=False):
+    body = ObjectBytes()
+    if full:
+        body.nested('MCD_AUDIENCE', audience_body()).u8(1).u16(1).u32(3)
+        body.unicode('Desc').ascii('DescId').ascii('KEY').ascii('Meaning').ascii('MeaningId')
+        body.unicode('Value').ascii('Rule').u8(1)
+        named_refs_body(body, NAMED_REFS)
+        return body.u8(1).u16(0)
+    body.absent().u8(0).unicode(None).ascii(None).ascii(None).ascii(None).ascii(None)
+    return body.unicode(None).ascii(None).u8(0).u8(0)
+
+
+def item_value(full=False):
+    if not full:
+        return typed('MCD_DB_ITEM_VALUE', {
+            'audience_state': None, 'special_data_group_refs': None, 'description': None,
+            'description_id': None, 'key': None, 'meaning': None, 'meaning_id': None,
+            'physical_constant_value': None, 'rule': None,
+            'disabled_additional_audiences': None, 'enabled_additional_audiences': None})
+    return typed('MCD_DB_ITEM_VALUE', {
+        'audience_state': audience(), 'special_data_group_refs': [{'object_id': 3}],
+        'description': 'Desc', 'description_id': 'DescId', 'key': 'KEY', 'meaning': 'Meaning',
+        'meaning_id': 'MeaningId', 'physical_constant_value': 'Value', 'rule': 'Rule',
+        'disabled_additional_audiences': named_refs(NAMED_REFS),
+        'enabled_additional_audiences': []})
+
+
+def option_item_body(full=False):
+    if not full:
+        return concat(item_base_body(), ObjectBytes().absent().unicode('Default').absent().absent()
+                      .u8(0).u8(0).u8(0).u8(0))
+    body = concat(item_base_body([7, 9], True, True),
+                  ObjectBytes().nested('MCD_DB_ITEM_VALUES',
+                                       ObjectBytes().u16(1).nested('MCD_DB_ITEM_VALUE', item_value_body()))
+                  .unicode('Default')
+                  .nested('MCD_AUDIENCE', audience_body()).nested('MCD_AUDIENCE', audience_body()))
+    audiences = ObjectBytes().u8(1)
+    named_refs_body(audiences, NAMED_REFS)
+    audiences.u8(0).u8(1).u16(0).u8(1)
+    named_refs_body(audiences, NAMED_REFS)
+    return concat(body, audiences)
+
+
+def option_item(full=False):
+    if not full:
+        return typed('MCD_DB_OPTION_ITEM', {
+            **item_base(), 'item_values': None, 'physical_default_value': 'Default',
+            'read_audience_state': None, 'write_audience_state': None,
+            'disabled_read_additional_audiences': None, 'enabled_read_additional_audiences': None,
+            'disabled_write_additional_audiences': None, 'enabled_write_additional_audiences': None})
+    return typed('MCD_DB_OPTION_ITEM', {
+        **item_base([7, 9], True, True), 'item_values': [item_value()],
+        'physical_default_value': 'Default',
+        'read_audience_state': audience(), 'write_audience_state': audience(),
+        'disabled_read_additional_audiences': named_refs(NAMED_REFS),
+        'enabled_read_additional_audiences': None,
+        'disabled_write_additional_audiences': [],
+        'enabled_write_additional_audiences': named_refs(NAMED_REFS)})
+
+
+class OptionItemTests(unittest.TestCase):
+    def test_mcd_db_item_value_minimal(self):
+        self.assertEqual(load('MCD_DB_ITEM_VALUE', item_value_body()), item_value())
+
+    def test_mcd_db_item_value_all_branches(self):
+        self.assertEqual(load('MCD_DB_ITEM_VALUE', item_value_body(True)), item_value(True))
+
+    def test_mcd_db_item_values_minimal(self):
+        self.assertEqual(load('MCD_DB_ITEM_VALUES', ObjectBytes().u16(0)), [])
+
+    def test_mcd_db_item_values_all_branches(self):
+        body = ObjectBytes().u16(2).nested('MCD_DB_ITEM_VALUE', item_value_body()).absent()
+        self.assertEqual(load('MCD_DB_ITEM_VALUES', body), [item_value(), None])
+
+    def test_mcd_db_option_item_minimal(self):
+        self.assertEqual(load('MCD_DB_OPTION_ITEM', option_item_body()), option_item())
+
+    def test_mcd_db_option_item_all_branches(self):
+        self.assertEqual(load('MCD_DB_OPTION_ITEM', option_item_body(True)), option_item(True))
+
+    def test_mcd_db_option_items_minimal(self):
+        self.assertEqual(load('MCD_DB_OPTION_ITEMS', ObjectBytes().u16(0)), [])
+
+    def test_mcd_db_option_items_all_branches(self):
+        body = ObjectBytes().u16(2).nested('MCD_DB_OPTION_ITEM', option_item_body()).absent()
+        self.assertEqual(load('MCD_DB_OPTION_ITEMS', body), [option_item(), None])
