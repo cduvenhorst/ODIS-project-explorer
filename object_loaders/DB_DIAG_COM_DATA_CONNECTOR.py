@@ -19,11 +19,11 @@ def load(stream):
     # The outer byte comes first; the object (with its own presence byte) only follows when it is non-zero
     obj['read_diag_com_primitive'] = None
     if stream.loadOneByteType():
-        obj['read_diag_com_primitive'] = DbObject.load_object_from_stream_if_exists(stream)
+        obj['read_diag_com_primitive'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
     
     obj['write_diag_com_primitive'] = None
     if stream.loadOneByteType():
-        obj['write_diag_com_primitive'] = DbObject.load_object_from_stream_if_exists(stream)
+        obj['write_diag_com_primitive'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
     
     obj['uncompressed_size'] = stream.loadNumericType(4)
     obj['start_address'] = stream.loadNumericType(4)

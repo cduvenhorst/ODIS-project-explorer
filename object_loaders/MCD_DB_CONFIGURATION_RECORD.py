@@ -2,13 +2,6 @@ from classes import DbObject
 from common_utils import common_loaders
 
 
-def _load_audiences(stream):
-    # Presence byte, then named references
-    if stream.loadOneByteType():
-        return common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
-    return None
-
-
 def load(stream):
     obj = {}
     
@@ -38,14 +31,14 @@ def load(stream):
     
     obj['option_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbOptionItemsImpl
     obj['system_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbSystemItemsImpl
-    obj['read_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream)
-    obj['write_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream)
-    obj['diag_com_data_connectors'] = DbObject.load_object_from_stream_if_exists(stream)
+    obj['read_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLinks
+    obj['write_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLinks
+    obj['diag_com_data_connectors'] = DbObject.load_object_from_stream_if_exists(stream) # DbDiagComDataConnectors
     obj['configuration_record_value_size'] = stream.loadNumericType(4)
     obj['ecu_config_file_sub_dir_name'] = stream.loadAsciiString()[0]
     obj['parent_config_data_short_name'] = stream.loadAsciiString()[0]
-    obj['disabled_additional_audiences'] = _load_audiences(stream)
-    obj['enabled_additional_audiences'] = _load_audiences(stream)
+    obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
+    obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     obj['special_data_group_refs'] = None
     if stream.loadOneByteType():

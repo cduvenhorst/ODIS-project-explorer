@@ -4,11 +4,13 @@ from common_utils import common_loaders
 def _load_map(stream, with_value):
     # Keys can repeat, so the entries stay a list in read order
     entries = []
-    for _ in range(stream.loadNumericType(4)):
+    map_items = stream.loadNumericType(4)
+    for i in range(map_items):
         entry = {}
         entry['map_key'] = stream.loadAsciiString()[0]
         entry['items'] = []
-        for _ in range(stream.loadNumericType(4)):
+        collection_items = stream.loadNumericType(4)
+        for j in range(collection_items):
             # The first string is the object id of the target
             item = {}
             item['object_id'] = stream.loadAsciiString()[0]

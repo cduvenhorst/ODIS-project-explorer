@@ -2,13 +2,6 @@ from classes import DbObject
 from common_utils import common_loaders
 
 
-def _load_audiences(stream):
-    # Presence byte, then named references
-    if stream.loadOneByteType():
-        return common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
-    return None
-
-
 def load(stream):
     obj = {}
     
@@ -38,7 +31,7 @@ def load(stream):
     obj['rule'] = stream.loadAsciiString()[0]
     obj['configuration_record_value_size'] = stream.loadNumericType(4)
     obj['parent_config_data_short_name'] = stream.loadAsciiString()[0]
-    obj['disabled_additional_audiences'] = _load_audiences(stream)
-    obj['enabled_additional_audiences'] = _load_audiences(stream)
+    obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
+    obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     return obj

@@ -20,12 +20,8 @@ def load(stream):
     obj['rule'] = stream.loadAsciiString()[0]
     
     # DisabledAdditionalAudiences, EnabledAdditionalAudiences: presence byte, then named references
-    obj['disabled_additional_audiences'] = None
-    if stream.loadOneByteType():
-        obj['disabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
+    obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
-    obj['enabled_additional_audiences'] = None
-    if stream.loadOneByteType():
-        obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
+    obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     return obj

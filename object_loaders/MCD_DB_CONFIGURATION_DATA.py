@@ -1,13 +1,6 @@
 from common_utils import common_loaders
 
 
-def _load_audiences(stream):
-    # Presence byte, then named references
-    if stream.loadOneByteType():
-        return common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
-    return None
-
-
 def load(stream):
     obj = {}
     
@@ -25,11 +18,15 @@ def load(stream):
     
     # The kernel reads key and values as numbers when a configuration value is below "0012"; it always saves ASCII
     obj['base_var_to_case_map'] = []
-    for _ in range(stream.loadNumericType(4)):
+    map_items = stream.loadNumericType(4)
+    for i in range(map_items):
         entry = {}
         entry['map_key'] = stream.loadAsciiString()[0]
         entry['unknown_1'] = stream.loadEnumSmallRange()
-        entry['values'] = [stream.loadAsciiString()[0] for _ in range(stream.loadNumericType(4))]
+        entry['values'] = []
+        collection_items = stream.loadNumericType(4)
+        for j in range(collection_items):
+            entry['values'].append(stream.loadAsciiString()[0])
         obj['base_var_to_case_map'].append(entry)
     
     obj['special_data_group_refs'] = None
@@ -40,6 +37,6 @@ def load(stream):
     obj['minor'] = stream.loadNumericType(4)
     obj['revision'] = stream.loadNumericType(4)
     obj['is_revision_label_available'] = bool(stream.loadOneByteType())
-    obj['additional_audience_refs'] = _load_audiences(stream)
+    obj['additional_audience_refs'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     return obj

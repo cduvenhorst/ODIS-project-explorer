@@ -17,6 +17,11 @@ def load(type_name, body):
     return support.load(type_name, body)
 
 
+# MCD value of data type 255, loads as None
+def no_value(body):
+    return body.u8(255)
+
+
 def odx_link_body(id_ref='ID1', doc_ref='DOC1', layer=False):
     return ObjectBytes().ascii(id_ref).ascii(doc_ref).flag(layer)
 
@@ -215,12 +220,12 @@ def connector_body(full=False):
         for _ in range(4):
             body.u16(0)
         return body
-    body.flag(True).ascii('W.PATH').flag(False).ascii('R').u8(1).nested('DB_ODX_LINK', odx_link_body())
-    body.u8(1).nested('DB_ODX_LINK', odx_link_body()).u32(0x1000).u32(0x8000)
+    body.flag(True).ascii('W.PATH').flag(False).ascii('R').u8(1).nested('DB_ODX_LINK', odx_link_body(id_ref='R'))
+    body.u8(1).nested('DB_ODX_LINK', odx_link_body(id_ref='W')).u32(0x1000).u32(0x8000)
     string_map_body(body, [('K1', 'V1')])
-    string_map_body(body)
+    string_map_body(body, [('K3', 'V4')])
     string_map_body(body, [('K2', 'V2'), ('K2', 'V3')])
-    return string_map_body(body)
+    return string_map_body(body, [('K4', 'V5')])
 
 
 def connector(full=False):
@@ -237,11 +242,13 @@ def connector(full=False):
         'write_param_is_short_name_path': True, 'write_param_short_name': None,
         'write_param_short_name_path': 'W.PATH', 'read_param_is_short_name_path': False,
         'read_param_short_name': 'R', 'read_param_short_name_path': None,
-        'read_diag_com_primitive': odx_link(), 'write_diag_com_primitive': odx_link(),
+        'read_diag_com_primitive': odx_link(id_ref='R'),
+        'write_diag_com_primitive': odx_link(id_ref='W'),
         'uncompressed_size': 0x1000, 'start_address': 0x8000,
-        'write_param_value_map': string_map([('K1', 'V1')]), 'write_param_value_sn_path_map': [],
+        'write_param_value_map': string_map([('K1', 'V1')]),
+        'write_param_value_sn_path_map': string_map([('K3', 'V4')]),
         'read_param_value_map': string_map([('K2', 'V2'), ('K2', 'V3')]),
-        'read_param_value_sn_path_map': []})
+        'read_param_value_sn_path_map': string_map([('K4', 'V5')])})
 
 
 class DataConnectorTests(unittest.TestCase):
@@ -268,7 +275,7 @@ class DataConnectorTests(unittest.TestCase):
 
 def value_attributed_ref_body(body, strings=(), value=None):
     attributed_ref_body(body, strings)
-    return body.u8(255) if value is None else uint_value(body, value)
+    return no_value(body) if value is None else uint_value(body, value)
 
 
 def value_attributed_ref(strings=(), value=None):
@@ -301,7 +308,7 @@ def data_record_body(full=False, has_coding_data=None, coding=None):
     if not full:
         body.ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
         body.absent().u8(0).u16(0)
-        body.u8(255).flag(False).absent().u8(0).ascii(None).ascii(None).u32(0).ascii(None)
+        no_value(body).flag(False).absent().u8(0).ascii(None).ascii(None).u32(0).ascii(None)
         return body.u8(0).u8(0)
     body.ascii('DescId').ascii('LongId').ascii('UID').unicode('Desc').unicode('Long').ascii('Rec')
     body.nested('MCD_AUDIENCE', audience_body()).u8(1).u32(2).raw(b'\x01\x02').u16(0x6B01)
@@ -362,7 +369,7 @@ def configuration_record_body(full=False):
     body = ObjectBytes()
     if not full:
         body.ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
-        body.absent().u8(255).flag(False).absent().flag(False).absent().u16(0).u8(0)
+        no_value(body.absent()).flag(False).absent().flag(False).absent().u16(0).u8(0)
         for _ in range(5):
             body.absent()
         body.u32(0).ascii(None).ascii(None)
@@ -473,7 +480,10 @@ def config_info_map_body(body, entries, with_value=False):
         for item in items:
             body.ascii(item[0]).ascii(item[1])
             if with_value:
-                uint_value(body, item[2]) if item[2] is not None else body.u8(255)
+                if item[2] is None:
+                    no_value(body)
+                else:
+                    uint_value(body, item[2])
     return body
 
 
