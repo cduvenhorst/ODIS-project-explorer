@@ -7,6 +7,9 @@ the smallest; the loader does not look at the type.
 The ECU loader follows the kernel for its three identifiers: unique_object_id,
 long_name_id and description_id always appear as keys (None when empty) instead of the
 first being required empty.
+The functional class, vehicle information, physical vehicle link, vehicle connector and
+connector pin loaders do the same for description_id, long_name_id and unique_object_id,
+which stand before the description in their name block.
 """
 import importlib
 import unittest
@@ -100,6 +103,12 @@ def described_body(body):
 
 def described():
     return {'description': 'Description', 'long_name': 'Long name', 'short_name': 'Name'}
+
+
+def described_ids():
+    """Expectation of the reversed name block with all three identifiers empty."""
+    return {'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+            **described()}
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +280,7 @@ class FunctionalClassTests(unittest.TestCase):
         body = ObjectBytes().ascii(None).ascii(None).ascii(None)
         body.unicode(None).unicode(None).ascii(None).u16(0)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed('MCD_DB_FUNCTIONAL_CLASS', {
+            'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None,
             'data_primitive_refs': []}))
 
@@ -279,7 +289,55 @@ class FunctionalClassTests(unittest.TestCase):
         body.unicode('Description').unicode('Long name').ascii('Name')
         diag_com_refs_body(body)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed('MCD_DB_FUNCTIONAL_CLASS', {
-            **described(), 'data_primitive_refs': diag_com_refs()}))
+            **described_ids(), 'data_primitive_refs': diag_com_refs()}))
+
+
+IDS = {'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI'}
+
+
+def reversed_names_body(body):
+    """Reversed name block with filled identifiers and empty texts."""
+    body.ascii('DID').ascii('LNID').ascii('UOI')
+    return body.unicode(None).unicode(None).ascii(None)
+
+
+EMPTY_NAMES = {'description': None, 'long_name': None, 'short_name': None}
+
+
+class ReversedNameBlockIdentifierTests(unittest.TestCase):
+    def test_mcd_db_functional_class_identifiers(self):
+        body = reversed_names_body(ObjectBytes()).u16(0)
+        self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed(
+            'MCD_DB_FUNCTIONAL_CLASS', {**IDS, **EMPTY_NAMES, 'data_primitive_refs': []}))
+
+    def test_mcd_db_physical_vehicle_link_or_interface_identifiers(self):
+        pin_part = reversed_names_body(ObjectBytes()).u16(1).u16(0x7400)
+        pins = ObjectBytes().u16(1).nested('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_part)
+        body = reversed_names_body(ObjectBytes()).ascii(None)
+        body.nested('MCD_DB_VEHICLE_CONNECTOR_PINS', pins)
+        self.assertEqual(load('MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', body), typed(
+            'MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', {
+                **IDS, **EMPTY_NAMES, 'type': None,
+                'vehicle_connector_pins': [typed('MCD_DB_VEHICLE_CONNECTOR_PIN', {
+                    **IDS, **EMPTY_NAMES, 'pin_number': 1, 'pin_type': None})]}))
+
+    def test_mcd_db_vehicle_information_identifiers(self):
+        body = reversed_names_body(ObjectBytes()).u16(0).u16(0).absent()
+        self.assertEqual(load('MCD_DB_VEHICLE_INFORMATION', body), typed(
+            'MCD_DB_VEHICLE_INFORMATION', {
+                **IDS, **EMPTY_NAMES, 'logical_links': [],
+                'physical_vehicle_links_or_interfaces': [], 'vehicle_connectors': None}))
+
+    def test_mcd_db_vehicle_connector_identifiers(self):
+        body = reversed_names_body(ObjectBytes()).absent()
+        self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR', body), typed(
+            'MCD_DB_VEHICLE_CONNECTOR', {**IDS, **EMPTY_NAMES, 'connector_pins': None}))
+
+    def test_mcd_db_vehicle_connector_pin_identifiers(self):
+        body = reversed_names_body(ObjectBytes()).u16(3).u16(0x7400)
+        self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', body), typed(
+            'MCD_DB_VEHICLE_CONNECTOR_PIN', {
+                **IDS, **EMPTY_NAMES, 'pin_number': 3, 'pin_type': None}))
 
 
 # ---------------------------------------------------------------------------
@@ -510,7 +568,7 @@ def pin_body(number=1, code=0x7400):
 
 
 def pin(number=1):
-    return typed('MCD_DB_VEHICLE_CONNECTOR_PIN', {**described(), 'pin_number': number,
+    return typed('MCD_DB_VEHICLE_CONNECTOR_PIN', {**described_ids(), 'pin_number': number,
                                                   'pin_type': None})
 
 
@@ -559,7 +617,7 @@ def connector_body(with_pins):
 
 
 def connector(with_pins):
-    return typed('MCD_DB_VEHICLE_CONNECTOR', {**described(),
+    return typed('MCD_DB_VEHICLE_CONNECTOR', {**described_ids(),
                                               'connector_pins': pins(3) if with_pins else None})
 
 
@@ -590,7 +648,7 @@ class PhysicalVehicleLinkTests(unittest.TestCase):
         self.assertEqual(
             load('MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', body),
             typed('MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', {
-                **described(), 'type': None, 'vehicle_connector_pins': None}))
+                **described_ids(), 'type': None, 'vehicle_connector_pins': None}))
 
     def test_mcd_db_physical_vehicle_link_or_interface_all_branches(self):
         body = described_body(ObjectBytes()).ascii('Type')
@@ -598,7 +656,7 @@ class PhysicalVehicleLinkTests(unittest.TestCase):
         self.assertEqual(
             load('MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', body),
             typed('MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', {
-                **described(), 'type': 'Type', 'vehicle_connector_pins': pins(3)}))
+                **described_ids(), 'type': 'Type', 'vehicle_connector_pins': pins(3)}))
 
 
 def vehicle_information_body(full):
@@ -620,7 +678,7 @@ def vehicle_information_body(full):
 
 def vehicle_information(full):
     return typed('MCD_DB_VEHICLE_INFORMATION', {
-        **described(),
+        **described_ids(),
         'logical_links': [{'name': 'Link1', 'reference': attributed_ref(['S1', 'S2'])},
                           {'name': 'Link2', 'reference': attributed_ref()}] if full else [],
         'physical_vehicle_links_or_interfaces': [

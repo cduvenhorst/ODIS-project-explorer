@@ -4,22 +4,14 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    s1 = stream.loadUnicodeString()[0]
-    if s1 is not None:
-        raise RuntimeError('s1: {}'.format(s1))
-    
+    obj['description'] = stream.loadUnicodeString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     
-    s4 = stream.loadAsciiString()[0]
-    if s4 is not None:
-        raise RuntimeError('s4: {}'.format(s4))
-    s5 = stream.loadAsciiString()[0]
-    if s5 is not None:
-        raise RuntimeError('s5: {}'.format(s5))
-    s6 = stream.loadAsciiString()[0]
-    if s6 is not None:
-        raise RuntimeError('s6: {}'.format(s6))
+    # DescriptionID, LongNameID and UniqueObjectIdentifier; not always empty
+    obj['description_id'] = stream.loadAsciiString()[0]
+    obj['long_name_id'] = stream.loadAsciiString()[0]
+    obj['unique_object_id'] = stream.loadAsciiString()[0]
     
     obj['env_data_param_map'] = []
     counter = stream.loadNumericType(2)

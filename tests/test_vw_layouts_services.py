@@ -6,6 +6,9 @@ The helper loaders these loaders call (field base, diagnostic service, data prim
 diagnostic communication primitive, job) are exercised through the tests below.
 The ECU state collections of the communication primitive follow the kernel (attributed
 references), not the former upstream layout.
+The environment data description loader follows the kernel: description is read instead of
+being required empty, and description_id, long_name_id and unique_object_id always appear
+as keys (None when empty).
 """
 import unittest
 
@@ -304,8 +307,9 @@ def env_data_desc_body(full=False):
 
 
 def env_data_desc(full=False):
-    fields = {'long_name': 'Long', 'short_name': 'Desc', 'env_data_param_map': [],
-              'env_data_params': []}
+    fields = {'description': None, 'long_name': 'Long', 'short_name': 'Desc',
+              'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+              'env_data_param_map': [], 'env_data_params': []}
     if full:
         fields['env_data_param_map'] = [{'key': 1, 'string': 'S1'}, {'key': 2, 'string': None}]
         fields['all_value_db_env_data_param'] = typed('MCD_DB_PARAMETER', parameter())
@@ -330,6 +334,16 @@ class EnvDataDescTests(unittest.TestCase):
                 .ascii(None).ascii(None).u16(0).u8(1).absent().u16(0))
         self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed(
             'MCD_DB_ENV_DATA_DESC', {**env_data_desc(), 'all_value_db_env_data_param': None}))
+
+
+class EnvDataDescIdentifierTests(unittest.TestCase):
+    def test_mcd_db_env_data_desc_identifiers(self):
+        body = ObjectBytes().unicode('Desc').unicode('Long').ascii('Name')
+        body.ascii('DID').ascii('LNID').ascii('UOI').u16(0).u8(0).u16(0)
+        self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed('MCD_DB_ENV_DATA_DESC', {
+            'description': 'Desc', 'long_name': 'Long', 'short_name': 'Name',
+            'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI',
+            'env_data_param_map': [], 'env_data_params': []}))
 
 
 class ParameterEnvDataDescTests(unittest.TestCase):
