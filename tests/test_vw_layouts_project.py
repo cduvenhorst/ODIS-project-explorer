@@ -14,14 +14,21 @@ The vehicle information data loader follows the kernel: the second counter intro
 collection base_var_prot_id_to_link_info_map instead of having to be 0.  The access key
 loader accepts an empty or short last string (stored as layer_data_object_id) instead of
 indexing into it.
+The layer data loader follows the kernel: unk_string, unk_map1 and unk_map2 are named
+unknown_1, not_inherited_tables_map and not_inherited_diag_comms_map, and the state chart,
+sub component, additional audience, special data group and multiple ECU job references are
+read as the keys ecu_state_chart_refs_map, sub_component_refs_map,
+additional_audience_refs_map, special_data_group_refs (None without presence byte) and
+multiple_ecu_job_refs_map instead of having to be empty.
 """
 import importlib
 import unittest
 
 import object_loaders
 from tests.support import (NAMED_REFS, ObjectBytes, attributed_ref, attributed_ref_body, audience,
-                           audience_body, concat, diag_com_refs, diag_com_refs_body, load,
-                           named_refs, named_refs_body, object_type_code, ref_body, typed)
+                           audience_body, concat, diag_com_ref, diag_com_ref_body,
+                           diag_com_refs, diag_com_refs_body, load, named_refs, named_refs_body,
+                           object_type_code, ref_body, typed)
 
 # ---------------------------------------------------------------------------
 # Shared pieces
@@ -408,8 +415,12 @@ LAYER_LOCATION_REFS = {0x0101: 'ecu_base_variant_ref', 0x0102: 'ecu_variant_ref'
                        0x0103: 'functional_group_ref'}
 
 
-def layer_data_body(full=False, location=0x0104):
-    """DB_LAYER_DATA; full gives every collection two entries."""
+def layer_data_body(full=False, location=0x0104, kernel_collections=False):
+    """DB_LAYER_DATA; full gives every collection two entries.
+
+    kernel_collections fills the state chart, sub component, additional audience, special
+    data group and multiple ECU job references.
+    """
     n = 2 if full else 0
     body = ObjectBytes().ascii('Layer').ascii('Unknown').ascii('ProtoType').ascii('Stack')
     body.ascii('ComParamPool').u16(location)
@@ -429,7 +440,14 @@ def layer_data_body(full=False, location=0x0104):
     for i in range(1, n + 1):
         body.ascii('Primitive%d' % i)
         diag_com_refs_body(body)
-    body.u16(0).u16(0).u16(0)
+    if kernel_collections:
+        body.u16(1).ascii('SC1')
+        attributed_ref_body(body, ('A1',))
+        body.u16(1).ascii('SUB1')
+        attributed_ref_body(body)
+        body.u16(1).ascii('AA1').ascii('AUD1').ascii('POOL')
+    else:
+        body.u16(0).u16(0).u16(0)
     body.u16(n)
     if full:
         body.ascii('Env1').nested('MCD_AUDIENCE', audience_body()).ascii('Env2').absent()
@@ -442,7 +460,12 @@ def layer_data_body(full=False, location=0x0104):
     body.u16(n)
     if full:
         body.nested('MCD_AUDIENCE', audience_body()).absent()
-    return body.u8(0).u8(0).u16(0)
+    body.u8(0)
+    if kernel_collections:
+        body.u8(1).u16(2).u32(7).u32(9)
+        body.u16(1).ascii('J1')
+        return diag_com_ref_body(body, True)
+    return body.u8(0).u16(0)
 
 
 def diag_com_map():
@@ -451,9 +474,9 @@ def diag_com_map():
             for entry in diag_com_refs()]
 
 
-def layer_data(full=False, location='eMULTIPLE_ECU_JOB'):
+def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=False):
     n = 2 if full else 0
-    fields = {'layer_id': 'Layer', 'unk_string': 'Unknown', 'protocol_type': 'ProtoType',
+    fields = {'layer_id': 'Layer', 'unknown_1': 'Unknown', 'protocol_type': 'ProtoType',
               'protocol_stack_short_name': 'Stack', 'com_param_spec_pool_id': 'ComParamPool',
               'mcd_location_type': location,
               'diag_com_refs': diag_com_map() if full else [],
@@ -470,11 +493,24 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB'):
               'parent_layers_vector': strings('Parent', n),
               'shared_data_parent_layers_vector': strings('Shared', n),
               'not_inherited_dops_map': vector_map('NotInherited', n),
-              'unk_map1': vector_map('Unknown1', n), 'unk_map2': vector_map('Unknown2', n),
+              'not_inherited_tables_map': vector_map('Unknown1', n),
+              'not_inherited_diag_comms_map': vector_map('Unknown2', n),
               'not_inherited_glob_neg_responses_map': vector_map('NotNegative', n),
               'unit_group_refs_map': ref_map('UnitGroup', n),
               'unit_refs_map': ref_map('Unit', n),
-              'protocol_parameters': [audience(), None] if full else []}
+              'protocol_parameters': [audience(), None] if full else [],
+              'ecu_state_chart_refs_map': [], 'sub_component_refs_map': [],
+              'additional_audience_refs_map': [], 'special_data_group_refs': None,
+              'multiple_ecu_job_refs_map': []}
+    if kernel_collections:
+        fields['ecu_state_chart_refs_map'] = [
+            {'map_key': 'SC1', 'reference': attributed_ref(('A1',))}]
+        fields['sub_component_refs_map'] = [
+            {'map_key': 'SUB1', 'reference': attributed_ref()}]
+        fields['additional_audience_refs_map'] = [
+            {'map_key': 'AA1', 'reference': {'object_id': 'AUD1', 'pool_id': 'POOL'}}]
+        fields['special_data_group_refs'] = [{'object_id': 7}, {'object_id': 9}]
+        fields['multiple_ecu_job_refs_map'] = [{'map_key': 'J1', 'reference': diag_com_ref(True)}]
     return typed('DB_LAYER_DATA', fields)
 
 
@@ -482,6 +518,10 @@ class LayerDataTests(unittest.TestCase):
     def test_db_layer_data_minimal(self):
         self.assertEqual(load('DB_LAYER_DATA', layer_data_body()),
                          layer_data())
+
+    def test_db_layer_data_kernel_collections(self):
+        self.assertEqual(load('DB_LAYER_DATA', layer_data_body(kernel_collections=True)),
+                         layer_data(kernel_collections=True))
 
     def test_db_layer_data_all_branches(self):
         body = layer_data_body(True, 0x0101)

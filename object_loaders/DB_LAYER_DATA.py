@@ -7,7 +7,7 @@ def load(stream):
     obj = {}
     
     obj['layer_id'] = stream.loadAsciiString()[0]
-    obj['unk_string'] = stream.loadAsciiString()[0]
+    obj['unknown_1'] = stream.loadAsciiString()[0]
     obj['protocol_type'] = stream.loadAsciiString()[0]
     obj['protocol_stack_short_name'] = stream.loadAsciiString()[0]
     obj['com_param_spec_pool_id'] = stream.loadAsciiString()[0]
@@ -42,17 +42,12 @@ def load(stream):
         
         obj['functional_class_data_primitive_refs_map'].append(item)
     
-    mcd_db_ecu_state_chart_ref_map = common_loaders.loadStringToReferenceMap(stream)
-    if len(mcd_db_ecu_state_chart_ref_map) != 0:
-        raise RuntimeError('mcd_db_ecu_state_chart_ref_map not 0')
-    
-    mcd_db_sub_component_ref_map = common_loaders.loadStringToReferenceMap(stream)
-    if len(mcd_db_sub_component_ref_map) != 0:
-        raise RuntimeError('mcd_db_sub_component_ref_map not 0')
-    
-    mcd_db_additional_audience_ref_map = common_loaders.loadStringToReferenceMap(stream)
-    if len(mcd_db_additional_audience_ref_map) != 0:
-        raise RuntimeError('mcd_db_additional_audience_ref_map not 0')
+    # EcuStateChartRefs
+    obj['ecu_state_chart_refs_map'] = common_loaders.loadStringToReferenceMap(stream, True)
+    # SubComponentRefs
+    obj['sub_component_refs_map'] = common_loaders.loadStringToReferenceMap(stream, True)
+    # AdditionalAudienceRefs
+    obj['additional_audience_refs_map'] = common_loaders.loadStringToReferenceMap(stream)
     
     obj['env_data_descs_map'] = []
     counter = stream.loadNumericType(2)
@@ -69,8 +64,10 @@ def load(stream):
     obj['shared_data_parent_layers_vector'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)
     
     obj['not_inherited_dops_map'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
-    obj['unk_map1'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
-    obj['unk_map2'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
+    # NotInheritedTables
+    obj['not_inherited_tables_map'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
+    # NotInheritedDiagComms
+    obj['not_inherited_diag_comms_map'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
     obj['not_inherited_glob_neg_responses_map'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
     
     obj['unit_group_refs_map'] = common_loaders.loadStringToReferenceMap(stream)
@@ -81,14 +78,16 @@ def load(stream):
     for i in range(counter):
         obj['protocol_parameters'].append(DbObject.load_object_from_stream_if_exists(stream))
     
+    # The kernel reads this byte only if a configuration value differs from '0015'; all known projects contain it
     stream.loadOneByteType()
     
-    #obj['special_data_group_refs'] = None
+    # SpecialDataGroupRefs
     if stream.loadOneByteType():
-        raise RuntimeError('special_data_group_refs not 0')
+        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+    else:
+        obj['special_data_group_refs'] = None
     
-    db_diag_com_object_ref_map = common_loaders.loadStringToReferenceMap(stream)
-    if len(db_diag_com_object_ref_map) != 0:
-        raise RuntimeError('db_diag_com_object_ref_map not 0')
+    # MultipleEcuJobRefs
+    obj['multiple_ecu_job_refs_map'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)
     
     return obj
