@@ -429,3 +429,105 @@ class ConfigurationRecordTests(unittest.TestCase):
     def test_mcd_db_configuration_record_all_branches(self):
         self.assertEqual(load('MCD_DB_CONFIGURATION_RECORD', configuration_record_body(True)),
                          configuration_record(True))
+
+
+def configuration_data_body(full=False):
+    body = ObjectBytes()
+    if not full:
+        body.ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(0).u8(0)
+        return body.u32(0).u32(0).u32(0).flag(False).u8(0)
+    body.ascii('DescId').ascii('LongId').ascii('UID').unicode('Desc').unicode('Long').ascii('Data')
+    body.u16(1).ascii('R1')
+    value_attributed_ref_body(body, ('A1',), 3)
+    body.u32(2).ascii('BV1').u8(2).u32(2).ascii('C1').ascii('C2')
+    body.ascii('BV2').u8(4).u32(0)
+    body.u8(1).u16(1).u32(1)
+    body.u32(1).u32(2).u32(3).flag(True)
+    return named_refs_body(body.u8(1), NAMED_REFS)
+
+
+def configuration_data(full=False):
+    if not full:
+        return typed('MCD_DB_CONFIGURATION_DATA', {
+            'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+            'description': None, 'long_name': None, 'short_name': None,
+            'configuration_record_refs': [], 'base_var_to_case_map': [],
+            'special_data_group_refs': None, 'major': 0, 'minor': 0, 'revision': 0,
+            'is_revision_label_available': False, 'additional_audience_refs': None})
+    return typed('MCD_DB_CONFIGURATION_DATA', {
+        'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
+        'description': 'Desc', 'long_name': 'Long', 'short_name': 'Data',
+        'configuration_record_refs': [{'name': 'R1', 'reference': value_attributed_ref(('A1',), 3)}],
+        'base_var_to_case_map': [{'map_key': 'BV1', 'unknown_1': 2, 'values': ['C1', 'C2']},
+                                 {'map_key': 'BV2', 'unknown_1': 4, 'values': []}],
+        'special_data_group_refs': [{'object_id': 1}], 'major': 1, 'minor': 2, 'revision': 3,
+        'is_revision_label_available': True,
+        'additional_audience_refs': named_refs(NAMED_REFS)})
+
+
+def config_info_map_body(body, entries, with_value=False):
+    body.u32(len(entries))
+    for key, items in entries:
+        body.ascii(key).u32(len(items))
+        for item in items:
+            body.ascii(item[0]).ascii(item[1])
+            if with_value:
+                uint_value(body, item[2]) if item[2] is not None else body.u8(255)
+    return body
+
+
+def config_info_map(entries, with_value=False):
+    result = []
+    for key, items in entries:
+        elements = []
+        for item in items:
+            element = {'object_id': item[0], 'unknown_1': item[1]}
+            if with_value:
+                element['value'] = None if item[2] is None else uint(item[2])
+            elements.append(element)
+        result.append({'map_key': key, 'items': elements})
+    return result
+
+
+FULL_CONFIG_INFO = (
+    [('BASE', [('CD1', 'N1')])], [], [('VAR', [])],
+    [('CD1', [('CR1', 'N2', 9), ('CR2', None, None)])])
+
+
+def config_info_body(maps=None):
+    body = ObjectBytes()
+    for index in range(4):
+        config_info_map_body(body, maps[index] if maps else [], index == 3)
+    return body
+
+
+def config_info(maps=None):
+    fields = {}
+    for index in range(4):
+        fields[f'unknown_{index + 1}'] = config_info_map(maps[index] if maps else [], index == 3)
+    return typed('DB_ECU_CONFIG_INFO', fields)
+
+
+class ConfigurationDataTests(unittest.TestCase):
+    def test_mcd_db_configuration_data_minimal(self):
+        self.assertEqual(load('MCD_DB_CONFIGURATION_DATA', configuration_data_body()),
+                         configuration_data())
+
+    def test_mcd_db_configuration_data_all_branches(self):
+        self.assertEqual(load('MCD_DB_CONFIGURATION_DATA', configuration_data_body(True)),
+                         configuration_data(True))
+
+    def test_db_ecu_config_info_minimal(self):
+        self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body()), config_info())
+
+    def test_db_ecu_config_info_all_branches(self):
+        self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body(FULL_CONFIG_INFO)),
+                         config_info(FULL_CONFIG_INFO))
+
+    def test_db_ecu_config_info_duplicate_keys_are_kept(self):
+        maps = ([], [], [('VAR', [('X1', 'A')]), ('VAR', [('X2', 'B')])], [])
+        loaded = load('DB_ECU_CONFIG_INFO', config_info_body(maps))
+        self.assertEqual(loaded, config_info(maps))
+        self.assertEqual([entry['items'][0]['object_id'] for entry in loaded['unknown_3']],
+                         ['X1', 'X2'])
