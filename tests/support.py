@@ -202,6 +202,31 @@ def write_project(folder, pools, ascii_strings, unicode_strings):
             library.pblKfClose(key_file)
 
 
+def write_raw_pool(folder, pool, entries):
+    """Write `<pool>.key` and `<pool>.db` from (key bytes, parts) entries.
+
+    Each part is passed uncompressed and stored as its own zlib stream, back to back.
+    The record data holds 12 bytes for one part, else 12 + 8k bytes for 1 + k parts.
+    """
+    library = _open_pbl()
+    key_path = os.path.join(folder, pool + '.key')
+    key_file = library.pblKfCreate(key_path.encode('ascii'), None)
+    if not key_file:
+        raise RuntimeError('pblKfCreate failed for %s' % key_path)
+    try:
+        with open(os.path.join(folder, pool + '.db'), 'wb') as db_file:
+            for key, parts in entries:
+                record = struct.pack('<I', db_file.tell())
+                for part in parts:
+                    compressed = zlib.compress(bytes(part))
+                    record += struct.pack('<II', len(compressed), len(part))
+                    db_file.write(compressed)
+                if library.pblKfInsert(key_file, key, len(key), record, len(record)) != 0:
+                    raise RuntimeError('pblKfInsert failed for %r' % key)
+    finally:
+        library.pblKfClose(key_file)
+
+
 # ---------------------------------------------------------------------------
 # Shared builders for the layout protection tests
 # ---------------------------------------------------------------------------

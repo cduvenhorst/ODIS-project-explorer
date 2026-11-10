@@ -56,6 +56,19 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(result['errors']['MCD_DB_UNIT | UnreadBytesError: 1 bytes'], 1)
         self.assertEqual(result['pools']['P1'], {'ok': 1, 'failed': 1, 'unknown': 1, 'pool_error': None})
 
+    def test_pool_with_name_keys_is_read(self):
+        project = self.make_folder()
+        body = unit_body()
+        support.write_project(project, {}, body.ascii_strings, body.unicode_strings)
+        code = support.object_type_code('MCD_DB_CONFIGURATION_RECORD')
+        support.write_raw_pool(project, 'P1', [
+            (b'UnitByName', [bytes(body.build('MCD_DB_UNIT'))]),
+            (b'MultiPart', [code.to_bytes(2, 'little'), b'content'])])
+        result = inventory.inventory_project(project, LIBRARY)
+        self.assertIsNone(result['pools']['P1']['pool_error'])
+        self.assertEqual(result['types']['MCD_DB_UNIT']['ok'], 1)
+        self.assertEqual(result['types']['MCD_DB_CONFIGURATION_RECORD']['unknown'], 1)
+
     def test_broken_pool_is_counted_and_run_continues(self):
         project = self.make_folder()
         write_sample_project(project, {'A1': sample_pool(), 'B2': sample_pool()})

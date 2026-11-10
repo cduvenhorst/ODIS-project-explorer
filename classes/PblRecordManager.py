@@ -30,22 +30,23 @@ class PblRecordManager:
             raise RuntimeError('Cannot open key file "{}"'.format(key_file_path))
         
         # Go to the first record in the keyfile (should not fail)
-        pbl_kf_result = self.__pbl.pblKfFirst(key_file)
+        pbl_kf_result = self.__pbl.pblKfFirst(key_file, 255)
         
         # Parse each record, until there are no more left
         while pbl_kf_result is not None:
             # Decode the result
             (key, key_length) = pbl_kf_result
             
-            # The key is always supposed to be 4 bytes long
-            if key_length != 4:
-                raise RuntimeError('PBL key length not 4 ({})'.format(key_length))
-            
-            # Convert the key to a 4-byte unsigned integer
-            key = struct.unpack('<L', key)[0]
+            # The kernel stores objects under the hash of their name (4 bytes) and also under the name itself
+            # (1 to 255 bytes) and looks up the hash first, then the name
+            key = bytes(key[:key_length])
+            if key_length == 4:
+                key = struct.unpack('<L', key)[0]
+            else:
+                key = key.decode('cp1252')
             
             # Read the data of the current record
-            data = self.__pbl.pblKfRead(key_file)
+            data = self.__pbl.pblKfRead(key_file, 12 + 8 * 255)
             
             # Add the record to the dictionary (keys must be unique)
             # The key is the 4-byte value, which represents the hash of an Ascii string (ObjectID = Object name)
@@ -55,13 +56,26 @@ class PblRecordManager:
             records[key] = data
             
             # Go to the next record (the result is None if there are no more records left)
-            pbl_kf_result = self.__pbl.pblKfNext(key_file)
+            pbl_kf_result = self.__pbl.pblKfNext(key_file, 255)
         
         # Close the file
         self.__pbl.pblKfClose(key_file)
         
         # Return the dictionary
         return records
+    
+    
+    # Extract the position and the (compressed size, decompressed size) of every part from the data of a PBL record
+    ### data = PBL record data: 6/8/12 bytes describe one part, 12 + 8k bytes (k >= 1) describe 1 + k parts
+    @staticmethod
+    def parse_pbl_parts(data: bytes) -> tuple[int, list[tuple[int, int]]]:
+        if len(data) > 12 and (len(data) - 12) % 8 == 0:
+            (file_position, compressed_size, decompressed_size) = struct.unpack('<III', data[:12])
+            parts = [(compressed_size, decompressed_size)]
+            parts += list(struct.iter_unpack('<II', data[12:]))
+            return (file_position, parts)
+        (file_position, compressed_size, decompressed_size) = PblRecordManager.parse_pbl_data(data)
+        return (file_position, [(compressed_size, decompressed_size)])
     
     
     # Extract the 3 fields from the data of a PBL record

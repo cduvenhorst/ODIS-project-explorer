@@ -17,13 +17,16 @@ class ObjectLoader:
     ### db_file  = appropriate .db file (representing the desired Pool), opened in 'rb' mode
     @staticmethod
     def get_object_data_from_opened_db_file(pbl_data, db_file):
-        # Decode the PBL record data
-        (file_position, compressed_size, decompressed_size) = PblRecordManager.parse_pbl_data(pbl_data)
+        # Decode the PBL record data: the position and the sizes of every part
+        (file_position, parts) = PblRecordManager.parse_pbl_parts(pbl_data)
         
-        # The data of the PBL record tells how to extract the Object's data bytes from the .db file (position and size)
-        
-        # Retrieve the Object's data from the .db file (will also decompress it with zlib)
-        return PblRecordManager.get_object_data(db_file, file_position, compressed_size, decompressed_size)
+        # The parts lie back to back from the position, each one is its own zlib stream
+        # The Object's data is the concatenation of the decompressed parts
+        object_data = bytearray()
+        for (compressed_size, decompressed_size) in parts:
+            object_data += PblRecordManager.get_object_data(db_file, file_position, compressed_size, decompressed_size)
+            file_position += compressed_size
+        return object_data
     
     
     # Open the appropriate .db file and load the Object's data using the provided PBL record data
@@ -98,7 +101,14 @@ class ObjectLoader:
         ObjectID_hash = self.__string_storage.get_ascii_hash(ObjectID)
         
         # Get the PBL record data belonging to the requested Object, and load it
-        pbl_data = self.__loaded_pbl_records[PoolID][ObjectID_hash]
+        # The kernel looks up the hash first, then the name
+        records = self.__loaded_pbl_records[PoolID]
+        if ObjectID_hash in records:
+            pbl_data = records[ObjectID_hash]
+        elif ObjectID in records:
+            pbl_data = records[ObjectID]
+        else:
+            raise KeyError(ObjectID)
         return self.load_object_by_pbl_data(pbl_data, input_folder_path, PoolID)
     
     
