@@ -4,6 +4,9 @@ Every body is built exactly as the loader reads it today and the complete result
 asserted, in strict mode.  Branches in which the loaders raise today are not pinned.
 Where a loader reads an object of any type, MCD_AUDIENCE stands in because its body is
 the smallest; the loader does not look at the type.
+The ECU loader follows the kernel for its three identifiers: unique_object_id,
+long_name_id and description_id always appear as keys (None when empty) instead of the
+first being required empty.
 """
 import importlib
 import unittest
@@ -137,9 +140,9 @@ def access_key(full=False, location_type='ECU_BASE_VARIANT'):
 ECU_LOCATIONS = [('L1', 'O1', 'P1', False), ('L2', 'O2', 'P2', True)]
 
 
-def ecu_body(body, locations=()):
+def ecu_body(body, locations=(), unique_object_id=None):
     """MCD_DB_ECU body (also the tail of the variant and group loaders)."""
-    body.ascii('Ecu').unicode('Ecu long').unicode('Ecu description').ascii(None)
+    body.ascii('Ecu').unicode('Ecu long').unicode('Ecu description').ascii(unique_object_id)
     body.ascii('LongId').ascii('DescId').u16(len(locations))
     for name, object_id, pool_id, with_key in locations:
         body.ascii(name).ascii(object_id).ascii(pool_id)
@@ -150,9 +153,9 @@ def ecu_body(body, locations=()):
     return body
 
 
-def ecu_fields(locations=()):
+def ecu_fields(locations=(), unique_object_id=None):
     return {'short_name': 'Ecu', 'long_name': 'Ecu long', 'description': 'Ecu description',
-            'long_name_id': 'LongId', 'description_id': 'DescId',
+            'unique_object_id': unique_object_id, 'long_name_id': 'LongId', 'description_id': 'DescId',
             'location_refs': [{'name': name,
                                'reference': {'object_id': object_id, 'pool_id': pool_id,
                                              'access_key': access_key(True) if with_key else None}}
@@ -188,6 +191,14 @@ class EcuTests(unittest.TestCase):
     def test_mcd_db_ecu_all_branches(self):
         body = ecu_body(ObjectBytes(), ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU', body), typed('MCD_DB_ECU', ecu_fields(ECU_LOCATIONS)))
+
+    def test_mcd_db_ecu_identifiers(self):
+        body = ObjectBytes().ascii('Ecu').unicode('Ecu long').unicode('Ecu description')
+        body.ascii('UOI').ascii('LNID').ascii('DID').u16(0)
+        self.assertEqual(load('MCD_DB_ECU', body), {
+            '#OBJECT_TYPE': 'MCD_DB_ECU', 'short_name': 'Ecu', 'long_name': 'Ecu long',
+            'description': 'Ecu description', 'unique_object_id': 'UOI',
+            'long_name_id': 'LNID', 'description_id': 'DID', 'location_refs': []})
 
 
 # ---------------------------------------------------------------------------

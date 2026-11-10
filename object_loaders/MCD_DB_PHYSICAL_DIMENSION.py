@@ -7,9 +7,7 @@ def load(stream):
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     obj['long_name_id'] = stream.loadAsciiString()[0]
     
-    s6 = stream.loadAsciiString()[0]
-    if s6 is not None:
-        raise RuntimeError('s6: {}'.format(s6))
+    obj['description_id'] = stream.loadAsciiString()[0] # DescriptionID; not always empty
     
     obj['length_exponent'] = stream.loadNumericType(4, True)
     obj['mass_exponent'] = stream.loadNumericType(4, True)

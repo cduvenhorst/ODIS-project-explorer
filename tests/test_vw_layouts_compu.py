@@ -2,6 +2,9 @@
 
 Every body is built exactly as the loader reads it today and the complete result is
 asserted, in strict mode.  Branches in which the loaders raise today are not pinned.
+The three identifiers of the unit, unit group and physical dimension loaders follow the
+kernel: they appear as the keys unique_object_id, long_name_id and description_id (None
+when empty) instead of being required empty.
 """
 import unittest
 
@@ -113,7 +116,8 @@ def dimension_body():
 def dimension():
     return {'#OBJECT_TYPE': 'MCD_DB_PHYSICAL_DIMENSION', 'short_name': 'Length',
             'long_name': None, 'description': None, 'unique_object_id': None,
-            'long_name_id': None, 'length_exponent': 1, 'mass_exponent': 0,
+            'long_name_id': None, 'description_id': None, 'length_exponent': 1,
+            'mass_exponent': 0,
             'time_exponent': 0, 'current_exponent': 0, 'temperature_exponent': 0,
             'molar_amount_exponent': 0, 'luminous_intensity_exponent': 0}
 
@@ -613,7 +617,7 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_UNIT', body), {
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
-            'display_name': None, 'factor_si_to_unit': 1000.0, 'offset_si_to_unit': 0.0,
+            'description_id': None, 'display_name': None, 'factor_si_to_unit': 1000.0, 'offset_si_to_unit': 0.0,
             'physical_dimension': None, 'unit_group_refs': None})
 
     def test_mcd_db_unit_all_branches(self):
@@ -624,7 +628,7 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_UNIT', body), {
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
-            'display_name': 'km', 'factor_si_to_unit': 0.001, 'offset_si_to_unit': -273.15,
+            'description_id': None, 'display_name': 'km', 'factor_si_to_unit': 0.001, 'offset_si_to_unit': -273.15,
             'physical_dimension': dimension(),
             'unit_group_refs': [
                 {'name': 'G1', 'reference': {'object_id': 'GRP1', 'pool_id': 'POOL'}},
@@ -635,8 +639,18 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_UNIT', body), {
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
-            'display_name': None, 'factor_si_to_unit': 1.0, 'offset_si_to_unit': 0.0,
+            'description_id': None, 'display_name': None, 'factor_si_to_unit': 1.0, 'offset_si_to_unit': 0.0,
             'physical_dimension': None, 'unit_group_refs': []})
+
+    def test_mcd_db_unit_identifiers(self):
+        body = (ObjectBytes().ascii('U_km').unicode('Kilometer').unicode(None)
+                .ascii('UOI').ascii('LNID').ascii('DID'))
+        body.unicode(None).double(1000.0).double(0.0).absent().flag(False)
+        self.assertEqual(load('MCD_DB_UNIT', body), {
+            '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
+            'description': None, 'unique_object_id': 'UOI', 'long_name_id': 'LNID',
+            'description_id': 'DID', 'display_name': None, 'factor_si_to_unit': 1000.0,
+            'offset_si_to_unit': 0.0, 'physical_dimension': None, 'unit_group_refs': None})
 
 
 class UnitGroupTests(unittest.TestCase):
@@ -648,7 +662,8 @@ class UnitGroupTests(unittest.TestCase):
     @staticmethod
     def expected(category, refs):
         return {'#OBJECT_TYPE': 'MCD_DB_UNIT_GROUP', 'short_name': 'Group',
-                'long_name': 'Group long', 'description': None, 'category': category,
+                'long_name': 'Group long', 'description': None, 'unique_object_id': None,
+                'long_name_id': None, 'description_id': None, 'category': category,
                 'ref_collection': refs}
 
     def test_mcd_db_unit_group_minimal(self):
@@ -667,6 +682,13 @@ class UnitGroupTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_UNIT_GROUP', body), self.expected('eCOUNTRY', [
             {'name': 'N1', 'reference': {'object_id': 'R1', 'pool_id': 'POOL'}}]))
 
+    def test_mcd_db_unit_group_identifiers(self):
+        body = (ObjectBytes().ascii('Group').unicode('Group long').unicode(None)
+                .ascii('UOI').ascii('LNID').ascii('DID').u16(0x0F00).u16(0))
+        expected = self.expected('eCOUNTRY', [])
+        expected.update(unique_object_id='UOI', long_name_id='LNID', description_id='DID')
+        self.assertEqual(load('MCD_DB_UNIT_GROUP', body), expected)
+
 
 class PhysicalDimensionTests(unittest.TestCase):
     def test_mcd_db_physical_dimension_minimal(self):
@@ -679,9 +701,18 @@ class PhysicalDimensionTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PHYSICAL_DIMENSION', body), {
             '#OBJECT_TYPE': 'MCD_DB_PHYSICAL_DIMENSION', 'short_name': 'Speed',
             'long_name': 'Speed long', 'description': 'Description', 'unique_object_id': 'UID',
-            'long_name_id': 'LID', 'length_exponent': 1, 'mass_exponent': -1,
+            'long_name_id': 'LID', 'description_id': None, 'length_exponent': 1,
+            'mass_exponent': -1,
             'time_exponent': 2, 'current_exponent': -2, 'temperature_exponent': 3,
             'molar_amount_exponent': -3, 'luminous_intensity_exponent': 2147483647})
+
+    def test_mcd_db_physical_dimension_identifiers(self):
+        body = (ObjectBytes().ascii('Length').unicode(None).unicode(None)
+                .ascii('UOI').ascii('LNID').ascii('DID'))
+        body.i32(1).i32(0).i32(0).i32(0).i32(0).i32(0).i32(0)
+        expected = dimension()
+        expected.update(unique_object_id='UOI', long_name_id='LNID', description_id='DID')
+        self.assertEqual(load('MCD_DB_PHYSICAL_DIMENSION', body), expected)
 
 
 if __name__ == '__main__':

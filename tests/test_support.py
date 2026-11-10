@@ -16,6 +16,7 @@ EXPECTED_UNIT = {
     'description': None,
     'unique_object_id': 'UID',
     'long_name_id': None,
+    'description_id': None,
     'display_name': 'km',
     'factor_si_to_unit': 1000.0,
     'offset_si_to_unit': 0.0,
