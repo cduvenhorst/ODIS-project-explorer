@@ -356,3 +356,76 @@ class DataRecordTests(unittest.TestCase):
     def test_mcd_db_data_record_coding_data_without_has_flag(self):
         self.assertEqual(load('MCD_DB_DATA_RECORD', data_record_body(True, has_coding_data=False)),
                          data_record(True, has_coding_data=False))
+
+
+def configuration_record_body(full=False):
+    body = ObjectBytes()
+    if not full:
+        body.ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.absent().u8(255).flag(False).absent().flag(False).absent().u16(0).u8(0)
+        for _ in range(5):
+            body.absent()
+        body.u32(0).ascii(None).ascii(None)
+        return body.u8(0).u8(0).u8(0)
+    body.ascii('DescId').ascii('LongId').ascii('UID').unicode('Desc').unicode('Long').ascii('Rec')
+    body.nested('MCD_AUDIENCE', audience_body())
+    uint_value(body, 7)
+    body.flag(True).nested('MCD_DB_CONFIGURATION_ID_ITEM', item_base_body())
+    body.flag(True).nested('MCD_DB_DATA_ID_ITEM', item_base_body())
+    body.u16(2).ascii('D1')
+    value_attributed_ref_body(body, ('A1',), 3)
+    body.ascii('D2')
+    value_attributed_ref_body(body)
+    body.u8(1)
+    value_attributed_ref_body(body)
+    body.nested('MCD_DB_OPTION_ITEMS',
+                ObjectBytes().u16(1).nested('MCD_DB_OPTION_ITEM', option_item_body()))
+    body.nested('MCD_DB_SYSTEM_ITEMS', ObjectBytes().u16(0))
+    body.nested('DB_ODX_LINKS', ObjectBytes().u32(1).nested('DB_ODX_LINK', odx_link_body()))
+    body.nested('DB_ODX_LINKS', ObjectBytes().u32(0))
+    body.nested('DB_DIAG_COM_DATA_CONNECTORS',
+                ObjectBytes().u32(1).nested('DB_DIAG_COM_DATA_CONNECTOR', connector_body()))
+    body.u32(32).ascii('SUBDIR').ascii('PARENT').u8(1).u16(0).u8(1)
+    named_refs_body(body, NAMED_REFS)
+    return body.u8(1).u16(1).u32(11)
+
+
+def configuration_record(full=False):
+    if not full:
+        return typed('MCD_DB_CONFIGURATION_RECORD', {
+            'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+            'description': None, 'long_name': None, 'short_name': None, 'audience_state': None,
+            'configuration_id': None, 'has_configuration_id_item': False,
+            'configuration_id_item': None, 'has_data_id_item': False, 'data_id_item': None,
+            'data_record_refs': [], 'default_data_record_ref': None, 'option_items': None,
+            'system_items': None, 'read_diag_com_primitives': None,
+            'write_diag_com_primitives': None, 'diag_com_data_connectors': None,
+            'configuration_record_value_size': 0, 'ecu_config_file_sub_dir_name': None,
+            'parent_config_data_short_name': None, 'disabled_additional_audiences': None,
+            'enabled_additional_audiences': None, 'special_data_group_refs': None})
+    return typed('MCD_DB_CONFIGURATION_RECORD', {
+        'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
+        'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
+        'audience_state': audience(), 'configuration_id': uint(7),
+        'has_configuration_id_item': True,
+        'configuration_id_item': typed('MCD_DB_CONFIGURATION_ID_ITEM', item_base()),
+        'has_data_id_item': True, 'data_id_item': typed('MCD_DB_DATA_ID_ITEM', item_base()),
+        'data_record_refs': [{'name': 'D1', 'reference': value_attributed_ref(('A1',), 3)},
+                             {'name': 'D2', 'reference': value_attributed_ref()}],
+        'default_data_record_ref': value_attributed_ref(), 'option_items': [option_item()],
+        'system_items': [], 'read_diag_com_primitives': [odx_link()],
+        'write_diag_com_primitives': [], 'diag_com_data_connectors': [connector()],
+        'configuration_record_value_size': 32, 'ecu_config_file_sub_dir_name': 'SUBDIR',
+        'parent_config_data_short_name': 'PARENT', 'disabled_additional_audiences': [],
+        'enabled_additional_audiences': named_refs(NAMED_REFS),
+        'special_data_group_refs': [{'object_id': 11}]})
+
+
+class ConfigurationRecordTests(unittest.TestCase):
+    def test_mcd_db_configuration_record_minimal(self):
+        self.assertEqual(load('MCD_DB_CONFIGURATION_RECORD', configuration_record_body()),
+                         configuration_record())
+
+    def test_mcd_db_configuration_record_all_branches(self):
+        self.assertEqual(load('MCD_DB_CONFIGURATION_RECORD', configuration_record_body(True)),
+                         configuration_record(True))

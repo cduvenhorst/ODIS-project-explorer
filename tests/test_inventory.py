@@ -20,7 +20,7 @@ def sample_pool():
     return {
         'Good': unit_body().build('MCD_DB_UNIT'),
         'TooLong': unit_body().u8(7).build('MCD_DB_UNIT'),
-        'NoLoader': ObjectBytes().build('MCD_DB_CONFIGURATION_RECORD'),
+        'NoLoader': ObjectBytes().build('MCD_DB_CONTROL_PRIMITIVES'),
     }
 
 
@@ -51,7 +51,7 @@ class InventoryTests(unittest.TestCase):
         unit = result['types']['MCD_DB_UNIT']
         self.assertEqual(unit, {'code': support.object_type_code('MCD_DB_UNIT'),
                                 'ok': 1, 'failed': 1, 'unknown': 0})
-        self.assertEqual(result['types']['MCD_DB_CONFIGURATION_RECORD']['unknown'], 1)
+        self.assertEqual(result['types']['MCD_DB_CONTROL_PRIMITIVES']['unknown'], 1)
         self.assertIn('MCD_DB_UNIT | UnreadBytesError: 1 bytes', result['errors'])
         self.assertEqual(result['errors']['MCD_DB_UNIT | UnreadBytesError: 1 bytes'], 1)
         self.assertEqual(result['pools']['P1'], {'ok': 1, 'failed': 1, 'unknown': 1, 'pool_error': None})
@@ -60,14 +60,14 @@ class InventoryTests(unittest.TestCase):
         project = self.make_folder()
         body = unit_body()
         support.write_project(project, {}, body.ascii_strings, body.unicode_strings)
-        code = support.object_type_code('MCD_DB_CONFIGURATION_RECORD')
+        code = support.object_type_code('MCD_DB_CONTROL_PRIMITIVES')
         support.write_raw_pool(project, 'P1', [
             (b'UnitByName', [bytes(body.build('MCD_DB_UNIT'))]),
             (b'MultiPart', [code.to_bytes(2, 'little'), b'content'])])
         result = inventory.inventory_project(project, LIBRARY)
         self.assertIsNone(result['pools']['P1']['pool_error'])
         self.assertEqual(result['types']['MCD_DB_UNIT']['ok'], 1)
-        self.assertEqual(result['types']['MCD_DB_CONFIGURATION_RECORD']['unknown'], 1)
+        self.assertEqual(result['types']['MCD_DB_CONTROL_PRIMITIVES']['unknown'], 1)
 
     def test_broken_pool_is_counted_and_run_continues(self):
         project = self.make_folder()
