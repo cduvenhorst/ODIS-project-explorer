@@ -5,6 +5,8 @@ asserted, in strict mode.  Branches in which the loaders raise today are not pin
 The three identifiers of the unit, unit group and physical dimension loaders follow the
 kernel: they appear as the keys unique_object_id, long_name_id and description_id (None
 when empty) instead of being required empty.
+The parameter embedded in the length information type follows the kernel names: description_id
+(formerly some_id) and the always present key dop_base (None without flag 1 << 4).
 """
 import unittest
 

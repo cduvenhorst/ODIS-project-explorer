@@ -42,8 +42,9 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
 
     sdgs sets flag 1 << 6 and writes the reference collection (u16 count, u32 each).
     dop_base is a body (embedded object after the reference), 'absent' (flag set, object
-    missing) or None, which leaves flag 1 << 4 unset.  nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a
-    missing object, a list of numbers writes an MCD_VALUES object.
+    missing) or None, which leaves flag 1 << 4 unset.
+    nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a missing
+    object, a list of numbers writes an MCD_VALUES object.
     """
     flags = (int(value) | int(semantic) << 1 | int(bool(coded_type)) << 2 | int(reference) << 3
              | int(dop_base is not None) << 4 | int(byte_pos) << 5 | int(sdgs is not None) << 6 | int(protocol) << 7)
