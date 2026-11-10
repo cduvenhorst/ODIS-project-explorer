@@ -7,7 +7,7 @@ def load(stream):
     obj = {}
     
     obj['layer_id'] = stream.loadAsciiString()[0]
-    obj['unknown_1'] = stream.loadAsciiString()[0]
+    obj['unknown_1'] = stream.loadAsciiString()[0]  # The kernel reads this string but has neither setter nor getter for it
     obj['protocol_type'] = stream.loadAsciiString()[0]
     obj['protocol_stack_short_name'] = stream.loadAsciiString()[0]
     obj['com_param_spec_pool_id'] = stream.loadAsciiString()[0]
@@ -43,9 +43,9 @@ def load(stream):
         obj['functional_class_data_primitive_refs_map'].append(item)
     
     # EcuStateChartRefs
-    obj['ecu_state_chart_refs_map'] = common_loaders.loadStringToReferenceMap(stream, True)
+    obj['ecu_state_chart_refs_map'] = common_loaders.loadStringToReferenceMap(stream, string_vector_in_reference=True)
     # SubComponentRefs
-    obj['sub_component_refs_map'] = common_loaders.loadStringToReferenceMap(stream, True)
+    obj['sub_component_refs_map'] = common_loaders.loadStringToReferenceMap(stream, string_vector_in_reference=True)
     # AdditionalAudienceRefs
     obj['additional_audience_refs_map'] = common_loaders.loadStringToReferenceMap(stream)
     

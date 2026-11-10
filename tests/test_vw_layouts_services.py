@@ -612,7 +612,6 @@ class TableParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(True, True)),
                          typed('MCD_DB_TABLE_PARAMETER', expected))
 
-
     def test_mcd_db_table_parameter_precondition_states(self):
         streams = concat(ObjectBytes().raw(bytes.fromhex('233E00 4101 233E01 233C00 42')),
                          named_attributed_refs_body(ObjectBytes(), NAMED_ATTRIBUTED_REFS))

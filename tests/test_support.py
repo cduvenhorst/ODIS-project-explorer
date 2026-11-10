@@ -1,3 +1,7 @@
+"""Tests of the shared test support (object body builder, project writer).
+
+EXPECTED_UNIT carries the description_id key, which the unit loader reads since Plan 3.
+"""
 import os
 import shutil
 import tempfile

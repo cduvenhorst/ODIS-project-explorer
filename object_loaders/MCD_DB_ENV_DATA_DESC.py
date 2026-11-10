@@ -4,7 +4,7 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['description'] = stream.loadUnicodeString()[0]
+    obj['description'] = stream.loadUnicodeString()[0]  # Description
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     

@@ -57,12 +57,21 @@ class PblRecordTests(unittest.TestCase):
         for body in (by_hash, by_name):
             body.ascii(None).ascii(None).unicode('km').double(1000.0).double(0.0).absent().flag(False)
         support.write_raw_pool(folder, 'P1', [
-            (string_hash('Same', 'A').to_bytes(4, 'little'), [bytes(by_hash.build('MCD_DB_UNIT'))]),
-            (b'Same', [bytes(by_name.build('MCD_DB_UNIT'))])])
-        support.write_project(folder, {}, by_hash.ascii_strings + by_name.ascii_strings + ['Same'],
+            (string_hash('SameName', 'A').to_bytes(4, 'little'), [bytes(by_hash.build('MCD_DB_UNIT'))]),
+            (b'SameName', [bytes(by_name.build('MCD_DB_UNIT'))])])
+        support.write_project(folder, {}, by_hash.ascii_strings + by_name.ascii_strings + ['SameName'],
                               by_hash.unicode_strings)
-        result = self.loader(folder).load_object_by_id(folder, 'P1', 'Same')
+        result = self.loader(folder).load_object_by_id(folder, 'P1', 'SameName')
         self.assertEqual(result['short_name'], 'U_hash')
+
+    def test_load_object_by_id_finds_four_byte_name_key(self):
+        folder = self.make_folder()
+        body = support.ObjectBytes().ascii('U_four').unicode('Kilometer').unicode(None).ascii('UID')
+        body.ascii(None).ascii(None).unicode('km').double(1000.0).double(0.0).absent().flag(False)
+        support.write_raw_pool(folder, 'P1', [(b'ABCD', [bytes(body.build('MCD_DB_UNIT'))])])
+        support.write_project(folder, {}, body.ascii_strings + ['ABCD'], body.unicode_strings)
+        result = self.loader(folder).load_object_by_id(folder, 'P1', 'ABCD')
+        self.assertEqual(result['short_name'], 'U_four')
 
     def test_load_object_by_id_reports_missing_name(self):
         folder = self.make_folder()

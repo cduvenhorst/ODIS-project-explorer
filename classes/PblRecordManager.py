@@ -49,7 +49,7 @@ class PblRecordManager:
             data = self.__pbl.pblKfRead(key_file, 12 + 8 * 255)
             
             # Add the record to the dictionary (keys must be unique)
-            # The key is the 4-byte value, which represents the hash of an Ascii string (ObjectID = Object name)
+            # The key is the hash (int) of the Object name for 4-byte keys, otherwise the Object name itself (str)
             # The data is a bytearray describing how to retrieve the Object's data from the .db file
             if key in records:
                 raise RuntimeError('Duplicate key in PBL records')

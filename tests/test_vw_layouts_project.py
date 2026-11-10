@@ -107,7 +107,7 @@ def object_map(prefix, full):
 
 
 def described_body(body):
-    """The three unused strings, then description, long name and short name."""
+    """The three identifiers, then description, long name and short name."""
     body.ascii(None).ascii(None).ascii(None)
     return body.unicode('Description').unicode('Long name').ascii('Name')
 

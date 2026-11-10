@@ -202,7 +202,7 @@ def write_project(folder, pools, ascii_strings, unicode_strings):
             library.pblKfClose(key_file)
 
 
-def write_raw_pool(folder, pool, entries):
+def write_raw_pool(folder: str, pool: str, entries: list[tuple[bytes, list[bytes]]]) -> None:
     """Write `<pool>.key` and `<pool>.db` from (key bytes, parts) entries.
 
     Each part is passed uncompressed and stored as its own zlib stream, back to back.

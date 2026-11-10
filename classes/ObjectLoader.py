@@ -1,4 +1,5 @@
 import os
+import struct
 
 from classes.PblRecordManager import PblRecordManager
 from classes import DbObject
@@ -103,10 +104,14 @@ class ObjectLoader:
         # Get the PBL record data belonging to the requested Object, and load it
         # The kernel looks up the hash first, then the name
         records = self.__loaded_pbl_records[PoolID]
+        ObjectID_bytes = ObjectID.encode('cp1252', errors='replace')
         if ObjectID_hash in records:
             pbl_data = records[ObjectID_hash]
         elif ObjectID in records:
             pbl_data = records[ObjectID]
+        elif len(ObjectID_bytes) == 4 and struct.unpack('<L', ObjectID_bytes)[0] in records:
+            # The kernel compares raw key bytes, so a 4-byte name key is listed under its integer value
+            pbl_data = records[struct.unpack('<L', ObjectID_bytes)[0]]
         else:
             raise KeyError(ObjectID)
         return self.load_object_by_pbl_data(pbl_data, input_folder_path, PoolID)
