@@ -40,11 +40,12 @@ PARAMETER_ALL = dict(value=True, semantic=True, layer=5, coded_type=True, refere
 
 
 def parameter_body(value=False, semantic=False, layer=None, coded_type=False, reference=False,
-                   byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None, dop_base=None):
+                   byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None, dop_base=None,
+                   dop_base_type='MCD_AUDIENCE'):
     """MCD_DB_PARAMETER body; coded_type may also be 'absent' (flag set, object missing).
 
     sdgs sets flag 1 << 6 and writes the reference collection (u16 count, u32 each).
-    dop_base is a body (embedded object after the reference), 'absent' (flag set, object
+    dop_base is a body of type dop_base_type (embedded object after the reference), 'absent' (flag set, object
     missing) or None, which leaves flag 1 << 4 unset.
     nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a missing
     object, a list of numbers writes an MCD_VALUES object.
@@ -68,7 +69,7 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
     if dop_base == 'absent':
         body.absent()
     elif dop_base is not None:
-        body.nested('MCD_AUDIENCE', dop_base)
+        body.nested(dop_base_type, dop_base)
     if sdgs is not None:
         body.u16(len(sdgs))
         for object_id in sdgs:

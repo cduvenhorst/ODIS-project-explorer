@@ -13,6 +13,8 @@ __all__ = [
     'DB_DOP_SIMPLE_BASE',
     'DB_LAYER_DATA',
     'DB_LIMIT',
+    'DB_ODX_LINK',
+    'DB_ODX_LINKS',
     'DB_PHYSICAL_TYPE',
     'DB_PROJECT_DATA',
     'DB_SWITCH_KEY',
