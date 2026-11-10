@@ -346,7 +346,8 @@ class DiagCodedTypeTests(unittest.TestCase):
                 'byte_position': 0, 'default_mcd_value': None, 'display_level': 0,
                 'semantic': None, 'sys_param': None, 'mcd_parameter_type': 'eVALUE',
                 'layer_id': None, 'diag_coded_type': None, 'db_object_ref': None,
-                'is_byte_pos_available': False, 'is_protocol_parameter': False}})
+                'is_byte_pos_available': False, 'is_protocol_parameter': False,
+                'special_data_group_refs': None, 'nrc_const_values': None}})
 
     def test_db_diag_coded_type_emin_max_length_type(self):
         body = ObjectBytes().u8(1).u32(10).u32(2).u8(1).u8(0).u8(3).flag(True).flag(False)

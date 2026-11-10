@@ -74,5 +74,6 @@ __all__ = [
     'MCD_INTERVAL',
     'MCD_SCALE_CONSTRAINT',
     'MCD_SCALE_CONSTRAINTS',
+    'MCD_VALUES',
     'DB_KEY_VECTOR'
 ]

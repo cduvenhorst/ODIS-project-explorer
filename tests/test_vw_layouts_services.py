@@ -27,14 +27,19 @@ def load(type_name, body):
 # ---------------------------------------------------------------------------
 
 PARAMETER_ALL = dict(value=True, semantic=True, layer=5, coded_type=True, reference=True,
-                     byte_pos=True, protocol=True)
+                     byte_pos=True, protocol=True, sdgs=[11, 22])
 
 
 def parameter_body(value=False, semantic=False, layer=None, coded_type=False, reference=False,
-                   byte_pos=False, protocol=False, type_code=1):
-    """MCD_DB_PARAMETER body; coded_type may also be 'absent' (flag set, object missing)."""
+                   byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None):
+    """MCD_DB_PARAMETER body; coded_type may also be 'absent' (flag set, object missing).
+
+    sdgs sets flag 1 << 6 and writes the reference collection (u16 count, u32 each).
+    nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a
+    missing object, a list of numbers writes an MCD_VALUES object.
+    """
     flags = (int(value) | int(semantic) << 1 | int(bool(coded_type)) << 2 | int(reference) << 3
-             | int(byte_pos) << 5 | int(protocol) << 7)
+             | int(byte_pos) << 5 | int(sdgs is not None) << 6 | int(protocol) << 7)
     body = ObjectBytes().unicode('Description').unicode('Long name').ascii('Name')
     body.ascii('SomeId').ascii('LongId').ascii('UID').u8(3).u32(12).u8(flags)
     if value:
@@ -49,6 +54,17 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
         body.nested('DB_DIAG_CODED_TYPE', diag_coded_type_body())
     if reference:
         ref_body(body, 'REF')
+    if sdgs is not None:
+        body.u16(len(sdgs))
+        for object_id in sdgs:
+            body.u32(object_id)
+    if nrc_values == 'absent':
+        body.absent()
+    elif nrc_values is not None:
+        values = ObjectBytes().u16(len(nrc_values))
+        for number in nrc_values:
+            uint_value(values, number)
+        body.nested('MCD_VALUES', values)
     return body
 
 
@@ -59,7 +75,8 @@ def parameter(**changes):
               'display_level': 2, 'semantic': None, 'sys_param': 'SYS',
               'mcd_parameter_type': 'eVALUE', 'layer_id': None, 'diag_coded_type': None,
               'db_object_ref': None, 'is_byte_pos_available': False,
-              'is_protocol_parameter': False}
+              'is_protocol_parameter': False,
+              'special_data_group_refs': None, 'nrc_const_values': None}
     fields.update(changes)
     return fields
 
@@ -67,7 +84,8 @@ def parameter(**changes):
 def parameter_all():
     return parameter(default_mcd_value=uint(7), semantic='SEM', layer_id=5,
                      diag_coded_type=diag_coded_type(), db_object_ref=ref('REF'),
-                     is_byte_pos_available=True, is_protocol_parameter=True)
+                     is_byte_pos_available=True, is_protocol_parameter=True,
+                     special_data_group_refs=[{'object_id': 11}, {'object_id': 22}])
 
 
 def two_parameters_body():
@@ -93,6 +111,25 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(coded_type='absent')),
                          typed('MCD_DB_PARAMETER', parameter()))
 
+    def test_mcd_db_parameter_nrc_const(self):
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(type_code=0x13, nrc_values=[1, 2])),
+                         typed('MCD_DB_PARAMETER', parameter(
+                             mcd_parameter_type='eNRC_CONST',
+                             nrc_const_values=[uint(1), uint(2)])))
+
+    def test_mcd_db_parameter_nrc_const_without_values(self):
+        self.assertEqual(load('MCD_DB_PARAMETER',
+                              parameter_body(type_code=0x13, nrc_values='absent')),
+                         typed('MCD_DB_PARAMETER', parameter(mcd_parameter_type='eNRC_CONST')))
+
+    def test_mcd_db_parameter_nrc_const_with_special_data_groups(self):
+        self.assertEqual(load('MCD_DB_PARAMETER',
+                              parameter_body(sdgs=[11], type_code=0x13, nrc_values=[1])),
+                         typed('MCD_DB_PARAMETER', parameter(
+                             mcd_parameter_type='eNRC_CONST',
+                             special_data_group_refs=[{'object_id': 11}],
+                             nrc_const_values=[uint(1)])))
+
     def test_mcd_db_parameter_types(self):
         names = {1: 'eVALUE', 2: 'eRESERVED', 3: 'eCODED_CONST', 4: 'ePHYS_CONST',
                  5: 'eLENGTH_KEY', 6: 'eMATCHING_REQUEST_PARAM', 7: 'eSYSTEM', 8: 'eDYNAMIC',
@@ -102,6 +139,17 @@ class ParameterTests(unittest.TestCase):
             with self.subTest(parameter_type=name):
                 self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(type_code=code)),
                                  typed('MCD_DB_PARAMETER', parameter(mcd_parameter_type=name)))
+
+
+class ValuesTests(unittest.TestCase):
+    def test_mcd_values_minimal(self):
+        self.assertEqual(load('MCD_VALUES', ObjectBytes().u16(0)), [])
+
+    def test_mcd_values_all_branches(self):
+        body = ObjectBytes().u16(2)
+        uint_value(body, 7)
+        uint_value(body, 9)
+        self.assertEqual(load('MCD_VALUES', body), [uint(7), uint(9)])
 
 
 class ParameterSimpleTests(unittest.TestCase):

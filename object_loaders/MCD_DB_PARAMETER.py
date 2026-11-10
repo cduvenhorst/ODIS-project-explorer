@@ -9,7 +9,7 @@ def load(stream):
     obj['description'] = stream.loadUnicodeString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
-    obj['some_id'] = stream.loadAsciiString()[0]
+    obj['some_id'] = stream.loadAsciiString()[0] # DescriptionID
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     
@@ -51,13 +51,14 @@ def load(stream):
     
     obj['is_byte_pos_available'] = bool(flags & (1 << 5))
     
-    #obj['special_data_group_refs'] = None
+    obj['special_data_group_refs'] = None
     if flags & (1 << 6):
-        raise RuntimeError('_MCD_DB_PARAMETER.py: Flag 1<<6 set')
+        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['is_protocol_parameter'] = bool(flags & (1 << 7))
     
+    obj['nrc_const_values'] = None
     if obj['mcd_parameter_type'] == 'eNRC_CONST':
-        raise RuntimeError('_MCD_DB_PARAMETER.py: Is eNRC_CONST')
+        obj['nrc_const_values'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_VALUES
     
     return obj
