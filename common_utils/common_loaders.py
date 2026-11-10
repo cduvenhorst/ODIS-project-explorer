@@ -1,4 +1,5 @@
 import struct
+from classes.DbStream import DbStream
 from common_utils import enum_converters
 
 
@@ -171,6 +172,23 @@ def loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(s
     for i in range(collection_items):
         item = {}
         item['object_id'] = stream.loadNumericType(4) # asam::database::base::IDbPersistentObject::setDbObjectID
+        obj.append(item)
+    
+    return obj
+
+
+# ASCII-to-Unicode string map (key + value)
+def loadAsciiToUnicodeStringMap(stream: DbStream) -> list[dict[str, str | None]]:
+    """Read a u16-counted map of ASCII keys to Unicode values, in stream order."""
+    obj = []
+    
+    map_items = stream.loadNumericType(2)
+    for i in range(map_items):
+        item = {}
+        
+        item['map_key'] = stream.loadAsciiString()[0]
+        item['value'] = stream.loadUnicodeString()[0]
+        
         obj.append(item)
     
     return obj

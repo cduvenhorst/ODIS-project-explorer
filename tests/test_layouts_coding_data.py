@@ -193,3 +193,72 @@ class OptionItemTests(unittest.TestCase):
     def test_mcd_db_option_items_all_branches(self):
         body = ObjectBytes().u16(2).nested('MCD_DB_OPTION_ITEM', option_item_body()).absent()
         self.assertEqual(load('MCD_DB_OPTION_ITEMS', body), [option_item(), None])
+
+
+def string_map_body(body, entries=()):
+    body.u16(len(entries))
+    for key, value in entries:
+        body.ascii(key).unicode(value)
+    return body
+
+
+def string_map(entries=()):
+    return [{'map_key': key, 'value': value} for key, value in entries]
+
+
+def connector_body(full=False):
+    body = ObjectBytes()
+    if not full:
+        body.flag(False).ascii(None).flag(False).ascii(None).u8(0).u8(0).u32(0).u32(0)
+        for _ in range(4):
+            body.u16(0)
+        return body
+    body.flag(True).ascii('W.PATH').flag(False).ascii('R').u8(1).nested('DB_ODX_LINK', odx_link_body())
+    body.u8(1).nested('DB_ODX_LINK', odx_link_body()).u32(0x1000).u32(0x8000)
+    string_map_body(body, [('K1', 'V1')])
+    string_map_body(body)
+    string_map_body(body, [('K2', 'V2'), ('K2', 'V3')])
+    return string_map_body(body)
+
+
+def connector(full=False):
+    if not full:
+        return typed('DB_DIAG_COM_DATA_CONNECTOR', {
+            'write_param_is_short_name_path': False, 'write_param_short_name': None,
+            'write_param_short_name_path': None, 'read_param_is_short_name_path': False,
+            'read_param_short_name': None, 'read_param_short_name_path': None,
+            'read_diag_com_primitive': None, 'write_diag_com_primitive': None,
+            'uncompressed_size': 0, 'start_address': 0, 'write_param_value_map': [],
+            'write_param_value_sn_path_map': [], 'read_param_value_map': [],
+            'read_param_value_sn_path_map': []})
+    return typed('DB_DIAG_COM_DATA_CONNECTOR', {
+        'write_param_is_short_name_path': True, 'write_param_short_name': None,
+        'write_param_short_name_path': 'W.PATH', 'read_param_is_short_name_path': False,
+        'read_param_short_name': 'R', 'read_param_short_name_path': None,
+        'read_diag_com_primitive': odx_link(), 'write_diag_com_primitive': odx_link(),
+        'uncompressed_size': 0x1000, 'start_address': 0x8000,
+        'write_param_value_map': string_map([('K1', 'V1')]), 'write_param_value_sn_path_map': [],
+        'read_param_value_map': string_map([('K2', 'V2'), ('K2', 'V3')]),
+        'read_param_value_sn_path_map': []})
+
+
+class DataConnectorTests(unittest.TestCase):
+    def test_db_diag_com_data_connector_minimal(self):
+        self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTOR', connector_body()), connector())
+
+    def test_db_diag_com_data_connector_all_branches(self):
+        self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTOR', connector_body(True)), connector(True))
+
+    def test_db_diag_com_data_connector_outer_flag_without_object(self):
+        body = ObjectBytes().flag(False).ascii(None).flag(False).ascii(None).u8(1).absent().u8(0)
+        body.u32(0).u32(0)
+        for _ in range(4):
+            body.u16(0)
+        self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTOR', body), connector())
+
+    def test_db_diag_com_data_connectors_minimal(self):
+        self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTORS', ObjectBytes().u32(0)), [])
+
+    def test_db_diag_com_data_connectors_all_branches(self):
+        body = ObjectBytes().u32(2).nested('DB_DIAG_COM_DATA_CONNECTOR', connector_body(True)).absent()
+        self.assertEqual(load('DB_DIAG_COM_DATA_CONNECTORS', body), [connector(True), None])
