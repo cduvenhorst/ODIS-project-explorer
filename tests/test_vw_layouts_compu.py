@@ -345,11 +345,12 @@ class DiagCodedTypeTests(unittest.TestCase):
             'is_high_low_byte_order': True, 'is_condensed': True,
             'length_key_parameter': {
                 '#OBJECT_TYPE': 'MCD_DB_PARAMETER_SIMPLE', 'description': None,
-                'long_name': None, 'short_name': 'LEN', 'some_id': None,
+                'long_name': None, 'short_name': 'LEN', 'description_id': None,
                 'long_name_id': None, 'unique_object_id': None, 'bit_position': 0,
                 'byte_position': 0, 'default_mcd_value': None, 'display_level': 0,
                 'semantic': None, 'sys_param': None, 'mcd_parameter_type': 'eVALUE',
                 'layer_id': None, 'diag_coded_type': None, 'db_object_ref': None,
+                'dop_base': None,
                 'is_byte_pos_available': False, 'is_protocol_parameter': False,
                 'special_data_group_refs': None, 'nrc_const_values': None}})
 

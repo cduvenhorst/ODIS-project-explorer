@@ -9,6 +9,9 @@ references), not the former upstream layout.
 The environment data description loader follows the kernel: description is read instead of
 being required empty, and description_id, long_name_id and unique_object_id always appear
 as keys (None when empty).
+The identifiers follow the kernel names: the communication primitive reads description_id
+(formerly id), the request unique_object_id (formerly id) and the parameter description_id
+(formerly some_id); the parameter also always has dop_base (None without flag 1 << 4).
 """
 import unittest
 
@@ -34,15 +37,16 @@ PARAMETER_ALL = dict(value=True, semantic=True, layer=5, coded_type=True, refere
 
 
 def parameter_body(value=False, semantic=False, layer=None, coded_type=False, reference=False,
-                   byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None):
+                   byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None, dop_base=None):
     """MCD_DB_PARAMETER body; coded_type may also be 'absent' (flag set, object missing).
 
     sdgs sets flag 1 << 6 and writes the reference collection (u16 count, u32 each).
-    nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a
+    dop_base is a body (embedded object after the reference), 'absent' (flag set, object
+    missing) or None, which leaves flag 1 << 4 unset.  nrc_values is only used with type_code 0x13: None writes nothing, 'absent' writes a
     missing object, a list of numbers writes an MCD_VALUES object.
     """
     flags = (int(value) | int(semantic) << 1 | int(bool(coded_type)) << 2 | int(reference) << 3
-             | int(byte_pos) << 5 | int(sdgs is not None) << 6 | int(protocol) << 7)
+             | int(dop_base is not None) << 4 | int(byte_pos) << 5 | int(sdgs is not None) << 6 | int(protocol) << 7)
     body = ObjectBytes().unicode('Description').unicode('Long name').ascii('Name')
     body.ascii('SomeId').ascii('LongId').ascii('UID').u8(3).u32(12).u8(flags)
     if value:
@@ -57,6 +61,10 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
         body.nested('DB_DIAG_CODED_TYPE', diag_coded_type_body())
     if reference:
         ref_body(body, 'REF')
+    if dop_base == 'absent':
+        body.absent()
+    elif dop_base is not None:
+        body.nested('MCD_AUDIENCE', dop_base)
     if sdgs is not None:
         body.u16(len(sdgs))
         for object_id in sdgs:
@@ -73,11 +81,11 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
 
 def parameter(**changes):
     fields = {'description': 'Description', 'long_name': 'Long name', 'short_name': 'Name',
-              'some_id': 'SomeId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
+              'description_id': 'SomeId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
               'bit_position': 3, 'byte_position': 12, 'default_mcd_value': None,
               'display_level': 2, 'semantic': None, 'sys_param': 'SYS',
               'mcd_parameter_type': 'eVALUE', 'layer_id': None, 'diag_coded_type': None,
-              'db_object_ref': None, 'is_byte_pos_available': False,
+              'db_object_ref': None, 'dop_base': None, 'is_byte_pos_available': False,
               'is_protocol_parameter': False,
               'special_data_group_refs': None, 'nrc_const_values': None}
     fields.update(changes)
@@ -105,6 +113,16 @@ class ParameterTests(unittest.TestCase):
     def test_mcd_db_parameter_minimal(self):
         self.assertEqual(load('MCD_DB_PARAMETER', parameter_body()),
                          typed('MCD_DB_PARAMETER', parameter()))
+
+    def test_mcd_db_parameter_dop_base(self):
+        self.assertEqual(
+            load('MCD_DB_PARAMETER', parameter_body(reference=True, dop_base=audience_body())),
+            typed('MCD_DB_PARAMETER', parameter(db_object_ref=ref('REF'), dop_base=audience())))
+
+    def test_mcd_db_parameter_dop_base_flag_without_object(self):
+        body = parameter_body(dop_base='absent')
+        self.assertEqual(load('MCD_DB_PARAMETER', body),
+                         typed('MCD_DB_PARAMETER', parameter(dop_base=None)))
 
     def test_mcd_db_parameter_all_branches(self):
         self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(**PARAMETER_ALL)),
@@ -605,7 +623,7 @@ def request_body(parameters=False, description_id=None, sdgs=None):
 
 def request(parameters=None, description_id=None, sdgs=None):
     return {'short_name': 'Request', 'long_name': 'Request long',
-            'description': 'Request description', 'id': 'ID', 'long_name_id': 'LongId',
+            'description': 'Request description', 'unique_object_id': 'ID', 'long_name_id': 'LongId',
             'description_id': description_id, 'request_parameters': parameters,
             'special_data_group_refs':
                 None if sdgs is None else [{'object_id': i} for i in sdgs]}
@@ -709,7 +727,7 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
     suppression = suppression or ('path' if full else None)
     refs = named_refs(NAMED_REFS) if full else []
     state_refs = named_attributed_refs(NAMED_ATTRIBUTED_REFS) if full else []
-    fields = {'id': 'ID', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
+    fields = {'description_id': 'ID', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
               'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive'}
     if full:
         fields['request_ref'] = ref('REQ')

@@ -5,7 +5,7 @@ from common_utils import enum_converters
 def load(stream):
     obj = {}
     
-    obj['id'] = stream.loadAsciiString()[0]
+    obj['description_id'] = stream.loadAsciiString()[0] # DescriptionID; not always empty
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     

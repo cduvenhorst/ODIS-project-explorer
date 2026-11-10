@@ -9,7 +9,7 @@ def load(stream):
     obj['description'] = stream.loadUnicodeString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
-    obj['some_id'] = stream.loadAsciiString()[0] # DescriptionID
+    obj['description_id'] = stream.loadAsciiString()[0] # DescriptionID; not always empty
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     
@@ -45,9 +45,9 @@ def load(stream):
     if flags & (1 << 3):
         obj['db_object_ref'] = common_loaders.load_reference(stream, False)
     
-    # DOP base ?
+    obj['dop_base'] = None
     if flags & (1 << 4):
-        raise RuntimeError('_MCD_DB_PARAMETER.py: Flag 1<<4 set')
+        obj['dop_base'] = DbObject.load_object_from_stream_if_exists(stream) # DopBase
     
     obj['is_byte_pos_available'] = bool(flags & (1 << 5))
     
