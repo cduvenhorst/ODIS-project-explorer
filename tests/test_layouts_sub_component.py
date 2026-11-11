@@ -196,5 +196,71 @@ class ConnectorCollectionTests(unittest.TestCase):
                          [param_connector(), None])
 
 
+def sub_component_names_body(body):
+    """The six name fields in the reversed stream order, each with a distinct value."""
+    return (body.ascii('SC_DID').ascii('SC_LID').ascii('SC_UID')
+            .unicode('SC desc').unicode('SC long').ascii('SC1'))
+
+
+SUB_COMPONENT_NAMES = {
+    'description_id': 'SC_DID', 'long_name_id': 'SC_LID', 'unique_object_id': 'SC_UID',
+    'description': 'SC desc', 'long_name': 'SC long', 'short_name': 'SC1'}
+
+
+class SubComponentTests(unittest.TestCase):
+    def test_mcd_db_sub_component_minimal(self):
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii('SC1')
+        for type_name in ('MCD_DB_DIAG_TROUBLE_CODE_CONNECTORS', 'MCD_DB_ENV_DATA_CONNECTORS',
+                          'MCD_DB_SUB_COMPONENT_PARAM_CONNECTORS', 'MCD_DB_MATCHING_PATTERNS',
+                          'MCD_DB_TABLE_ROW_CONNECTORS'):
+            body.nested(type_name, ObjectBytes().u32(0))
+        body.ascii('SLAVE').u16(0).u16(0)
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT', body), typed('MCD_DB_SUB_COMPONENT', {
+            'description_id': None, 'long_name_id': None, 'unique_object_id': None,
+            'description': None, 'long_name': None, 'short_name': 'SC1',
+            'diag_trouble_code_connectors': [], 'env_data_connectors': [],
+            'sub_component_param_connectors': [], 'sub_component_patterns': [],
+            'table_row_connectors': [], 'semantic': 'SLAVE', 'dtc_dop_names': [],
+            'dtc_names': []}))
+
+    def test_mcd_db_sub_component_all_branches(self):
+        body = sub_component_names_body(ObjectBytes())
+        body.nested('MCD_DB_DIAG_TROUBLE_CODE_CONNECTORS',
+                    ObjectBytes().u32(1).nested('MCD_DB_DIAG_TROUBLE_CODE_CONNECTOR',
+                                                dtc_connector_body()))
+        body.nested('MCD_DB_ENV_DATA_CONNECTORS',
+                    ObjectBytes().u32(1).nested('MCD_DB_ENV_DATA_CONNECTOR', env_connector_body()))
+        body.nested('MCD_DB_SUB_COMPONENT_PARAM_CONNECTORS',
+                    ObjectBytes().u32(1).nested('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR',
+                                                param_connector_body()))
+        body.nested('MCD_DB_MATCHING_PATTERNS',
+                    ObjectBytes().u32(1).nested('MCD_DB_MATCHING_PATTERN', ObjectBytes().absent()))
+        body.nested('MCD_DB_TABLE_ROW_CONNECTORS',
+                    ObjectBytes().u32(1).nested('MCD_DB_TABLE_ROW_CONNECTOR',
+                                                table_row_connector_body()))
+        body.ascii('FUNCTION').u16(1).ascii('DOP1').u16(2).ascii('DTC1').ascii('DTC2')
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT', body), typed('MCD_DB_SUB_COMPONENT', {
+            **SUB_COMPONENT_NAMES,
+            'diag_trouble_code_connectors': [dtc_connector()],
+            'env_data_connectors': [env_connector()],
+            'sub_component_param_connectors': [param_connector()],
+            'sub_component_patterns': [typed('MCD_DB_MATCHING_PATTERN',
+                                             {'matching_parameters': None})],
+            'table_row_connectors': [table_row_connector()],
+            'semantic': 'FUNCTION', 'dtc_dop_names': ['DOP1'], 'dtc_names': ['DTC1', 'DTC2']}))
+
+    def test_sub_component_with_absent_optional_objects(self):
+        body = sub_component_names_body(ObjectBytes())
+        for _ in range(5):
+            body.absent()
+        body.ascii('SLAVE').u16(0).u16(1).ascii('DTC1')
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT', body), typed('MCD_DB_SUB_COMPONENT', {
+            **SUB_COMPONENT_NAMES,
+            'diag_trouble_code_connectors': None, 'env_data_connectors': None,
+            'sub_component_param_connectors': None, 'sub_component_patterns': None,
+            'table_row_connectors': None, 'semantic': 'SLAVE', 'dtc_dop_names': [],
+            'dtc_names': ['DTC1']}))
+
+
 if __name__ == '__main__':
     unittest.main()
