@@ -202,3 +202,89 @@ class StateChartObjectTests(unittest.TestCase):
                          typed('MCD_DB_ECU_STATE_CHART', {
                              **name_block(True), 'semantic': 'SESSION', 'ecu_states': refs,
                              'start_state': 'S1', 'ecu_state_transitions': refs}))
+
+
+def table_ref_body(body, number):
+    return body.ascii('ROW%d' % number).ascii('POOL').ascii('Row%d' % number)
+
+
+def table_ref(number):
+    return {'object_id': 'ROW%d' % number, 'pool_id': 'POOL', 'object_id2': 'Row%d' % number}
+
+
+def map_body(body, entries):
+    """One map of DB_STATE_CHART_DATA; entries is a list of (key, [element body or None])."""
+    body.u16(len(entries))
+    for key, elements in entries:
+        body.ascii(key).u16(len(elements))
+        for element in elements:
+            if element is None:
+                body.absent()
+            else:
+                body.nested(element[0], element[1])
+    return body
+
+
+ACTION = 'MCD_DB_STATE_TRANSITION_ACTION'
+PRECONDITION = 'MCD_DB_PRECONDITION_DEFINITION'
+
+
+class StateChartDataTests(unittest.TestCase):
+    def test_db_state_chart_data_minimal(self):
+        self.assertEqual(load('DB_STATE_CHART_DATA', ObjectBytes().u16(0).u16(0)),
+                         typed('DB_STATE_CHART_DATA', {
+                             'state_trans_trans_actions_map': [],
+                             'state_precondition_defs_map': []}))
+
+    def test_db_state_chart_data_all_branches(self):
+        body = map_body(ObjectBytes(), [('T1', [(ACTION, action_body()), None])])
+        map_body(body, [
+            ('S1', [(PRECONDITION, precondition_body(diag_com=False)),
+                    (PRECONDITION, precondition_body())]),
+            ('S2', [(PRECONDITION, precondition_body(diag_com=False))])])
+        body.raw(b'#>\x00C')
+        table_ref_body(body, 1)
+        table_ref_body(body, 2)
+        body.raw(b'#>\x01')
+        result = load('DB_STATE_CHART_DATA', body)
+        self.assertEqual(result, typed('DB_STATE_CHART_DATA', {
+            'state_trans_trans_actions_map': [{'map_key': 'T1', 'items': [action(), None]}],
+            'state_precondition_defs_map': [
+                {'map_key': 'S1', 'items': [
+                    {**precondition(diag_com=False), 'table_parameter': table_ref(1)},
+                    precondition()]},
+                {'map_key': 'S2', 'items': [
+                    {**precondition(diag_com=False), 'table_parameter': table_ref(2)}]}]}))
+
+    def test_db_state_chart_data_missing_named_stream(self):
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(PRECONDITION, precondition_body(diag_com=False))])])
+        with self.assertRaisesRegex(RuntimeError, 'Named stream C missing'):
+            load('DB_STATE_CHART_DATA', body)
+
+    def test_db_state_chart_data_too_few_references(self):
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(PRECONDITION, precondition_body(diag_com=False)),
+                                (PRECONDITION, precondition_body(diag_com=False))])])
+        body.raw(b'#>\x00C')
+        table_ref_body(body, 1)
+        body.raw(b'#>\x01')
+        with self.assertRaisesRegex(RuntimeError, 'Cannot read'):
+            load('DB_STATE_CHART_DATA', body)
+
+    def test_db_state_chart_data_too_many_references(self):
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(PRECONDITION, precondition_body(diag_com=False))])])
+        body.raw(b'#>\x00C')
+        table_ref_body(body, 1)
+        table_ref_body(body, 2)
+        body.raw(b'#>\x01')
+        with self.assertRaisesRegex(RuntimeError, 'Unexpected marker'):
+            load('DB_STATE_CHART_DATA', body)
+
+    def test_db_state_chart_data_old_layout(self):
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(PRECONDITION, precondition_body(old_layout=True))])])
+        result = load('DB_STATE_CHART_DATA', body, '0011')
+        self.assertEqual(result['state_precondition_defs_map'],
+                         [{'map_key': 'S1', 'items': [precondition()]}])

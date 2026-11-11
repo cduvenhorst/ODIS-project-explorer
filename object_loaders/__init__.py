@@ -20,6 +20,7 @@ __all__ = [
     'DB_ODX_LINKS',
     'DB_PHYSICAL_TYPE',
     'DB_PROJECT_DATA',
+    'DB_STATE_CHART_DATA',
     'DB_SWITCH_KEY',
     'DB_VEHICLE_INFO_DATA',
     'MCD_ACCESS_KEY',
