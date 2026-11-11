@@ -13,7 +13,7 @@ from classes.PBL import default_library_path
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from common_utils import diagnostics
-from object_loaders import DB_INLINE_FLASH_DATA
+from object_loaders import DB_INLINE_FLASH_DATA, MCD_DB_FLASH_DATA
 from tests import support
 from tests.support import REPOSITORY_ROOT, ObjectBytes, typed
 
@@ -233,6 +233,75 @@ class EmbeddedFlashTests(unittest.TestCase):
             'read_ident_description': typed('MCD_DB_IDENT_DESCRIPTION', {
                 'data_primitive_name': 'DP', 'is_response_parameter_name': False,
                 'response_parameter_name': None, 'response_parameter_short_name_path': 'A.B'})}))
+
+
+class FlashDataTests(unittest.TestCase):
+    def test_mcd_db_flash_data_minimal(self):
+        body = name_block_body(ObjectBytes()).ascii(None).u8(0).u16(0x6B01).u8(255).ascii(None)
+        self.assertEqual(load('MCD_DB_FLASH_DATA', body), typed('MCD_DB_FLASH_DATA', {
+            **name_block(), 'data_file_name_or_inline_flash_data': None,
+            'data_reference': {'kind': 'external_file', 'file_name': None},
+            'late_bound_or_is_inline': False, 'data_format': 0x6B01,
+            'encryption_compression_method': None, 'flash_file_sub_dir_name': None}))
+
+    def test_mcd_db_flash_data_all_branches(self):
+        body = name_block_body(ObjectBytes(), True).ascii('DSA_INLINE_POOLDDDSSSBBBKEY').u8(1).u16(0x6B02)
+        body.u8(3).u8(1).u16(1).raw(b'\x01')
+        body.ascii('SUB')
+        self.assertEqual(load('MCD_DB_FLASH_DATA', body), typed('MCD_DB_FLASH_DATA', {
+            **name_block(True), 'data_file_name_or_inline_flash_data': 'DSA_INLINE_POOLDDDSSSBBBKEY',
+            'data_reference': {'kind': 'big_data_object', 'pool_id': 'POOL', 'object_id': 'KEY'},
+            'late_bound_or_is_inline': True, 'data_format': 0x6B02,
+            'encryption_compression_method': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
+            'flash_file_sub_dir_name': 'SUB'}))
+
+    def test_decode_data_reference(self):
+        decode = MCD_DB_FLASH_DATA.decode_data_reference
+        self.assertEqual(decode('file.bin'), {'kind': 'external_file', 'file_name': 'file.bin'})
+        self.assertEqual(decode('DSA_INLINE_'), {'kind': 'external_file', 'file_name': 'DSA_INLINE_'})
+        self.assertEqual(decode('DSA_INLINE_PDDDSSSAAAO'),
+                         {'kind': 'object', 'pool_id': 'P', 'object_id': 'O'})
+        self.assertEqual(decode('DSA_INLINE_0A1B'), {'kind': 'inline_content', 'content_length': 4})
+        self.assertEqual(decode('DSA_INLINE_' + 'X' * 1000 + 'DDDSSSBBBK'),
+                         {'kind': 'inline_content', 'content_length': 1010})
+
+    def test_mcd_db_flash_data_block_minimal(self):
+        body = name_block_body(ObjectBytes()).u64(0).ascii(None)
+        for _ in range(5):
+            body.absent()
+        body.u8(0).u8(0).absent().u8(0).u8(0)
+        self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
+            **name_block(), 'address_offset': 0, 'data_block_type': None, 'flash_data': None,
+            'flash_filters': None, 'flash_segments': None, 'own_idents': None, 'securities': None,
+            'special_data_group_refs': None, 'has_logical_block_index': False,
+            'logical_block_index': None, 'audience_state': None,
+            'disabled_additional_audiences': None, 'enabled_additional_audiences': None}))
+
+    def test_mcd_db_flash_data_block_all_branches(self):
+        data = name_block_body(ObjectBytes()).ascii(None).u8(0).u16(0x6B01).u8(255).ascii(None)
+        body = name_block_body(ObjectBytes(), True).u64(2**33).ascii('APPLICATION')
+        body.nested('MCD_DB_FLASH_DATA', data)
+        for name in ('MCD_DB_FLASH_FILTERS', 'MCD_DB_FLASH_SEGMENTS', 'MCD_DB_FLASH_IDENTS',
+                     'MCD_DB_FLASH_SECURITIES'):
+            body.nested(name, ObjectBytes().u32(0))
+        body.u8(1).u16(1).u32(7)
+        body.u8(1).u32(3)
+        body.nested('MCD_AUDIENCE', support.audience_body())
+        support.named_refs_body(body.u8(1), support.NAMED_REFS)
+        support.named_refs_body(body.u8(1), support.NAMED_REFS)
+        flash_data = typed('MCD_DB_FLASH_DATA', {
+            **name_block(), 'data_file_name_or_inline_flash_data': None,
+            'data_reference': {'kind': 'external_file', 'file_name': None},
+            'late_bound_or_is_inline': False, 'data_format': 0x6B01,
+            'encryption_compression_method': None, 'flash_file_sub_dir_name': None})
+        self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
+            **name_block(True), 'address_offset': 2**33, 'data_block_type': 'APPLICATION',
+            'flash_data': flash_data, 'flash_filters': [], 'flash_segments': [], 'own_idents': [],
+            'securities': [], 'special_data_group_refs': [{'object_id': 7}],
+            'has_logical_block_index': True, 'logical_block_index': 3,
+            'audience_state': support.audience(),
+            'disabled_additional_audiences': support.named_refs(support.NAMED_REFS),
+            'enabled_additional_audiences': support.named_refs(support.NAMED_REFS)}))
 
 
 if __name__ == '__main__':
