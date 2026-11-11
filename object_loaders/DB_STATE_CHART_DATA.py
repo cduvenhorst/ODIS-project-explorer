@@ -2,7 +2,8 @@ from classes import DbObject
 from common_utils import common_loaders
 
 
-# Field names are the kernel setter names; per the getters, the keys are short names of a state transition (actions map) and of a state (precondition definitions map)
+# Field names are the kernel setter names; per the getters, the keys are short names of a
+# state transition (actions map) and of a state (precondition definitions map)
 def load_map(stream):
     entries = []
     for _ in range(stream.loadNumericType(2)):
@@ -18,7 +19,8 @@ def load(stream):
     obj['state_trans_trans_actions_map'] = load_map(stream)
     obj['state_precondition_defs_map'] = load_map(stream)
     
-    # Precondition definitions without a DiagCom reference take their table parameter from named stream C, one reference each in reading order
+    # Precondition definitions without a DiagCom reference take their table parameter from
+    # named stream C, one reference each in reading order
     pending = [definition for entry in obj['state_precondition_defs_map'] for definition in entry['items']
                if definition is not None and definition['diag_com_primitive'] is None]
     readers = {}

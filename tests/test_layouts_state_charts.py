@@ -118,7 +118,7 @@ class EmbeddedStateChartTests(unittest.TestCase):
 
     def test_mcd_db_precondition_definition_old_layout(self):
         old = load('MCD_DB_PRECONDITION_DEFINITION',
-                   precondition_body(with_strings=True, old_layout=True), '0011')
+                   precondition_body(with_strings=True, old_layout=True), '0015')
         new = load('MCD_DB_PRECONDITION_DEFINITION',
                    precondition_body(with_strings=True), '0018')
         self.assertEqual(old, new)
@@ -285,6 +285,6 @@ class StateChartDataTests(unittest.TestCase):
     def test_db_state_chart_data_old_layout(self):
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(PRECONDITION, precondition_body(old_layout=True))])])
-        result = load('DB_STATE_CHART_DATA', body, '0011')
+        result = load('DB_STATE_CHART_DATA', body, '0015')
         self.assertEqual(result['state_precondition_defs_map'],
                          [{'map_key': 'S1', 'items': [precondition()]}])

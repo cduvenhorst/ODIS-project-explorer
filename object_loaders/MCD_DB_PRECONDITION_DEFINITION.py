@@ -12,7 +12,8 @@ def load(stream):
     
     obj.update(load_value_and_request_parameter(stream))
     
-    # The table parameter reference lives in named stream C at the end of the enclosing DB_STATE_CHART_DATA, which fills it in; read standalone it stays None
+    # The table parameter reference lives in named stream C at the end of the enclosing
+    # DB_STATE_CHART_DATA, which fills it in; read standalone it stays None
     obj['table_parameter'] = None
     
     return obj

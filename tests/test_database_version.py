@@ -27,30 +27,30 @@ class DatabaseVersionTests(unittest.TestCase):
         self.assertIs(stream.is_database_version_at_least(18), True)
 
     def test_porsche_key_with_other_lines(self):
-        storage = self._storage(['Date/Time: x', 'User name: y',
-                                 'PRODIS_MCD_DatabaseVersionInfo="0011"',
-                                 'PRODIS_MCD_ConverterVersionInfo="3.1"'])
-        self.assertEqual(storage.database_version, 11)
+        storage = self._storage(['First="1"',
+                                 'PRODIS_MCD_DatabaseVersionInfo="0015"',
+                                 'Other="1"'])
+        self.assertEqual(storage.database_version, 15)
         stream = DbStream(bytearray(b'\x00\x00#>\x00'), storage)
         stream.report_unread_on_delete = False
         self.assertIs(stream.is_database_version_at_least(18), False)
-        self.assertIs(stream.is_database_version_at_least(11), True)
+        self.assertIs(stream.is_database_version_at_least(15), True)
 
     def test_vw_key(self):
         self.assertEqual(self._storage(['VWMCD_DatabaseVersionInfo="0018"']).database_version, 18)
 
     def test_lf_line_endings(self):
-        storage = self._storage(raw=b'Date/Time: x\nVWMCD_DatabaseVersionInfo="0018"\nOther="1"\n')
+        storage = self._storage(raw=b'First="1"\nVWMCD_DatabaseVersionInfo="0018"\nOther="1"\n')
         self.assertEqual(storage.database_version, 18)
 
     def test_invalid_value_gives_none(self):
         self.assertIsNone(self._storage(['PRODIS_MCD_DatabaseVersionInfo="abc"']).database_version)
 
     def test_missing_entry_gives_none(self):
-        self.assertIsNone(self._storage(['Date/Time: x']).database_version)
+        self.assertIsNone(self._storage(['First="1"']).database_version)
 
     def test_support_load_passes_version(self):
-        self.assertEqual(support.string_storage([], [], database_version='0016').database_version, 16)
+        self.assertEqual(support.string_storage([], [], database_version='0017').database_version, 17)
 
 
 if __name__ == '__main__':
