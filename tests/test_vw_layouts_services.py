@@ -958,6 +958,16 @@ class SingleEcuJobTests(unittest.TestCase):
                          typed('MCD_DB_SINGLE_ECU_JOB', job(True)))
 
 
+class MultipleEcuJobTests(unittest.TestCase):
+    def test_mcd_db_multiple_ecu_job_minimal(self):
+        self.assertEqual(load('MCD_DB_MULTIPLE_ECU_JOB', job_body()),
+                         typed('MCD_DB_MULTIPLE_ECU_JOB', job()))
+
+    def test_mcd_db_multiple_ecu_job_all_branches(self):
+        self.assertEqual(load('MCD_DB_MULTIPLE_ECU_JOB', job_body(True)),
+                         typed('MCD_DB_MULTIPLE_ECU_JOB', job(True)))
+
+
 class FlashJobTests(unittest.TestCase):
     def test_mcd_db_flash_job_minimal(self):
         self.assertEqual(load('MCD_DB_FLASH_JOB', job_body()),
