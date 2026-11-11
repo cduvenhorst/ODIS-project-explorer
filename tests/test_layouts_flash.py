@@ -15,7 +15,7 @@ from classes.StringStorage import StringStorage
 from common_utils import diagnostics
 from object_loaders import DB_INLINE_FLASH_DATA
 from tests import support
-from tests.support import REPOSITORY_ROOT, ObjectBytes
+from tests.support import REPOSITORY_ROOT, ObjectBytes, typed
 
 LIBRARY = default_library_path(REPOSITORY_ROOT)
 
@@ -68,6 +68,171 @@ class InlineFlashDataTests(unittest.TestCase):
         result = loader.load_object_by_id(folder, 'P1', 'Content')
         self.assertTrue(result['is_big_data'])
         self.assertEqual(result['inline_flash_data_length'], 4)
+
+
+def name_block_body(body, filled=False):
+    """Standard name block in stream order: short name, long name, description, three ids."""
+    if filled:
+        return (body.ascii('Short').unicode('Long').unicode('Desc').ascii('UID')
+                .ascii('LongId').ascii('DescId'))
+    return body.ascii(None).unicode(None).unicode(None).ascii(None).ascii(None).ascii(None)
+
+
+def name_block(filled=False):
+    if filled:
+        return {'short_name': 'Short', 'long_name': 'Long', 'description': 'Desc',
+                'unique_object_id': 'UID', 'long_name_id': 'LongId', 'description_id': 'DescId'}
+    return {key: None for key in ('short_name', 'long_name', 'description', 'unique_object_id',
+                                  'long_name_id', 'description_id')}
+
+
+def load(type_name, body):
+    return support.load(type_name, body)
+
+
+def collection_body():
+    """Two elements: one present object, one absent."""
+    return ObjectBytes().u32(2).nested('MCD_AUDIENCE', support.audience_body()).absent()
+
+
+class EmbeddedFlashTests(unittest.TestCase):
+    def test_mcd_db_flash_checksums_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_CHECKSUMS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_checksums_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_CHECKSUMS', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_data_blocks_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCKS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_data_blocks_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCKS', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_filters_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_FILTERS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_filters_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_FILTERS', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_idents_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_IDENTS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_idents_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_IDENTS', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_securities_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_SECURITIES', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_securities_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_SECURITIES', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_segments_minimal(self):
+        self.assertEqual(load('MCD_DB_FLASH_SEGMENTS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_flash_segments_all_branches(self):
+        self.assertEqual(load('MCD_DB_FLASH_SEGMENTS', collection_body()), [support.audience(), None])
+
+    def test_mcd_db_flash_checksum_minimal(self):
+        body = name_block_body(ObjectBytes())
+        body.u8(0).ascii(None).u8(255).u8(0).u32(0).u32(0).u8(0).u8(0).u32(0).u32(0)
+        self.assertEqual(load('MCD_DB_FLASH_CHECKSUM', body), typed('MCD_DB_FLASH_CHECKSUM', {
+            **name_block(), 'is_checksum_algorithm_available': False, 'checksum_algorithm': None,
+            'checksum_result': None, 'is_compressed_size_available': False, 'compressed_size': 0,
+            'uncompressed_size': 0, 'is_fill_byte_available': False, 'fill_byte': bytearray(),
+            'source_start_address': 0, 'source_end_address': 0}))
+
+    def test_mcd_db_flash_checksum_all_branches(self):
+        body = name_block_body(ObjectBytes(), True)
+        body.u8(1).ascii('CRC')
+        support.uint_value(body, 7)
+        body.u8(1).u32(16).u32(32).u8(1).u8(1).u32(1).raw(b'\xff').u32(0x1000).u32(0x1FFF)
+        self.assertEqual(load('MCD_DB_FLASH_CHECKSUM', body), typed('MCD_DB_FLASH_CHECKSUM', {
+            **name_block(True), 'is_checksum_algorithm_available': True,
+            'checksum_algorithm': 'CRC', 'checksum_result': support.uint(7),
+            'is_compressed_size_available': True, 'compressed_size': 16, 'uncompressed_size': 32,
+            'is_fill_byte_available': True, 'fill_byte': bytearray(b'\xff'),
+            'source_start_address': 0x1000, 'source_end_address': 0x1FFF}))
+
+    def test_mcd_db_flash_filter_minimal(self):
+        body = name_block_body(ObjectBytes()).u32(0).u32(0).u32(0)
+        self.assertEqual(load('MCD_DB_FLASH_FILTER', body), typed('MCD_DB_FLASH_FILTER', {
+            **name_block(), 'filter_start': 0, 'filter_end': 0, 'filter_size': 0}))
+
+    def test_mcd_db_flash_filter_all_branches(self):
+        body = name_block_body(ObjectBytes(), True).u32(1).u32(2).u32(3)
+        self.assertEqual(load('MCD_DB_FLASH_FILTER', body), typed('MCD_DB_FLASH_FILTER', {
+            **name_block(True), 'filter_start': 1, 'filter_end': 2, 'filter_size': 3}))
+
+    def test_mcd_db_flash_segment_minimal(self):
+        body = name_block_body(ObjectBytes()).u8(0)
+        body.u32(0).u32(0).u32(0).u32(0).u32(0).u8(0)
+        self.assertEqual(load('MCD_DB_FLASH_SEGMENT', body), typed('MCD_DB_FLASH_SEGMENT', {
+            **name_block(), 'is_compressed_size_available': False, 'compressed_size': 0,
+            'uncompressed_size': 0, 'source_start_address': 0, 'source_end_address': 0,
+            'binary_start_address': 0, 'has_filtered_ranges': False,
+            'filtered_ranges_for_binary_data': None}))
+
+    def test_mcd_db_flash_segment_all_branches(self):
+        # The short name is stored in the stream itself.
+        body = (ObjectBytes().embedded_ascii('SEG').unicode('Long').unicode('Desc').ascii('UID')
+                .ascii('LongId').ascii('DescId'))
+        body.u8(1).u32(10).u32(20).u32(30).u32(40).u32(50).u8(1)
+        body.u16(2).u32(1).u32(2).u32(3).u32(4)
+        self.assertEqual(load('MCD_DB_FLASH_SEGMENT', body), typed('MCD_DB_FLASH_SEGMENT', {
+            **name_block(True), 'short_name': 'SEG', 'is_compressed_size_available': True,
+            'compressed_size': 10, 'uncompressed_size': 20, 'source_start_address': 30,
+            'source_end_address': 40, 'binary_start_address': 50, 'has_filtered_ranges': True,
+            'filtered_ranges_for_binary_data': [[1, 2], [3, 4]]}))
+
+    def test_mcd_db_flash_security_minimal(self):
+        body = name_block_body(ObjectBytes()).u8(255).u8(255).u8(255).u8(255)
+        self.assertEqual(load('MCD_DB_FLASH_SECURITY', body), typed('MCD_DB_FLASH_SECURITY', {
+            **name_block(), 'security_method': None, 'flashware_signature': None,
+            'flashware_checksum': None, 'validity': None}))
+
+    def test_mcd_db_flash_security_all_branches(self):
+        body = name_block_body(ObjectBytes(), True)
+        body.u8(3).u8(1).u16(1).raw(b'\x01')
+        body.u8(1).ascii('SUM')
+        support.uint_value(body, 9)
+        body.u8(255)
+        self.assertEqual(load('MCD_DB_FLASH_SECURITY', body), typed('MCD_DB_FLASH_SECURITY', {
+            **name_block(True),
+            'security_method': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
+            'flashware_signature': {'data_type': 'eA_ASCIISTRING', 'value': 'SUM'},
+            'flashware_checksum': support.uint(9), 'validity': None}))
+
+    def test_mcd_db_ident_description_minimal(self):
+        body = ObjectBytes().ascii(None).u8(0).ascii(None)
+        self.assertEqual(load('MCD_DB_IDENT_DESCRIPTION', body), typed('MCD_DB_IDENT_DESCRIPTION', {
+            'data_primitive_name': None, 'is_response_parameter_name': False,
+            'response_parameter_name': None, 'response_parameter_short_name_path': None}))
+
+    def test_mcd_db_ident_description_all_branches(self):
+        body = ObjectBytes().ascii('DP').u8(1).ascii('RP')
+        self.assertEqual(load('MCD_DB_IDENT_DESCRIPTION', body), typed('MCD_DB_IDENT_DESCRIPTION', {
+            'data_primitive_name': 'DP', 'is_response_parameter_name': True,
+            'response_parameter_name': 'RP', 'response_parameter_short_name_path': None}))
+        body = ObjectBytes().ascii('DP').u8(0).ascii('A.B')
+        self.assertEqual(load('MCD_DB_IDENT_DESCRIPTION', body), typed('MCD_DB_IDENT_DESCRIPTION', {
+            'data_primitive_name': 'DP', 'is_response_parameter_name': False,
+            'response_parameter_name': None, 'response_parameter_short_name_path': 'A.B'}))
+
+    def test_mcd_db_flash_ident_minimal(self):
+        body = name_block_body(ObjectBytes()).absent().absent()
+        self.assertEqual(load('MCD_DB_FLASH_IDENT', body), typed('MCD_DB_FLASH_IDENT', {
+            **name_block(), 'ident_values': None, 'read_ident_description': None}))
+
+    def test_mcd_db_flash_ident_all_branches(self):
+        body = name_block_body(ObjectBytes(), True)
+        body.nested('MCD_VALUES', ObjectBytes().u16(1).u8(1).ascii('V1'))
+        body.nested('MCD_DB_IDENT_DESCRIPTION', ObjectBytes().ascii('DP').u8(0).ascii('A.B'))
+        self.assertEqual(load('MCD_DB_FLASH_IDENT', body), typed('MCD_DB_FLASH_IDENT', {
+            **name_block(True),
+            'ident_values': [{'data_type': 'eA_ASCIISTRING', 'value': 'V1'}],
+            'read_ident_description': typed('MCD_DB_IDENT_DESCRIPTION', {
+                'data_primitive_name': 'DP', 'is_response_parameter_name': False,
+                'response_parameter_name': None, 'response_parameter_short_name_path': 'A.B'})}))
 
 
 if __name__ == '__main__':
