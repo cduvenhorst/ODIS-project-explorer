@@ -3,6 +3,7 @@ import io
 import json
 import os
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -68,6 +69,20 @@ class InventoryTests(unittest.TestCase):
         self.assertIsNone(result['pools']['P1']['pool_error'])
         self.assertEqual(result['types']['MCD_DB_UNIT']['ok'], 1)
         self.assertEqual(result['types']['MCD_DB_CONTROL_PRIMITIVES']['unknown'], 1)
+
+    def test_big_data_record_is_read_strictly(self):
+        project = self.make_folder()
+        body = unit_body()
+        support.write_project(project, {}, body.ascii_strings, body.unicode_strings)
+        code = struct.pack('<H', support.object_type_code('DB_INLINE_FLASH_DATA'))
+        support.write_raw_pool(project, 'P1', [
+            (b'Big', [code, b'0A1B']),
+            (b'BigBad', [code + b'\x00', b'0A1B'])])
+        result = inventory.inventory_project(project, LIBRARY)
+        self.assertIsNone(result['pools']['P1']['pool_error'])
+        entry = result['types']['DB_INLINE_FLASH_DATA']
+        self.assertEqual((entry['ok'], entry['failed'], entry['unknown']), (1, 1, 0))
+        self.assertIn('DB_INLINE_FLASH_DATA | UnreadBytesError: 1 bytes', result['errors'])
 
     def test_broken_pool_is_counted_and_run_continues(self):
         project = self.make_folder()

@@ -79,8 +79,8 @@ def inventory_project(project_folder, library_path):
             pool_records = records.get_all_records(project_folder, pool)
             with open(os.path.join(project_folder, pool + '.db'), 'rb') as db_file:
                 for record in pool_records.values():
-                    data = ObjectLoader.get_object_data_from_opened_db_file(record, db_file)
-                    code = struct.unpack('<H', data[:2])[0]
+                    parts = ObjectLoader.get_object_parts_from_opened_db_file(record, db_file)
+                    code = struct.unpack('<H', parts[0][:2])[0]
                     name = type_name_of(code)
                     entry = types.setdefault(name, {'code': code, 'ok': 0, 'failed': 0, 'unknown': 0})
                     if name not in loadable_types:
@@ -88,7 +88,7 @@ def inventory_project(project_folder, library_path):
                         counts['unknown'] += 1
                         continue
                     try:
-                        loader.load_object_by_object_data(data)
+                        loader.load_object_by_parts(parts)
                     except Exception as error:  # noqa: BLE001 - every decoding failure is classified
                         key = '{} | {}'.format(name, error_text(error))
                         errors[key] = errors.get(key, 0) + 1
