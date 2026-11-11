@@ -304,5 +304,82 @@ class FlashDataTests(unittest.TestCase):
             'enabled_additional_audiences': support.named_refs(support.NAMED_REFS)}))
 
 
+SESSION_KEYS = ('short_name', 'odx_session_short_name', 'long_name', 'description', 'unique_object_id',
+                'long_name_id', 'description_id', 'flash_pool_id', 'checksums', 'data_blocks',
+                'expected_idents', 'flash_job_name', 'has_flash_session_classes',
+                'flash_session_classes', 'securities', 'flash_key', 'priority', 'is_download',
+                'special_data_group_refs')
+
+
+class FlashTopLevelTests(unittest.TestCase):
+    def test_mcd_db_flash_session_minimal(self):
+        body = ObjectBytes().ascii(None).ascii(None).unicode(None).unicode(None)
+        body.ascii(None).ascii(None).ascii(None).ascii(None)
+        body.absent().absent().absent().ascii(None).u8(0).absent().ascii(None).u32(0).u8(0).u8(0)
+        expected = {key: None for key in SESSION_KEYS}
+        expected.update({'has_flash_session_classes': False, 'flash_session_classes': [],
+                         'priority': 0, 'is_download': False})
+        self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', expected))
+
+    def test_mcd_db_flash_session_all_branches(self):
+        body = ObjectBytes().ascii('S_A').ascii('S_B').embedded_unicode('Lang').unicode('Desc')
+        body.ascii('UID').ascii('LongId').ascii('DescId').ascii('POOL')
+        body.nested('MCD_DB_FLASH_CHECKSUMS', ObjectBytes().u32(0))
+        body.nested('MCD_DB_FLASH_DATA_BLOCKS', ObjectBytes().u32(0))
+        body.nested('MCD_DB_FLASH_IDENTS', ObjectBytes().u32(0))
+        body.ascii('JOB')
+        support.named_refs_body(body.u8(1), support.NAMED_REFS)
+        body.nested('MCD_DB_FLASH_SECURITIES', ObjectBytes().u32(0))
+        body.ascii('K').u32(5).u8(1).u8(1).u16(1).u32(7)
+        self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', {
+            'short_name': 'S_A', 'odx_session_short_name': 'S_B', 'long_name': 'Lang',
+            'description': 'Desc', 'unique_object_id': 'UID', 'long_name_id': 'LongId',
+            'description_id': 'DescId', 'flash_pool_id': 'POOL', 'checksums': [], 'data_blocks': [],
+            'expected_idents': [], 'flash_job_name': 'JOB', 'has_flash_session_classes': True,
+            'flash_session_classes': support.named_refs(support.NAMED_REFS), 'securities': [],
+            'flash_key': 'K', 'priority': 5, 'is_download': True,
+            'special_data_group_refs': [{'object_id': 7}]}))
+
+    def test_mcd_db_ecu_mem_minimal(self):
+        body = name_block_body(ObjectBytes()).u8(0).u16(0).u16(0).u16(0).u8(0).u8(0).u8(0).u8(0)
+        self.assertEqual(load('MCD_DB_ECU_MEM', body), typed('MCD_DB_ECU_MEM', {
+            **name_block(), 'has_layers': False, 'base_variants': [], 'variants': [],
+            'layers': None, 'all_variant_layers': None, 'flash_sessions': [],
+            'additional_audiences': None, 'has_flash_session_classes': False,
+            'flash_session_class_refs': None, 'has_physical_memory': False,
+            'physical_memory_ref': None, 'special_data_group_refs': None}))
+
+    def test_mcd_db_ecu_mem_all_branches(self):
+        body = name_block_body(ObjectBytes(), True).u8(1)
+        body.nested('DB_ODX_LINKS', ObjectBytes().u32(0)).absent()
+        support.named_attributed_refs_body(body, support.NAMED_ATTRIBUTED_REFS)
+        support.named_refs_body(body.u8(1), support.NAMED_REFS)
+        support.named_refs_body(body.u8(1), support.NAMED_REFS)
+        support.attributed_ref_body(body.u8(1), ('X',))
+        body.u8(1).u16(1).u32(7)
+        self.assertEqual(load('MCD_DB_ECU_MEM', body), typed('MCD_DB_ECU_MEM', {
+            **name_block(True), 'has_layers': True, 'base_variants': None, 'variants': None,
+            'layers': [], 'all_variant_layers': None,
+            'flash_sessions': support.named_attributed_refs(support.NAMED_ATTRIBUTED_REFS),
+            'additional_audiences': support.named_refs(support.NAMED_REFS),
+            'has_flash_session_classes': True,
+            'flash_session_class_refs': support.named_refs(support.NAMED_REFS),
+            'has_physical_memory': True, 'physical_memory_ref': support.attributed_ref(('X',)),
+            'special_data_group_refs': [{'object_id': 7}]}))
+
+    def test_db_flash_data_minimal(self):
+        self.assertEqual(load('DB_FLASH_DATA', ObjectBytes().u16(0)),
+                         {'#OBJECT_TYPE': 'DB_FLASH_DATA', 'ecu_mem_refs': []})
+
+    def test_db_flash_data_all_branches(self):
+        body = ObjectBytes().u16(2)
+        body.ascii('MEM').ascii('OBJ').ascii('POOL')
+        body.embedded_ascii('EMB').ascii('OBJ').ascii('POOL')
+        self.assertEqual(load('DB_FLASH_DATA', body), {
+            '#OBJECT_TYPE': 'DB_FLASH_DATA',
+            'ecu_mem_refs': [{'map_key': 'MEM', 'reference': support.ref()},
+                             {'map_key': 'EMB', 'reference': support.ref()}]})
+
+
 if __name__ == '__main__':
     unittest.main()
