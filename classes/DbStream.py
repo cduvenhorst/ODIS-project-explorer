@@ -63,10 +63,10 @@ class DbStream:
         if count > len(self.__stream):
             raise RuntimeError('Cannot read {} bytes, only have {}'.format(count, len(self.__stream)))
         
-        # Read the requested amount of bytes and remove them from the strteam
+        # Read the requested amount of bytes and remove them from the stream
+        # (slice deletion moves the remaining bytes once, not once per byte)
         data = self.__stream[:count]
-        for i in range(count):
-            self.__stream.pop(0)
+        del self.__stream[:count]
         return data
     
     
@@ -85,7 +85,7 @@ class DbStream:
         return struct.unpack('<B', self.read(1))[0]
     
     
-    # Load 1/2/4 bytes, interpreted as (un)signed integer
+    # Load 1/2/4/8 bytes, interpreted as (un)signed integer
     def loadNumericType(self, size, signed = False):
         if size == 1:
             return struct.unpack('<B' if not signed else '<b', self.read(size))[0]
@@ -93,8 +93,10 @@ class DbStream:
             return struct.unpack('<H' if not signed else '<h', self.read(size))[0]
         elif size == 4:
             return struct.unpack('<I' if not signed else '<i', self.read(size))[0]
+        elif size == 8:
+            return struct.unpack('<Q' if not signed else '<q', self.read(size))[0]
         else:
-            raise RuntimeError('Numeric type can only have size 1/2/4, not {}'.format(size))
+            raise RuntimeError('Numeric type can only have size 1/2/4/8, not {}'.format(size))
     
     
     # Load 8 bytes, interpreted as double
@@ -102,18 +104,25 @@ class DbStream:
         return struct.unpack('<d', self.read(8))[0]
     
     
-    # Load 4 bytes, interpreted as unsigned integer (string hash), converted to ASCII string
+    # Load a string given by a 4-byte word: a string pool key, or the string itself
+    # * the kernel treats a set top bit as the length of a string stored in the object itself;
+    #   pool hashes are always below 0x80000000
+    # * returns (string, key); key is None for a string stored in the stream
+    def __load_string(self, pool_lookup, bytes_per_unit, encoding):
+        word = self.loadNumericType(4)
+        if word & 0x80000000:
+            return self.read(bytes_per_unit * (word & 0x7FFFFFFF)).decode(encoding), None
+        return pool_lookup(word), word
+    
+    
+    # Load an ASCII string: string pool key (returned as (string, key)) or string stored in the stream (key None)
     def loadAsciiString(self):
-        string_hash = self.loadNumericType(4)
-        string = self.__string_storage.get_ascii_string(string_hash)
-        return string, string_hash
+        return self.__load_string(self.__string_storage.get_ascii_string, 1, 'cp1252')
     
     
-    # Load 4 bytes, interpreted as unsigned integer (string hash), converted to Unicode string
+    # Load a Unicode string: string pool key (returned as (string, key)) or string stored in the stream (key None)
     def loadUnicodeString(self):
-        string_hash = self.loadNumericType(4)
-        string = self.__string_storage.get_unicode_string(string_hash)
-        return string, string_hash
+        return self.__load_string(self.__string_storage.get_unicode_string, 2, 'utf-16-le')
     
     
     # Load variable amount of bytes, interpreted as raw ASCII string (or hash?)

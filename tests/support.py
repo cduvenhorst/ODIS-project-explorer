@@ -73,6 +73,9 @@ class ObjectBytes:
     def u32(self, value):
         return self.raw(struct.pack('<I', value))
 
+    def u64(self, value):
+        return self.raw(struct.pack('<Q', value))
+
     def i32(self, value):
         return self.raw(struct.pack('<i', value))
 
@@ -103,6 +106,16 @@ class ObjectBytes:
     def native_unicode(self, text):
         if text is None:
             return self.u32(0)
+        encoded = text.encode('utf-16-le')
+        return self.u32(0x80000000 | (len(encoded) // 2)).raw(encoded)
+
+    def embedded_ascii(self, text):
+        """String stored in the stream itself; nothing is added to the string pool."""
+        encoded = text.encode('cp1252')
+        return self.u32(0x80000000 | len(encoded)).raw(encoded)
+
+    def embedded_unicode(self, text):
+        """Unicode string stored in the stream itself; nothing is added to the pool."""
         encoded = text.encode('utf-16-le')
         return self.u32(0x80000000 | (len(encoded) // 2)).raw(encoded)
 
