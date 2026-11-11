@@ -56,6 +56,17 @@ class DbStreamTests(unittest.TestCase):
             self.assertEqual(getattr(stream, load)(), ('', None))
             self.assertEqual(stream.get_length(), 4)
 
+    def test_all_ones_word_is_a_pool_key(self):
+        for load in ('loadAsciiString', 'loadUnicodeString'):
+            stream = open_stream(support.ObjectBytes().u32(0xFFFFFFFF), b'tail')
+            self.assertEqual(getattr(stream, load)(), (None, 0xFFFFFFFF))
+            self.assertEqual(stream.get_length(), 4)
+
+    def test_empty_three_string_reference_with_all_ones_word(self):
+        stream = open_stream(support.ObjectBytes().u32(0xFFFFFFFF).u32(0).u32(0))
+        self.assertEqual(common_loaders.load_reference(stream),
+                         {'object_id': None, 'pool_id': None, 'object_id2': None})
+
     def test_embedded_string_inside_mcd_value(self):
         stream = open_stream(support.ObjectBytes().u8(1).embedded_ascii('V'))
         self.assertEqual(common_loaders.loadMCDValueFromObjectStream(stream),
