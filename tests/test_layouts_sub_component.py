@@ -80,6 +80,23 @@ def table_row_connector(odx_link=False, strings=()):
         'table_row': 'TAB1', **name_block('T1')})
 
 
+def param_connector_body(in_params=(('IN1', 0),), out_params=(('OUT1', 1), ('OUT2', 0))):
+    body = ObjectBytes().ascii('DCP1')
+    for params in (in_params, out_params):
+        body.u16(len(params))
+        for name, is_name in params:
+            body.ascii(name).u8(is_name)
+    return name_block_body(body, 'P1')
+
+
+def param_connector(in_params=(('IN1', False),), out_params=(('OUT1', True), ('OUT2', False))):
+    def entries(params):
+        return [{'name': name, 'is_name': is_name} for name, is_name in params]
+    return typed('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', {
+        'diag_com_primitive_name': 'DCP1', 'sub_component_in_param_names': entries(in_params),
+        'sub_component_out_param_names': entries(out_params), **name_block('P1')})
+
+
 class ConnectorTests(unittest.TestCase):
     def test_mcd_db_diag_trouble_code_connector_minimal(self):
         body = ObjectBytes().u8(0)
@@ -129,6 +146,21 @@ class ConnectorTests(unittest.TestCase):
         self.assertIsNone(result['table_ref']['pool_id'])
         self.assertEqual(result['table_row'], 'TAB1')
 
+    def test_mcd_db_sub_component_param_connector_minimal(self):
+        body = ObjectBytes().ascii('DCP1').u16(0).u16(0)
+        name_block_body(body, 'P1')
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', body),
+                         param_connector(in_params=(), out_params=()))
+
+    def test_mcd_db_sub_component_param_connector_all_branches(self):
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', param_connector_body()),
+                         param_connector())
+
+    def test_param_connector_keeps_duplicate_names(self):
+        body = param_connector_body(out_params=(('OUT1', 1), ('OUT1', 1)))
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', body),
+                         param_connector(out_params=(('OUT1', True), ('OUT1', True))))
+
 
 class ConnectorCollectionTests(unittest.TestCase):
     def test_mcd_db_diag_trouble_code_connectors_minimal(self):
@@ -153,6 +185,15 @@ class ConnectorCollectionTests(unittest.TestCase):
         body = ObjectBytes().u32(2).nested('MCD_DB_TABLE_ROW_CONNECTOR',
                                            table_row_connector_body()).absent()
         self.assertEqual(load('MCD_DB_TABLE_ROW_CONNECTORS', body), [table_row_connector(), None])
+
+    def test_mcd_db_sub_component_param_connectors_minimal(self):
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTORS', ObjectBytes().u32(0)), [])
+
+    def test_mcd_db_sub_component_param_connectors_all_branches(self):
+        body = ObjectBytes().u32(2).nested('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR',
+                                           param_connector_body()).absent()
+        self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTORS', body),
+                         [param_connector(), None])
 
 
 if __name__ == '__main__':
