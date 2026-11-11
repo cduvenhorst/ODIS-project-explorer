@@ -39,6 +39,27 @@ class PblRecordTests(unittest.TestCase):
             data = ObjectLoader.get_object_data_from_opened_db_file(records['NamedObject'], db_file)
         self.assertEqual(data, b'\x1f\x03payload')
 
+    def test_parts_are_returned_separately(self):
+        folder = self.make_folder()
+        support.write_raw_pool(folder, 'P1', [(b'NamedObject', [b'\x1f\x03', b'payload'])])
+        records = PblRecordManager(LIBRARY).get_all_records(folder, 'P1')
+        with open(os.path.join(folder, 'P1.db'), 'rb') as db_file:
+            parts = ObjectLoader.get_object_parts_from_opened_db_file(records['NamedObject'], db_file)
+        self.assertEqual(parts, [b'\x1f\x03', b'payload'])
+
+    def test_multi_part_record_without_big_data_loader_is_concatenated(self):
+        body = unit_body()
+        data = bytes(body.build('MCD_DB_UNIT'))
+        results = []
+        for parts in ([data], [data[:5], data[5:]]):
+            folder = self.make_folder()
+            support.write_raw_pool(folder, 'P1', [(b'NamedObject', parts)])
+            support.write_project(folder, {}, body.ascii_strings, body.unicode_strings)
+            loader = ObjectLoader(PblRecordManager(LIBRARY), StringStorage(folder), strict=True)
+            results.append(loader.load_object_by_id(folder, 'P1', 'NamedObject'))
+        self.assertEqual(results[0]['short_name'], 'U_km')
+        self.assertEqual(results[1], results[0])
+
     def loader(self, folder):
         return ObjectLoader(PblRecordManager(LIBRARY), StringStorage(folder))
 

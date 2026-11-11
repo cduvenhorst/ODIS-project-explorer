@@ -1,6 +1,7 @@
 # Not actually a class, but whatever
 
 
+import contextlib
 import struct
 
 from common_utils import diagnostics
@@ -70,3 +71,37 @@ def load_object(object_data, string_storage, strict=False):
             object_type = enum_converters.get_object_type_enum(stream.get_object_type_enum())
             raise diagnostics.UnreadBytesError(object_type, remaining)
     return obj
+
+
+def load_object_from_parts(parts: list[bytearray], string_storage, strict: bool = False) -> dict | list:
+    """Load an object from the parts of its record.
+
+    One part is loaded like `load_object`. Several parts of a type whose loader offers
+    `load_big_data` are loaded as a big data record; several parts of any other type are
+    concatenated and loaded like one part. Raises `diagnostics.UnreadBytesError` in strict
+    mode if the first part of a big data record holds more than the type code.
+    """
+    if len(parts) > 1:
+        # The kernel reads only the first part of a big data record as an object (type code,
+        # no end marker) and fetches the other parts as raw content on demand
+        object_type_enum = struct.unpack('<H', parts[0][:2])[0]
+        object_type = enum_converters.get_object_type_enum(object_type_enum)
+        module = globals().get(object_type)
+        if module is not None and hasattr(module, 'load_big_data'):
+            return _load_big_data_object(object_type, module, parts, string_storage, strict)
+        return load_object(bytearray().join(parts), string_storage, strict)
+    return load_object(parts[0], string_storage, strict)
+
+
+def _load_big_data_object(object_type, module, parts, string_storage, strict):
+    stream = DbStream(parts[0], string_storage)
+    # The first part ends after the type code, so the destructor has nothing to report
+    stream.report_unread_on_delete = False
+    with diagnostics.strict_reading() if strict else contextlib.nullcontext():
+        stream.loadEnumMediumRange()
+        obj = module.load_big_data(stream, parts[1:])
+        if strict and stream.get_length() != 0:
+            raise diagnostics.UnreadBytesError(object_type, stream.get_length())
+    ret = {'#OBJECT_TYPE': object_type}
+    ret.update(obj)
+    return ret

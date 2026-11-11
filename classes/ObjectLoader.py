@@ -3,6 +3,7 @@ import struct
 
 from classes.PblRecordManager import PblRecordManager
 from classes import DbObject
+from object_loaders import DB_INLINE_FLASH_DATA
 
 
 class ObjectLoader:
@@ -13,20 +14,32 @@ class ObjectLoader:
         return (reference['pool_id'], reference['object_id'])
     
     
+    # Load the Object's parts using the provided PBL record data and an already opened .db file
+    ### pbl_data = bytearray representing the PBL record data for the desired Object
+    ### db_file  = appropriate .db file (representing the desired Pool), opened in 'rb' mode
+    ### returns the decompressed parts, one bytearray each
+    @staticmethod
+    def get_object_parts_from_opened_db_file(pbl_data, db_file) -> list[bytearray]:
+        # Decode the PBL record data: the position and the sizes of every part
+        (file_position, parts) = PblRecordManager.parse_pbl_parts(pbl_data)
+        
+        # The parts lie back to back from the position, each one is its own zlib stream
+        object_parts = []
+        for (compressed_size, decompressed_size) in parts:
+            object_parts.append(PblRecordManager.get_object_data(db_file, file_position, compressed_size, decompressed_size))
+            file_position += compressed_size
+        return object_parts
+    
+    
     # Load the Object's data using the provided PBL record data and an already opened .db file
     ### pbl_data = bytearray representing the PBL record data for the desired Object
     ### db_file  = appropriate .db file (representing the desired Pool), opened in 'rb' mode
     @staticmethod
     def get_object_data_from_opened_db_file(pbl_data, db_file):
-        # Decode the PBL record data: the position and the sizes of every part
-        (file_position, parts) = PblRecordManager.parse_pbl_parts(pbl_data)
-        
-        # The parts lie back to back from the position, each one is its own zlib stream
         # The Object's data is the concatenation of the decompressed parts
         object_data = bytearray()
-        for (compressed_size, decompressed_size) in parts:
-            object_data += PblRecordManager.get_object_data(db_file, file_position, compressed_size, decompressed_size)
-            file_position += compressed_size
+        for part in ObjectLoader.get_object_parts_from_opened_db_file(pbl_data, db_file):
+            object_data += part
         return object_data
     
     
@@ -39,6 +52,17 @@ class ObjectLoader:
         db_file_path = os.path.join(input_folder_path, PoolID + '.db')
         with open(db_file_path, 'rb') as db_file:
             return ObjectLoader.get_object_data_from_opened_db_file(pbl_data, db_file)
+    
+    
+    # Open the appropriate .db file and load the Object's parts using the provided PBL record data
+    ### pbl_data          = bytearray representing the PBL record data for the desired Object
+    ### input_folder_path = path to Project folder, containing .db files
+    ### PoolID            = name of desired .db file, without extension
+    @staticmethod
+    def get_object_parts_from_db_file(pbl_data, input_folder_path, PoolID) -> list[bytearray]:
+        db_file_path = os.path.join(input_folder_path, PoolID + '.db')
+        with open(db_file_path, 'rb') as db_file:
+            return ObjectLoader.get_object_parts_from_opened_db_file(pbl_data, db_file)
     
     
     # Constructor
@@ -69,26 +93,33 @@ class ObjectLoader:
         return DbObject.load_object(object_data, self.__string_storage, self.__strict)
     
     
+    # Load an Object from the parts of its record
+    ### parts = list of bytearrays, the decompressed parts of the record
+    ### * StringStorage instance needed in constructor
+    def load_object_by_parts(self, parts: list[bytearray]) -> dict | list:
+        if self.__string_storage is None:
+            raise RuntimeError('Cannot use method with invalid StringStorage')
+        
+        return DbObject.load_object_from_parts(parts, self.__string_storage, self.__strict)
+    
+    
     # Load an Object by its PBL data record and PoolID
     ### pbl_data          = bytearray representing the PBL record data for the desired Object
     ### input_folder_path = path to Project folder, containing .db files
     ### PoolID            = name of desired Pool
     ### * StringStorage instance needed in constructor
     def load_object_by_pbl_data(self, pbl_data, input_folder_path, PoolID):
-        # Retrieve the Object's data
-        object_data = ObjectLoader.get_object_data_from_db_file(pbl_data, input_folder_path, PoolID)
+        # Retrieve the Object's parts
+        parts = ObjectLoader.get_object_parts_from_db_file(pbl_data, input_folder_path, PoolID)
         
-        # Load the Object from its data
-        return self.load_object_by_object_data(object_data)
+        # Load the Object from its parts
+        return self.load_object_by_parts(parts)
     
     
-    # Load an Object by its PoolID and ObjectID
-    ### input_folder_path = path to Project folder, containing .db files
-    ### PoolID            = name of desired Pool
-    ### ObjectID          = name of desired Object
+    # Find the PBL record data of an Object by its PoolID and ObjectID
     ### * PblRecordManager instance needed in constructor
     ### * StringStorage instance needed in constructor
-    def load_object_by_id(self, input_folder_path, PoolID, ObjectID):
+    def __find_pbl_data(self, input_folder_path, PoolID, ObjectID):
         if self.__pbl_record_manager is None:
             raise RuntimeError('Cannot use method with invalid PblRecordManager')
         if self.__string_storage is None:
@@ -101,20 +132,38 @@ class ObjectLoader:
         # Convert the given ObjectID string to its hash, which will be used as a key for the PBL record
         ObjectID_hash = self.__string_storage.get_ascii_hash(ObjectID)
         
-        # Get the PBL record data belonging to the requested Object, and load it
         # The kernel looks up the hash first, then the name
         records = self.__loaded_pbl_records[PoolID]
         ObjectID_bytes = ObjectID.encode('cp1252', errors='replace')
         if ObjectID_hash in records:
-            pbl_data = records[ObjectID_hash]
+            return records[ObjectID_hash]
         elif ObjectID in records:
-            pbl_data = records[ObjectID]
+            return records[ObjectID]
         elif len(ObjectID_bytes) == 4 and struct.unpack('<L', ObjectID_bytes)[0] in records:
             # The kernel compares raw key bytes, so a 4-byte name key is listed under its integer value
-            pbl_data = records[struct.unpack('<L', ObjectID_bytes)[0]]
-        else:
-            raise KeyError(ObjectID)
+            return records[struct.unpack('<L', ObjectID_bytes)[0]]
+        raise KeyError(ObjectID)
+    
+    
+    # Load an Object by its PoolID and ObjectID
+    ### input_folder_path = path to Project folder, containing .db files
+    ### PoolID            = name of desired Pool
+    ### ObjectID          = name of desired Object
+    ### * PblRecordManager instance needed in constructor
+    ### * StringStorage instance needed in constructor
+    def load_object_by_id(self, input_folder_path, PoolID, ObjectID):
+        pbl_data = self.__find_pbl_data(input_folder_path, PoolID, ObjectID)
         return self.load_object_by_pbl_data(pbl_data, input_folder_path, PoolID)
+    
+    
+    # Load the flash content of a DB_INLINE_FLASH_DATA Object by its PoolID and ObjectID
+    ### returns the content as bytes (raises ValueError if it is not hex text of even length)
+    ### * PblRecordManager instance needed in constructor
+    ### * StringStorage instance needed in constructor
+    def load_inline_flash_data_by_id(self, input_folder_path: str, PoolID: str, ObjectID: str) -> bytes:
+        pbl_data = self.__find_pbl_data(input_folder_path, PoolID, ObjectID)
+        parts = ObjectLoader.get_object_parts_from_db_file(pbl_data, input_folder_path, PoolID)
+        return DB_INLINE_FLASH_DATA.content_bytes(parts)
     
     
     # Load an Object by a reference

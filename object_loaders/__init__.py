@@ -14,6 +14,7 @@ __all__ = [
     'DB_DOP_DTC',
     'DB_DOP_SIMPLE_BASE',
     'DB_ECU_CONFIG_INFO',
+    'DB_INLINE_FLASH_DATA',
     'DB_LAYER_DATA',
     'DB_LIMIT',
     'DB_ODX_LINK',
