@@ -152,14 +152,22 @@ def _write_string_files(folder, ascii_strings, unicode_strings):
                 handle.write(zlib.compress(bytes(content), wbits=31, level=1))
 
 
-def string_storage(ascii_strings, unicode_strings):
+def version_file(folder: str, lines: list[str]) -> None:
+    """Write `DatabaseVersionInfo.txt` with the given lines, CRLF-terminated."""
+    with open(os.path.join(folder, 'DatabaseVersionInfo.txt'), 'wb') as handle:
+        handle.write(''.join(line + '\r\n' for line in lines).encode('latin-1'))
+
+
+def string_storage(ascii_strings, unicode_strings, database_version=None):
     with tempfile.TemporaryDirectory() as folder:
         _write_string_files(folder, ascii_strings, unicode_strings)
+        if database_version is not None:
+            version_file(folder, ['PRODIS_MCD_DatabaseVersionInfo="%s"' % database_version])
         return StringStorage(folder)
 
 
-def load(type_name, body, strict=True):
-    storage = string_storage(body.ascii_strings, body.unicode_strings)
+def load(type_name, body, strict=True, database_version=None):
+    storage = string_storage(body.ascii_strings, body.unicode_strings, database_version)
     return DbObject.load_object(body.build(type_name), storage, strict=strict)
 
 

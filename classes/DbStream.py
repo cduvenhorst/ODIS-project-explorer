@@ -27,6 +27,13 @@ class DbStream:
         self.__stream_object_type = struct.unpack('<H', self.__stream[:2])[0]
     
     
+    # Check whether the project's database version is at least the given one
+    # * a project without a known database version counts as the newest layout
+    def is_database_version_at_least(self, version: int) -> bool:
+        database_version = self.__string_storage.database_version
+        return database_version is None or database_version >= version
+    
+    
     # Destructor
     def __del__(self):
         # After an Object is fully loaded, its stream must be '#>\0' (3 characters)

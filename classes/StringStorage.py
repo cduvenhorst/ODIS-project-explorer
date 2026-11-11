@@ -1,4 +1,5 @@
 import os
+import re
 import struct
 import zlib
 import traceback
@@ -53,6 +54,10 @@ class StringStorage:
         # Parse the files' data as text databases (ASCII and Unicode) and store them in private members
         self.__ascii_tdb_dict = self.__read_tdb(self.__ascii_data_file_contents, self.__ascii_index_file_contents, 'A')
         self.__unicode_tdb_dict = self.__read_tdb(self.__unicode_data_file_contents, self.__unicode_index_file_contents, 'U')
+        
+        # The kernel compares its configured database version with fixed four-digit values
+        # A project without the version file (or entry) is treated as the newest known layout, which is None here
+        self.database_version: int | None = self.__read_database_version(project_folder_path)
     
     
     # Converter to string (returns text databases sizes, ASCII and Unicode, as formatted string)
@@ -61,6 +66,22 @@ class StringStorage:
     
     
     # PRIVATE METHODS
+    
+    
+    # Read the database version number from DatabaseVersionInfo.txt in the project folder
+    # * only the version value is kept, no other line of the file is stored
+    # * returns None if the file, the entry or a valid value is missing
+    def __read_database_version(self, project_folder_path: str) -> int | None:
+        version_file_path = os.path.join(project_folder_path, 'DatabaseVersionInfo.txt')
+        try:
+            with open(version_file_path, 'rb') as version_file:
+                text = version_file.read().decode('latin-1')
+        except FileNotFoundError:
+            return None
+        match = re.search(r'^(?:PRODIS_MCD|VWMCD)_DatabaseVersionInfo="(\d{4})"\r?$', text, re.MULTILINE)
+        if match is None:
+            return None
+        return int(match.group(1))
     
     
     # Parse a text database from its .idx and .data files
