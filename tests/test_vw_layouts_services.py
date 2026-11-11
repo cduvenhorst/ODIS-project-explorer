@@ -18,6 +18,8 @@ gives pre_condition_state_refs == [] instead of None (None only when B is absent
 """
 import unittest
 
+from classes.DbStream import DbStream
+from common_utils import common_loaders
 from tests import support
 from tests.support import (NAMED_ATTRIBUTED_REFS, NAMED_REFS, ObjectBytes, concat, attributed_ref, attributed_ref_body,
                            audience, audience_body, case, case_base_body, case_body, diag_coded_type,
@@ -1047,6 +1049,26 @@ class MatchingRequestParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_MATCHING_REQUEST_PARAMETER', body), typed(
             'MCD_DB_MATCHING_REQUEST_PARAMETER',
             {**parameter_all(), 'request_byte_position': 2, 'byte_length': 3}))
+
+
+class NamedStreamsTests(unittest.TestCase):
+    READERS = {'C': lambda s: s.loadAsciiString()[0]}
+
+    def stream(self, name):
+        body = ObjectBytes().raw(b'#>\x00').raw(name).ascii('X').raw(b'#>\x01')
+        stream = DbStream(body.build('MCD_AUDIENCE'), support.string_storage(body.ascii_strings, []))
+        stream.loadEnumMediumRange()  # skip the object type
+        stream.report_unread_on_delete = False  # the error test leaves data unread on purpose
+        return stream
+
+    def test_load_named_streams_reads_by_name(self):
+        stream = self.stream(b'C')
+        self.assertEqual(common_loaders.loadNamedStreams(stream, self.READERS), {'C': 'X'})
+        self.assertEqual(stream.get_length(), 3)
+
+    def test_load_named_streams_unknown_name(self):
+        with self.assertRaisesRegex(RuntimeError, 'Unknown named stream: D'):
+            common_loaders.loadNamedStreams(self.stream(b'D'), self.READERS)
 
 
 if __name__ == '__main__':

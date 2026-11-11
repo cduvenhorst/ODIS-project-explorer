@@ -1,4 +1,5 @@
 import struct
+from collections.abc import Callable
 from classes.DbStream import DbStream
 from common_utils import enum_converters
 
@@ -209,3 +210,37 @@ def loadAdditionalAudiencesFromObjectStream(stream: DbStream) -> list[dict[str, 
     if stream.loadOneByteType():
         return loadNamedObjectReferenceCollectionFromObjectStream(stream, load_reference, False)
     return None
+
+
+STREAM_BEGIN = bytes.fromhex('233E00')  # '#>' 0
+STREAM_END = bytes.fromhex('233E01')  # '#>' 1
+STREAM_SEPARATOR = bytes.fromhex('233C00')  # '#<' 0
+MARKER_LENGTH = 3
+
+
+def _expect_marker(stream: DbStream, marker: bytes) -> None:
+    data = stream.read(MARKER_LENGTH)
+    if data != marker:
+        raise RuntimeError('Unexpected marker in named streams: {}'.format(DbStream.bytearray_to_string(data)))
+
+
+def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], object]]) -> dict[str, object]:
+    """Read the named streams that follow the fixed fields of an object, as the kernel does.
+
+    Each stream is a one-character name followed by the data of its reader.
+    The length check assumes the object is standalone: only the object end marker
+    (3 bytes, not consumed here) may remain after the last stream.
+    """
+    streams: dict[str, object] = {}
+    if stream.get_length() == MARKER_LENGTH:
+        return streams
+    _expect_marker(stream, STREAM_BEGIN)
+    while True:
+        name = chr(stream.read(1)[0])
+        if name not in readers:
+            raise RuntimeError('Unknown named stream: {}'.format(name))
+        streams[name] = readers[name](stream)
+        _expect_marker(stream, STREAM_END)
+        if stream.get_length() == MARKER_LENGTH:
+            return streams
+        _expect_marker(stream, STREAM_SEPARATOR)
