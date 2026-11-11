@@ -5,7 +5,7 @@ from classes import DbObject
 def load(stream):
     obj = common_loaders.loadStandardNameBlock(stream)
     
-    # Name derived from the byte's position; the kernel has no getter for it
+    # No setter; name chosen for the flag, not taken from the kernel
     obj['has_layers'] = bool(stream.loadOneByteType())
     obj['base_variants'] = None
     obj['variants'] = None
@@ -21,13 +21,13 @@ def load(stream):
     obj['flash_sessions'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     obj['additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
-    # Name derived from the byte's position; the kernel has no getter for it
+    # No setter; name chosen for the flag, not taken from the kernel
     obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
     obj['flash_session_class_refs'] = None
     if obj['has_flash_session_classes']:
         obj['flash_session_class_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
-    # Name derived from the byte's position; the kernel reads the state through hasPhysicalMemory
+    # No setter; named after the getter hasPhysicalMemory
     obj['has_physical_memory'] = bool(stream.loadOneByteType())
     obj['physical_memory_ref'] = None
     if obj['has_physical_memory']:

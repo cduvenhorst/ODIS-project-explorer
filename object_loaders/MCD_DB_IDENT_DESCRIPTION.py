@@ -3,7 +3,7 @@ def load(stream):
     
     obj['data_primitive_name'] = stream.loadAsciiString()[0]
     
-    # Name derived from the getter of the flag
+    # No setter; name proposed for the flag (weakly supported)
     obj['is_response_parameter_name'] = bool(stream.loadOneByteType())
     
     # One string follows in either case

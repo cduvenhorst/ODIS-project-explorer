@@ -11,7 +11,7 @@ def load(stream):
     obj['source_end_address'] = stream.loadNumericType(4)
     obj['binary_start_address'] = stream.loadNumericType(4)
     
-    # Name derived from the byte's position; the kernel has no getter for it
+    # No setter; name chosen for the flag, not taken from the kernel
     obj['has_filtered_ranges'] = bool(stream.loadOneByteType())
     obj['filtered_ranges_for_binary_data'] = None
     if obj['has_filtered_ranges']:

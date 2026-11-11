@@ -21,7 +21,7 @@ def load(stream):
     obj['expected_idents'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_IDENTS
     obj['flash_job_name'] = stream.loadAsciiString()[0]
     
-    # Name derived from the byte's position; the kernel has no getter for it
+    # No setter; name chosen for the flag, not taken from the kernel
     obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
     obj['flash_session_classes'] = []
     if obj['has_flash_session_classes']:
