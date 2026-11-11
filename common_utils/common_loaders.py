@@ -163,10 +163,9 @@ def loadMCDValueFromObjectStream(stream):
     return obj
 
 
-# Standard name block: short name, long name, description, then the three ids
 def loadStandardNameBlock(stream: DbStream) -> dict[str, str | None]:
-    """Read the six standard name fields in stream order; raises like the string readers on a bad key."""
-    obj = {}
+    """Read the six standard name fields in stream order (unknown pool keys give None); raises RuntimeError if the stream ends early."""
+    obj: dict[str, str | None] = {}
     
     obj['short_name'] = stream.loadAsciiString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]

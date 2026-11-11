@@ -64,7 +64,7 @@ class DbStream:
             raise RuntimeError('Cannot read {} bytes, only have {}'.format(count, len(self.__stream)))
         
         # Read the requested amount of bytes and remove them from the stream
-        # (slice deletion moves the remaining bytes once, not once per byte)
+        # (slice deletion removes the bytes in one step instead of one by one)
         data = self.__stream[:count]
         del self.__stream[:count]
         return data

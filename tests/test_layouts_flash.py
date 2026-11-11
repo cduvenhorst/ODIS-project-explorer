@@ -2,6 +2,8 @@
 
 Upstream has no loaders for these types; every body follows the kernel read order.
 """
+import contextlib
+import io
 import shutil
 import struct
 import tempfile
@@ -52,6 +54,21 @@ class InlineFlashDataTests(unittest.TestCase):
     def test_content_bytes_single_part(self):
         data = ObjectBytes().native_ascii('FF00').build('DB_INLINE_FLASH_DATA')
         self.assertEqual(DB_INLINE_FLASH_DATA.content_bytes([data]), b'\xff\x00')
+
+    def test_content_bytes_single_part_rejects_truncated_string(self):
+        too_short = type_code() + b'\x00'
+        longer_than_record = type_code() + struct.pack('<I', 0x80000000 | 6) + b'0A1B'
+        for data in (too_short, longer_than_record):
+            with self.assertRaises(ValueError):
+                DB_INLINE_FLASH_DATA.content_bytes([data])
+
+    def test_big_data_first_part_with_extra_bytes_is_printed_when_not_strict(self):
+        parts = [type_code() + b'\x00', bytearray(b'0A1B')]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = DbObject.load_object_from_parts(parts, support.string_storage([], []), strict=False)
+        self.assertEqual(result['inline_flash_data_length'], 4)
+        self.assertIn('not empty', output.getvalue())
 
     def test_content_bytes_rejects_non_hex(self):
         for text in (b'0A1', b'0G'):

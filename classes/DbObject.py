@@ -7,6 +7,7 @@ import struct
 from common_utils import diagnostics
 from common_utils import enum_converters
 from classes.DbStream import DbStream
+from classes.StringStorage import StringStorage
 
 # This imports all loaders defined in the `__all__` list of the file "object_loaders/__init__.py"
 # If a new object loader is to be implemented, it must be added there
@@ -73,13 +74,14 @@ def load_object(object_data, string_storage, strict=False):
     return obj
 
 
-def load_object_from_parts(parts: list[bytearray], string_storage, strict: bool = False) -> dict | list:
+def load_object_from_parts(parts: list[bytearray], string_storage: StringStorage, strict: bool = False) -> dict | list:
     """Load an object from the parts of its record.
 
     One part is loaded like `load_object`. Several parts of a type whose loader offers
     `load_big_data` are loaded as a big data record; several parts of any other type are
     concatenated and loaded like one part. Raises `diagnostics.UnreadBytesError` in strict
     mode if the first part of a big data record holds more than the type code.
+    The passed parts are consumed: the stream reads the first part in place.
     """
     if len(parts) > 1:
         # The kernel reads only the first part of a big data record as an object (type code,
@@ -93,15 +95,20 @@ def load_object_from_parts(parts: list[bytearray], string_storage, strict: bool 
     return load_object(parts[0], string_storage, strict)
 
 
-def _load_big_data_object(object_type, module, parts, string_storage, strict):
+def _load_big_data_object(object_type: str, module, parts: list[bytearray], string_storage: StringStorage,
+                          strict: bool) -> dict:
+    """Load a big data record: the first part as object, the others as content for `module.load_big_data`."""
     stream = DbStream(parts[0], string_storage)
-    # The first part ends after the type code, so the destructor has nothing to report
+    # Leftover bytes of the first part are reported below, not by the destructor
     stream.report_unread_on_delete = False
     with diagnostics.strict_reading() if strict else contextlib.nullcontext():
         stream.loadEnumMediumRange()
         obj = module.load_big_data(stream, parts[1:])
         if strict and stream.get_length() != 0:
             raise diagnostics.UnreadBytesError(object_type, stream.get_length())
+        if not strict and stream.get_length() != 0:
+            print('Object stream ({:04X}) not empty: '.format(stream.get_object_type_enum())
+                  + DbStream.bytearray_to_string(stream.read(stream.get_length())))
     ret = {'#OBJECT_TYPE': object_type}
     ret.update(obj)
     return ret

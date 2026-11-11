@@ -94,7 +94,7 @@ class ObjectLoader:
     
     
     # Load an Object from the parts of its record
-    ### parts = list of bytearrays, the decompressed parts of the record
+    ### parts = list of bytearrays, the decompressed parts of the record (consumed: the stream reads part 1 in place)
     ### * StringStorage instance needed in constructor
     def load_object_by_parts(self, parts: list[bytearray]) -> dict | list:
         if self.__string_storage is None:

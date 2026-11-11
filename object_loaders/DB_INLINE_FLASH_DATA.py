@@ -26,8 +26,13 @@ def content_bytes(parts: list[bytearray]) -> bytes:
     if len(parts) == 1:
         # Type code, length word, text; anything after the text (the end marker) is ignored
         first = parts[0]
+        if len(first) < 6:
+            raise ValueError('Inline flash data record is too short for its length word')
         length_word = int.from_bytes(first[2:6], 'little')
-        text = bytes(first[6:6 + (length_word & 0x7FFFFFFF)]) if length_word & 0x80000000 else b''
+        length = length_word & 0x7FFFFFFF
+        if length_word & 0x80000000 and 6 + length > len(first):
+            raise ValueError('Inline flash data string is longer than its record')
+        text = bytes(first[6:6 + length]) if length_word & 0x80000000 else b''
     else:
         text = b''.join(parts[1:])
     if not _HEX_TEXT.fullmatch(text):
