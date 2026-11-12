@@ -16,17 +16,18 @@ def load(stream):
     # Named value-attributed references; no presence byte
     obj['configuration_record_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbValueAttributedObjectReference, 0)
     
-    # The kernel reads key and values as numbers when a configuration value is below "0012"; it always saves ASCII
+    # kernel: below database version 0012 the key and the values are numbers, from 0012 ASCII strings
+    is_numeric = not stream.is_database_version_at_least(12)
     obj['base_var_to_case_map'] = []
     map_items = stream.loadNumericType(4)
     for i in range(map_items):
         entry = {}
-        entry['map_key'] = stream.loadAsciiString()[0]
+        entry['map_key'] = stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()[0]
         entry['unknown_1'] = stream.loadEnumSmallRange()
         entry['values'] = []
         collection_items = stream.loadNumericType(4)
         for j in range(collection_items):
-            entry['values'].append(stream.loadAsciiString()[0])
+            entry['values'].append(stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()[0])
         obj['base_var_to_case_map'].append(entry)
     
     obj['special_data_group_refs'] = None

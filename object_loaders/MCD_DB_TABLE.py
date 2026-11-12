@@ -27,7 +27,7 @@ def load(stream):
         named_reference = {}
         named_reference['object_id'] = stream.loadAsciiString()[0]
         named_reference['pool_id'] = stream.loadAsciiString()[0]
-        named_reference['short_name'] = stream.loadAsciiString()[0]
+        named_reference['short_name'] = common_loaders.loadNamedReferenceThirdWord(stream)
         item['reference'] = named_reference
         
         obj['table_key_map'].append(item)

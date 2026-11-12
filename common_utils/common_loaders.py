@@ -4,6 +4,15 @@ from classes.DbStream import DbStream
 from common_utils import enum_converters
 
 
+# Third word of a named object reference
+def loadNamedReferenceThirdWord(stream: DbStream) -> str | int | None:
+    """Read the third word of a named object reference: a string from database version 0012, else a number."""
+    # kernel: below database version 0012 the third word is a number; 0xFFFFFFFF means no number
+    if stream.is_database_version_at_least(12):
+        return stream.loadAsciiString()[0]
+    return stream.loadNumericType(4)
+
+
 # "Standard" loader for DbObjectReference
 def load_reference(stream, third_string = True, string_vector = False):
     obj = {}
@@ -11,7 +20,7 @@ def load_reference(stream, third_string = True, string_vector = False):
     obj['object_id'] = stream.loadAsciiString()[0]
     obj['pool_id'] = stream.loadAsciiString()[0]
     if third_string:
-        obj['object_id2'] = stream.loadAsciiString()[0]
+        obj['object_id2'] = loadNamedReferenceThirdWord(stream)
     
     if string_vector:
         obj['strings'] = []
@@ -86,7 +95,7 @@ def loadStringVectorMapFromObjectStream(stream):
 
 
 # String-to-reference map (key + reference)
-def loadStringToReferenceMap(stream, string_vector_in_reference = False, is_DbDiagComObjectReference = False, is_NamedObjectReference = False):
+def loadStringToReferenceMap(stream, string_vector_in_reference = False, is_DbDiagComObjectReference = False, is_three_word_reference = False):
     obj = []
     
     map_items = stream.loadNumericType(2)
@@ -97,8 +106,8 @@ def loadStringToReferenceMap(stream, string_vector_in_reference = False, is_DbDi
         
         if is_DbDiagComObjectReference:
             item['reference'] = load_DbDiagComObjectReference(stream)
-        elif is_NamedObjectReference:
-            item['reference'] = loadNamedObjectReferenceFromObjectStream(stream)
+        elif is_three_word_reference:
+            item['reference'] = load_reference(stream, True)
         else:
             item['reference'] = load_reference(stream, False, string_vector_in_reference)
         

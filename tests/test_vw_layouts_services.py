@@ -546,6 +546,27 @@ class TableTests(unittest.TestCase):
                          typed('MCD_DB_TABLE', table(True)))
 
 
+class TableKeyThirdWordTests(unittest.TestCase):
+    @staticmethod
+    def key_body(third_word):
+        body = ObjectBytes().ascii(None).ascii('SomeId').ascii('OBJ').unicode('Description')
+        body.unicode('Long name').ascii('Table').u32(1)
+        third_word(body.unicode('K1').ascii('O1').ascii('P1'))
+        body.ascii(None).u16(0).u8(0).u8(0)
+        return body
+
+    def test_mcd_db_table_key_short_name_is_a_number_below_0012(self):
+        body = self.key_body(lambda b: b.u32(7))
+        loaded = support.load('MCD_DB_TABLE', body, database_version='0011')
+        self.assertEqual(loaded['table_key_map'][0]['reference']['short_name'], 7)
+
+    def test_mcd_db_table_key_short_name_is_a_string_from_0012(self):
+        body = self.key_body(lambda b: b.ascii('Short1'))
+        for version in (None, '0012'):
+            loaded = support.load('MCD_DB_TABLE', body, database_version=version)
+            self.assertEqual(loaded['table_key_map'][0]['reference']['short_name'], 'Short1')
+
+
 class TableKeyTests(unittest.TestCase):
     def test_mcd_db_parameter_table_key_minimal(self):
         body = concat(parameter_body(), attributed_ref_body(ObjectBytes().absent()))

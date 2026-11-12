@@ -528,6 +528,23 @@ class ConfigurationDataTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_CONFIGURATION_DATA', configuration_data_body(True)),
                          configuration_data(True))
 
+    def test_mcd_db_configuration_data_case_map_is_numeric_below_0012(self):
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(1).u32(5).u8(2).u32(2).u32(6).u32(7)
+        body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
+        loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version='0011')
+        self.assertEqual(loaded['base_var_to_case_map'],
+                         [{'map_key': 5, 'unknown_1': 2, 'values': [6, 7]}])
+
+    def test_mcd_db_configuration_data_case_map_is_string_from_0012(self):
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(1).ascii('K').u8(2).u32(1).ascii('V')
+        body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
+        for version in (None, '0012'):
+            loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version=version)
+            self.assertEqual(loaded['base_var_to_case_map'],
+                             [{'map_key': 'K', 'unknown_1': 2, 'values': ['V']}])
+
     def test_db_ecu_config_info_minimal(self):
         self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body()), config_info())
 

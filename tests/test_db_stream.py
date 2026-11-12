@@ -8,9 +8,9 @@ from common_utils import common_loaders
 from tests import support
 
 
-def open_stream(body, trailer=b''):
+def open_stream(body, trailer=b'', database_version=None):
     """Stream over the body's bytes (plus trailer), positioned after the type code."""
-    storage = support.string_storage(body.ascii_strings, body.unicode_strings)
+    storage = support.string_storage(body.ascii_strings, body.unicode_strings, database_version)
     stream = DbStream(bytearray(b'\x00\x00') + body._data + trailer, storage)
     stream.report_unread_on_delete = False
     stream.loadEnumMediumRange()
@@ -56,16 +56,32 @@ class DbStreamTests(unittest.TestCase):
             self.assertEqual(getattr(stream, load)(), ('', None))
             self.assertEqual(stream.get_length(), 4)
 
-    def test_all_ones_word_is_a_pool_key(self):
-        for load in ('loadAsciiString', 'loadUnicodeString'):
+    def test_all_ones_word_is_an_embedded_length(self):
+        # kernel: a set top bit is always the length of a string stored in the object
+        for load, size in (('loadAsciiString', 2147483647), ('loadUnicodeString', 4294967294)):
             stream = open_stream(support.ObjectBytes().u32(0xFFFFFFFF), b'tail')
-            self.assertEqual(getattr(stream, load)(), (None, 0xFFFFFFFF))
-            self.assertEqual(stream.get_length(), 4)
+            with self.assertRaisesRegex(RuntimeError, 'Cannot read %d bytes' % size):
+                getattr(stream, load)()
 
     def test_empty_three_string_reference_with_all_ones_word(self):
-        stream = open_stream(support.ObjectBytes().u32(0xFFFFFFFF).u32(0).u32(0))
+        stream = open_stream(support.ObjectBytes().u32(0).u32(0).u32(0xFFFFFFFF), database_version='0011')
         self.assertEqual(common_loaders.load_reference(stream),
-                         {'object_id': None, 'pool_id': None, 'object_id2': None})
+                         {'object_id': None, 'pool_id': None, 'object_id2': 0xFFFFFFFF})
+
+    def test_third_word_is_number_below_0012(self):
+        for number in (0xFFFFFFFF, 7):
+            body = support.ObjectBytes().ascii('O').ascii('P').u32(number)
+            stream = open_stream(body, database_version='0011')
+            self.assertEqual(common_loaders.load_reference(stream),
+                             {'object_id': 'O', 'pool_id': 'P', 'object_id2': number})
+            self.assertEqual(stream.get_length(), 0)
+
+    def test_third_word_is_string_from_0012(self):
+        for version in (None, '0012'):
+            body = support.ObjectBytes().ascii('O').ascii('P').ascii('T')
+            stream = open_stream(body, database_version=version)
+            self.assertEqual(common_loaders.load_reference(stream),
+                             {'object_id': 'O', 'pool_id': 'P', 'object_id2': 'T'})
 
     def test_embedded_string_inside_mcd_value(self):
         stream = open_stream(support.ObjectBytes().u8(1).embedded_ascii('V'))

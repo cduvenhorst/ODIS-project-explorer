@@ -811,8 +811,8 @@ def code_information_body(count=0):
     body = ObjectBytes().unicode('code.bin').unicode('Encryption').unicode('Syntax')
     body.unicode('Revision').unicode('EntryPoint').u16(count)
     for i in range(1, count + 1):
-        body.ascii('Lib%dKey' % i).ascii('Lib%dName' % i)
-        body.ascii('Lib%dR' % i).ascii('Lib%dP' % i)
+        body.ascii('Lib%dKey' % i).ascii('Lib%dR' % i)
+        body.ascii('Lib%dP' % i).ascii('Lib%dThird' % i)
     return body
 
 
@@ -820,10 +820,11 @@ def code_information(count=0):
     return typed('MCD_DB_CODE_INFORMATION', {
         'code_file': 'code.bin', 'encryption': 'Encryption', 'syntax': 'Syntax',
         'revision': 'Revision', 'entry_point': 'EntryPoint',
+        # kernel: map key, then a named object reference (object id, pool id, third word)
         'library_refs': [{'map_key': 'Lib%dKey' % i,
-                          'reference': {'name': 'Lib%dName' % i,
-                                        'reference': {'object_id': 'Lib%dR' % i,
-                                                      'pool_id': 'Lib%dP' % i}}}
+                          'reference': {'object_id': 'Lib%dR' % i,
+                                        'pool_id': 'Lib%dP' % i,
+                                        'object_id2': 'Lib%dThird' % i}}
                          for i in range(1, count + 1)]})
 
 

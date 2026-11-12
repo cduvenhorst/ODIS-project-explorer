@@ -111,14 +111,11 @@ class DbStream:
     
     
     # Load a string given by a 4-byte word: a string pool key, or the string itself
-    # * the kernel treats a set top bit as the length of a string stored in the object itself;
-    #   pool hashes are always below 0x80000000
-    # * 0xFFFFFFFF marks an empty string reference in older databases; read as a length it would
-    #   exceed any object, so it keeps the pool lookup
+    # * kernel: a set top bit is always the length of a string stored in the object
     # * returns (string, key); key is None for a string stored in the stream
     def __load_string(self, pool_lookup, bytes_per_unit, encoding):
         word = self.loadNumericType(4)
-        if word & 0x80000000 and word != 0xFFFFFFFF:
+        if word & 0x80000000:
             return self.read(bytes_per_unit * (word & 0x7FFFFFFF)).decode(encoding), None
         return pool_lookup(word), word
     
