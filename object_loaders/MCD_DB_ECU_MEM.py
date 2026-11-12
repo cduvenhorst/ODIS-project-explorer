@@ -23,7 +23,8 @@ def load(stream):
     
     # No setter; name chosen for the flag, not taken from the kernel
     obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
-    obj['flash_session_class_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['flash_session_class_refs'] = []
     if obj['has_flash_session_classes']:
         obj['flash_session_class_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
@@ -33,7 +34,8 @@ def load(stream):
     if obj['has_physical_memory']:
         obj['physical_memory_ref'] = common_loaders.loadDbAttributedObjectReference(stream)
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

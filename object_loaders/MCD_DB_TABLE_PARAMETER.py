@@ -19,11 +19,13 @@ def load(stream):
     obj['audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl
     
     # DisabledAdditionalAudiences, EnabledAdditionalAudiences: presence byte, then named references
-    obj['disabled_additional_audiences'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['disabled_additional_audiences'] = []
     if stream.loadOneByteType():
         obj['disabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
-    obj['enabled_additional_audiences'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['enabled_additional_audiences'] = []
     if stream.loadOneByteType():
         obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     

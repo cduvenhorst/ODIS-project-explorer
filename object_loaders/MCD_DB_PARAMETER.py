@@ -51,7 +51,8 @@ def load(stream):
     
     obj['is_byte_pos_available'] = bool(flags & (1 << 5))
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if flags & (1 << 6):
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

@@ -40,7 +40,8 @@ def load(stream):
     if stream.loadOneByteType():
         obj['dop_simple_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopSimple
     
-    # obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         raise RuntimeError('SDGs present')
     

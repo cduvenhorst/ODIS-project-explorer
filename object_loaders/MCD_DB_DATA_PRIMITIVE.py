@@ -16,14 +16,18 @@ def load(stream):
     
     status_byte = stream.loadNumericType(1)
     
-    obj['disabled_additional_audiences'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['disabled_additional_audiences'] = []
     if status_byte & 1:
         obj['disabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
-    obj['enabled_additional_audiences'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['enabled_additional_audiences'] = []
     if status_byte & 2:
         obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if status_byte & 4:
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

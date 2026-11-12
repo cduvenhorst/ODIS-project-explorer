@@ -71,7 +71,8 @@ def item_base_body(sdgs=None, parameter=False, complex_=False):
 def item_base(sdgs=None, parameter=False, complex_=False):
     return {'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
             'description': 'Description', 'long_name': 'Long name', 'short_name': 'Item',
-            'special_data_group_refs': None if sdgs is None else [{'object_id': n} for n in sdgs],
+            # kernel: an absent collection reads as an empty one
+            'special_data_group_refs': [] if sdgs is None else [{'object_id': n} for n in sdgs],
             'parameter': audience() if parameter else None, 'is_complex': complex_}
 
 
@@ -129,10 +130,11 @@ def item_value_body(full=False):
 def item_value(full=False):
     if not full:
         return typed('MCD_DB_ITEM_VALUE', {
-            'audience_state': None, 'special_data_group_refs': None, 'description': None,
+            # kernel: an absent collection reads as an empty one
+            'audience_state': None, 'special_data_group_refs': [], 'description': None,
             'description_id': None, 'key': None, 'meaning': None, 'meaning_id': None,
             'physical_constant_value': None, 'rule': None,
-            'disabled_additional_audiences': None, 'enabled_additional_audiences': None})
+            'disabled_additional_audiences': [], 'enabled_additional_audiences': []})
     return typed('MCD_DB_ITEM_VALUE', {
         'audience_state': audience(), 'special_data_group_refs': [{'object_id': 3}],
         'description': 'Desc', 'description_id': 'DescId', 'key': 'KEY', 'meaning': 'Meaning',
@@ -162,14 +164,15 @@ def option_item(full=False):
         return typed('MCD_DB_OPTION_ITEM', {
             **item_base(), 'item_values': None, 'physical_default_value': 'Default',
             'read_audience_state': None, 'write_audience_state': None,
-            'disabled_read_additional_audiences': None, 'enabled_read_additional_audiences': None,
-            'disabled_write_additional_audiences': None, 'enabled_write_additional_audiences': None})
+            # kernel: an absent collection reads as an empty one
+            'disabled_read_additional_audiences': [], 'enabled_read_additional_audiences': [],
+            'disabled_write_additional_audiences': [], 'enabled_write_additional_audiences': []})
     return typed('MCD_DB_OPTION_ITEM', {
         **item_base([7, 9], True, True), 'item_values': [item_value()],
         'physical_default_value': 'Default',
         'read_audience_state': audience(), 'write_audience_state': audience(),
         'disabled_read_additional_audiences': named_refs(NAMED_REFS),
-        'enabled_read_additional_audiences': None,
+        'enabled_read_additional_audiences': [],
         'disabled_write_additional_audiences': [],
         'enabled_write_additional_audiences': named_refs(NAMED_REFS)})
 
@@ -325,10 +328,11 @@ def data_record(full=False, **changes):
             'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None, 'audience_state': None,
             'binary_data': bytearray(), 'data_format': 0, 'data_id': None,
-            'has_coding_data': False, 'coding_data': None, 'special_data_group_refs': None,
+            # kernel: an absent collection reads as an empty one
+            'has_coding_data': False, 'coding_data': None, 'special_data_group_refs': [],
             'key': None, 'rule': None, 'configuration_record_value_size': 0,
-            'parent_config_data_short_name': None, 'disabled_additional_audiences': None,
-            'enabled_additional_audiences': None})
+            'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
+            'enabled_additional_audiences': []})
     return typed('MCD_DB_DATA_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
@@ -408,8 +412,9 @@ def configuration_record(full=False):
             'system_items': None, 'read_diag_com_primitives': None,
             'write_diag_com_primitives': None, 'diag_com_data_connectors': None,
             'configuration_record_value_size': 0, 'ecu_config_file_sub_dir_name': None,
-            'parent_config_data_short_name': None, 'disabled_additional_audiences': None,
-            'enabled_additional_audiences': None, 'special_data_group_refs': None})
+            # kernel: an absent collection reads as an empty one
+            'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
+            'enabled_additional_audiences': [], 'special_data_group_refs': []})
     return typed('MCD_DB_CONFIGURATION_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
@@ -460,8 +465,9 @@ def configuration_data(full=False):
             'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None,
             'configuration_record_refs': [], 'base_var_to_case_map': [],
-            'special_data_group_refs': None, 'major': 0, 'minor': 0, 'revision': 0,
-            'is_revision_label_available': False, 'additional_audience_refs': None})
+            # kernel: an absent collection reads as an empty one
+            'special_data_group_refs': [], 'major': 0, 'minor': 0, 'revision': 0,
+            'is_revision_label_available': False, 'additional_audience_refs': []})
     return typed('MCD_DB_CONFIGURATION_DATA', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Data',

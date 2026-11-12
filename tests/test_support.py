@@ -25,7 +25,8 @@ EXPECTED_UNIT = {
     'factor_si_to_unit': 1000.0,
     'offset_si_to_unit': 0.0,
     'physical_dimension': None,
-    'unit_group_refs': None,
+    # kernel: an absent collection reads as an empty one
+    'unit_group_refs': [],
 }
 
 

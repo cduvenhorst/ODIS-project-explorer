@@ -13,7 +13,8 @@ def load(stream):
     obj['own_idents'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_IDENTS
     obj['securities'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_SECURITIES
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

@@ -357,7 +357,8 @@ class DiagCodedTypeTests(unittest.TestCase):
                 'layer_id': None, 'diag_coded_type': None, 'db_object_ref': None,
                 'dop_base': None,
                 'is_byte_pos_available': False, 'is_protocol_parameter': False,
-                'special_data_group_refs': None, 'nrc_const_values': None}})
+                # kernel: an absent collection reads as an empty one
+                'special_data_group_refs': [], 'nrc_const_values': None}})
 
     def test_db_diag_coded_type_emin_max_length_type(self):
         body = ObjectBytes().u8(1).u32(10).u32(2).u8(1).u8(0).u8(3).flag(True).flag(False)
@@ -633,7 +634,8 @@ class UnitTests(unittest.TestCase):
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
             'description_id': None, 'display_name': None, 'factor_si_to_unit': 1000.0, 'offset_si_to_unit': 0.0,
-            'physical_dimension': None, 'unit_group_refs': None})
+            # kernel: an absent collection reads as an empty one
+            'physical_dimension': None, 'unit_group_refs': []})
 
     def test_mcd_db_unit_all_branches(self):
         body = self.head().unicode('km').double(0.001).double(-273.15)
@@ -665,7 +667,8 @@ class UnitTests(unittest.TestCase):
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UOI', 'long_name_id': 'LNID',
             'description_id': 'DID', 'display_name': None, 'factor_si_to_unit': 1000.0,
-            'offset_si_to_unit': 0.0, 'physical_dimension': None, 'unit_group_refs': None})
+            # kernel: an absent collection reads as an empty one
+            'offset_si_to_unit': 0.0, 'physical_dimension': None, 'unit_group_refs': []})
 
 
 class UnitGroupTests(unittest.TestCase):

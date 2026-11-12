@@ -290,9 +290,10 @@ class FlashDataTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
             **name_block(), 'address_offset': 0, 'data_block_type': None, 'flash_data': None,
             'flash_filters': None, 'flash_segments': None, 'own_idents': None, 'securities': None,
-            'special_data_group_refs': None, 'has_logical_block_index': False,
+            # kernel: an absent collection reads as an empty one
+            'special_data_group_refs': [], 'has_logical_block_index': False,
             'logical_block_index': None, 'audience_state': None,
-            'disabled_additional_audiences': None, 'enabled_additional_audiences': None}))
+            'disabled_additional_audiences': [], 'enabled_additional_audiences': []}))
 
     def test_mcd_db_flash_data_block_all_branches(self):
         data = name_block_body(ObjectBytes()).ascii(None).u8(0).u16(0x6B01).u8(255).ascii(None)
@@ -334,8 +335,9 @@ class FlashTopLevelTests(unittest.TestCase):
         body.ascii(None).ascii(None).ascii(None).ascii(None)
         body.absent().absent().absent().ascii(None).u8(0).absent().ascii(None).u32(0).u8(0).u8(0)
         expected = {key: None for key in SESSION_KEYS}
+        # kernel: an absent collection reads as an empty one
         expected.update({'has_flash_session_classes': False, 'flash_session_classes': [],
-                         'priority': 0, 'is_download': False})
+                         'priority': 0, 'is_download': False, 'special_data_group_refs': []})
         self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', expected))
 
     def test_mcd_db_flash_session_all_branches(self):
@@ -362,9 +364,10 @@ class FlashTopLevelTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_ECU_MEM', body), typed('MCD_DB_ECU_MEM', {
             **name_block(), 'has_layers': False, 'base_variants': [], 'variants': [],
             'layers': None, 'all_variant_layers': None, 'flash_sessions': [],
-            'additional_audiences': None, 'has_flash_session_classes': False,
-            'flash_session_class_refs': None, 'has_physical_memory': False,
-            'physical_memory_ref': None, 'special_data_group_refs': None}))
+            # kernel: an absent collection reads as an empty one
+            'additional_audiences': [], 'has_flash_session_classes': False,
+            'flash_session_class_refs': [], 'has_physical_memory': False,
+            'physical_memory_ref': None, 'special_data_group_refs': []}))
 
     def test_mcd_db_ecu_mem_all_branches(self):
         body = name_block_body(ObjectBytes(), True).u8(1)

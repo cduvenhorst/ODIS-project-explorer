@@ -253,11 +253,12 @@ def loadAsciiToUnicodeStringMap(stream: DbStream) -> list[dict[str, str | None]]
 
 
 # Presence byte, then a named reference collection (DisabledAdditionalAudiences, EnabledAdditionalAudiences, ...)
-def loadAdditionalAudiencesFromObjectStream(stream: DbStream) -> list[dict[str, object]] | None:
+def loadAdditionalAudiencesFromObjectStream(stream: DbStream) -> list[dict[str, object]]:
     """Read a presence byte and, when it is set, a named object reference collection."""
     if stream.loadOneByteType():
         return loadNamedObjectReferenceCollectionFromObjectStream(stream, load_reference, False)
-    return None
+    # kernel: an absent collection reads as an empty one
+    return []
 
 
 STREAM_BEGIN = bytes.fromhex('233E00')  # '#>' 0

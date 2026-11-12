@@ -20,7 +20,8 @@ def load(stream):
     
     obj['physical_dimension'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbPhysicalDimensionImpl
     
-    obj['unit_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['unit_group_refs'] = []
     if stream.loadOneByteType():
         obj['unit_group_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     

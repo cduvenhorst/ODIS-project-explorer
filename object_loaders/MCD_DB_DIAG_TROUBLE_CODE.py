@@ -14,6 +14,8 @@ def load(stream):
     
     obj['trouble_code'] = stream.loadNumericType(4)
     
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

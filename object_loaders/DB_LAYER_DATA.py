@@ -82,11 +82,10 @@ def load(stream):
     if not stream.is_database_version(15):
         stream.loadOneByteType()
     
-    # SpecialDataGroupRefs
+    # SpecialDataGroupRefs; kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
-    else:
-        obj['special_data_group_refs'] = None
     
     # MultipleEcuJobRefs
     obj['multiple_ecu_job_refs_map'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)

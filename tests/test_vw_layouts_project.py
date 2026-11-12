@@ -18,7 +18,7 @@ The layer data loader follows the kernel: unk_string, unk_map1 and unk_map2 are 
 unknown_1, not_inherited_tables_map and not_inherited_diag_comms_map, and the state chart,
 sub component, additional audience, special data group and multiple ECU job references are
 read as the keys ecu_state_chart_refs_map, sub_component_refs_map,
-additional_audience_refs_map, special_data_group_refs (None without presence byte) and
+additional_audience_refs_map, special_data_group_refs (empty without presence byte) and
 multiple_ecu_job_refs_map instead of having to be empty.
 """
 import importlib
@@ -501,7 +501,8 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=Fals
               'unit_refs_map': ref_map('Unit', n),
               'protocol_parameters': [audience(), None] if full else [],
               'ecu_state_chart_refs_map': [], 'sub_component_refs_map': [],
-              'additional_audience_refs_map': [], 'special_data_group_refs': None,
+              # kernel: an absent collection reads as an empty one
+              'additional_audience_refs_map': [], 'special_data_group_refs': [],
               'multiple_ecu_job_refs_map': []}
     if kernel_collections:
         fields['ecu_state_chart_refs_map'] = [
@@ -865,6 +866,8 @@ def trouble_code_body(groups=None):
 def trouble_code(groups=None):
     fields = {'label': 'Label', 'short_name': 'DtcName', 'long_name': 'DtcLong',
               'description': 'Description', 'level': 3, 'trouble_code': 0x123456,
+              # kernel: an absent collection reads as an empty one
+              'special_data_group_refs': [],
               'trouble_code_text': 'Text'}
     if groups is not None:
         fields['special_data_group_refs'] = [{'object_id': number} for number in groups]

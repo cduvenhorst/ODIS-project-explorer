@@ -13,7 +13,8 @@ def load(stream):
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

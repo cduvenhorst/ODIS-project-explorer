@@ -40,7 +40,8 @@ def load(stream):
     obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     

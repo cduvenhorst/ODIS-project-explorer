@@ -94,7 +94,8 @@ def parameter(**changes):
               'mcd_parameter_type': 'eVALUE', 'layer_id': None, 'diag_coded_type': None,
               'db_object_ref': None, 'dop_base': None, 'is_byte_pos_available': False,
               'is_protocol_parameter': False,
-              'special_data_group_refs': None, 'nrc_const_values': None}
+              # kernel: an absent collection reads as an empty one
+              'special_data_group_refs': [], 'nrc_const_values': None}
     fields.update(changes)
     return fields
 
@@ -524,7 +525,9 @@ def table_body(full=False):
 def table(full=False):
     fields = {'some_id': 'SomeId', 'object_id': 'OBJ', 'description': 'Description',
               'long_name': 'Long name', 'short_name': 'Table', 'table_key_map': [],
-              'semantic': None, 'diag_com_primitives_refs': []}
+              'semantic': None, 'diag_com_primitives_refs': [],
+              # kernel: an absent collection reads as an empty one
+              'special_data_group_refs': []}
     if full:
         fields['table_key_map'] = [
             {'map_key': 'K1', 'reference': {'object_id': 'O1', 'pool_id': 'P1',
@@ -544,6 +547,17 @@ class TableTests(unittest.TestCase):
     def test_mcd_db_table_all_branches(self):
         self.assertEqual(load('MCD_DB_TABLE', table_body(True)),
                          typed('MCD_DB_TABLE', table(True)))
+
+    def test_mcd_db_table_without_sdgs_has_empty_list(self):
+        # kernel: an absent collection reads as an empty one
+        self.assertEqual(load('MCD_DB_TABLE', table_body())['special_data_group_refs'], [])
+
+    def test_mcd_db_table_with_sdgs_still_fails(self):
+        body = ObjectBytes().ascii(None).ascii('SomeId').ascii('OBJ').unicode('Description')
+        body.unicode('Long name').ascii('Table').u32(0).ascii(None).u16(0).u8(0)
+        body.u8(1).u16(1).u32(11)
+        with self.assertRaisesRegex(RuntimeError, 'SDGs present'):
+            load('MCD_DB_TABLE', body)
 
 
 class TableKeyThirdWordTests(unittest.TestCase):
@@ -620,8 +634,9 @@ def table_parameter_body(audience_object=False, both_streams=False, audiences=(N
 
 
 def table_parameter(audience_state=None):
+    # kernel: an absent collection reads as an empty one
     return {'key': 'Key', 'audience_state': audience_state,
-            'disabled_additional_audiences': None, 'enabled_additional_audiences': None,
+            'disabled_additional_audiences': [], 'enabled_additional_audiences': [],
             'parameter': typed('MCD_DB_PARAMETER', parameter()),
             'is_api_executable': True, 'pre_condition_state_refs': None}
 
@@ -710,8 +725,9 @@ def request(parameters=None, description_id=None, sdgs=None):
     return {'short_name': 'Request', 'long_name': 'Request long',
             'description': 'Request description', 'unique_object_id': 'ID', 'long_name_id': 'LongId',
             'description_id': description_id, 'request_parameters': parameters,
+            # kernel: an absent collection reads as an empty one
             'special_data_group_refs':
-                None if sdgs is None else [{'object_id': i} for i in sdgs]}
+                [] if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
 class RequestTests(unittest.TestCase):
@@ -745,8 +761,9 @@ def response(parameters=None, response_type='ePOSITIVE_RESPONSE', description_id
             'description': 'Response description', 'unique_object_id': 'UID',
             'long_name_id': 'LongId', 'description_id': description_id,
             'response_parameters': parameters, 'response_type': response_type,
+            # kernel: an absent collection reads as an empty one
             'special_data_group_refs':
-                None if sdgs is None else [{'object_id': i} for i in sdgs]}
+                [] if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
 class ResponseTests(unittest.TestCase):
@@ -854,10 +871,10 @@ def data_primitive(full=False):
     fields = {'access_level': None, 'audience_state': audience() if full else None,
               'repetition_mode': 'eREPEATED' if full else 'eSINGLE',
               'related_data_primitives': diag_com_refs() if full else [],
-              'disabled_additional_audiences': named_refs(NAMED_REFS) if full else None,
-              'enabled_additional_audiences': named_refs(NAMED_REFS) if full else None}
-    if full:
-        fields['special_data_group_refs'] = [{'object_id': 11}, {'object_id': 22}]
+              # kernel: an absent collection reads as an empty one
+              'disabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
+              'enabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
+              'special_data_group_refs': [{'object_id': 11}, {'object_id': 22}] if full else []}
     fields['diag_com_primitive'] = typed('MCD_DB_DIAG_COM_PRIMITIVE', primitive(full))
     return typed('MCD_DB_DATA_PRIMITIVE', fields)
 

@@ -30,7 +30,8 @@ def load(stream):
             entry['values'].append(stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()[0])
         obj['base_var_to_case_map'].append(entry)
     
-    obj['special_data_group_refs'] = None
+    # kernel: an absent collection reads as an empty one
+    obj['special_data_group_refs'] = []
     if stream.loadOneByteType():
         obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
