@@ -133,6 +133,7 @@ def loadDbValueAttributedObjectReference(stream: DbStream, dummy: int = 0) -> di
 
 # MCDValue (data type + value)
 def loadMCDValueFromObjectStream(stream):
+    # kernel: value types and sizes as read by the kernel
     obj = {}
     
     obj['data_type'] = enum_converters.get_mcd_value_data_type_enum(stream.loadNumericType(1))
@@ -155,6 +156,20 @@ def loadMCDValueFromObjectStream(stream):
             if stream.loadOneByteType() != 0:
                 size = stream.loadNumericType(2)
                 obj['value'] = stream.read(size)
+        case 'eA_INT16':
+            obj['value'] = stream.loadNumericType(2, True)
+        case 'eA_INT64':
+            obj['value'] = stream.loadNumericType(8, True)
+        case 'eA_INT8':
+            obj['value'] = stream.loadNumericType(1, True)
+        case 'eA_UINT16':
+            obj['value'] = stream.loadNumericType(2)
+        case 'eA_UINT64':
+            obj['value'] = stream.loadNumericType(8)
+        case 'eA_UINT8':
+            obj['value'] = stream.loadNumericType(1)
+        case 'eA_BOOLEAN':
+            obj['value'] = stream.loadNumericType(1) != 0
         case 'eNO_TYPE':
             return None
         case _:

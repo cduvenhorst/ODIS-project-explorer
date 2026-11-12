@@ -290,16 +290,11 @@ def get_location_type_enum(value):
 
 
 def get_mcd_value_data_type_enum(value):
-    # Types above 18 are considered to have no type
-    if value > 18:
+    # kernel: value types and sizes as read by the kernel; only the codes
+    # 1-14 and 19 carry a payload, every other code reads nothing
+    if value in [0, 15, 16, 17, 18] or value > 19:
         return 'eNO_TYPE'
     
-    # Types A_INT8 and A_UINT8 are excluded for some reason
-    # Also, the rest of excluded types until 18 are considered invalid
-    if value in [9, 13, 15, 16, 17, 18]:
-        raise RuntimeError('Invalid MCDValue data type: {}'.format(value))
-    
-    # The other types correspond to the MCDDatType enum
     return get_MCDDataType(value)
 
 

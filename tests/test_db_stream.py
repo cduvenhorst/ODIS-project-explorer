@@ -72,6 +72,32 @@ class DbStreamTests(unittest.TestCase):
         self.assertEqual(common_loaders.loadMCDValueFromObjectStream(stream),
                          {'data_type': 'eA_ASCIISTRING', 'value': 'V'})
 
+    def test_mcd_value_all_kernel_types(self):
+        # kernel: value types and sizes as read by the kernel
+        cases = [
+            (6, b'\xff\xff', 'eA_INT16', -1),
+            (8, b'\xff' * 8, 'eA_INT64', -1),
+            (9, b'\xff', 'eA_INT8', -1),
+            (10, b'\xff\xff', 'eA_UINT16', 65535),
+            (12, b'\xff' * 8, 'eA_UINT64', 18446744073709551615),
+            (13, b'\xff', 'eA_UINT8', 255),
+            (19, b'\x01', 'eA_BOOLEAN', True),
+            (19, b'\x00', 'eA_BOOLEAN', False),
+        ]
+        for code, payload, name, value in cases:
+            with self.subTest(code=code, value=value):
+                stream = open_stream(support.ObjectBytes().u8(code).raw(payload), b'tail')
+                self.assertEqual(common_loaders.loadMCDValueFromObjectStream(stream),
+                                 {'data_type': name, 'value': value})
+                self.assertEqual(stream.read(4), b'tail')
+
+    def test_mcd_value_types_without_payload(self):
+        for code in (0, 15, 16, 17, 18, 20, 255):
+            with self.subTest(code=code):
+                stream = open_stream(support.ObjectBytes().u8(code), b'tail')
+                self.assertIsNone(common_loaders.loadMCDValueFromObjectStream(stream))
+                self.assertEqual(stream.read(4), b'tail')
+
     def test_native_string_zero_word_is_empty(self):
         for load in ('loadNativeAsciiString', 'loadNativeUnicodeString'):
             stream = open_stream(support.ObjectBytes().u32(0))
