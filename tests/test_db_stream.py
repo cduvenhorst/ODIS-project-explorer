@@ -72,6 +72,33 @@ class DbStreamTests(unittest.TestCase):
         self.assertEqual(common_loaders.loadMCDValueFromObjectStream(stream),
                          {'data_type': 'eA_ASCIISTRING', 'value': 'V'})
 
+    def test_native_string_zero_word_is_empty(self):
+        for load in ('loadNativeAsciiString', 'loadNativeUnicodeString'):
+            stream = open_stream(support.ObjectBytes().u32(0))
+            self.assertEqual(getattr(stream, load)(), '')
+            self.assertEqual(stream.get_length(), 0)
+
+    def test_native_string_word_without_top_bit_is_empty(self):
+        for load in ('loadNativeAsciiString', 'loadNativeUnicodeString'):
+            stream = open_stream(support.ObjectBytes().u32(0x1234), b'tail')
+            self.assertEqual(getattr(stream, load)(), '')
+            self.assertEqual(stream.read(4), b'tail')
+
+    def test_native_unicode_keeps_leading_byte_order_mark(self):
+        text = '\ufeffA'
+        stream = open_stream(support.ObjectBytes().u32(0x80000002).raw(text.encode('utf-16-le')))
+        self.assertEqual(stream.loadNativeUnicodeString(), text)
+
+    def test_embedded_unicode_keeps_leading_byte_order_mark(self):
+        text = '\ufeffA'
+        stream = open_stream(support.ObjectBytes().embedded_unicode(text))
+        self.assertEqual(stream.loadUnicodeString(), (text, None))
+
+    def test_pool_unicode_keeps_leading_byte_order_mark(self):
+        text = '\ufeffB'
+        storage = support.string_storage([], [text])
+        self.assertEqual(storage.get_unicode_string(support.string_hash(text, 'U')), text)
+
     def test_eight_byte_numbers(self):
         stream = open_stream(support.ObjectBytes().u64(2**40 + 5).raw(struct.pack('<q', -2))
                              .raw(b'abc'))

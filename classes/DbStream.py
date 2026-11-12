@@ -127,31 +127,21 @@ class DbStream:
         return self.__load_string(self.__string_storage.get_unicode_string, 2, 'utf-16-le')
     
     
-    # Load variable amount of bytes, interpreted as raw ASCII string (or hash?)
+    # Load a string stored in the object itself, introduced by a 4-byte word
+    # * kernel: a set top bit makes the low 31 bits the length (in bytes per unit, see below) and the string follows;
+    #   without the top bit the string is empty and nothing more is read, whatever the remaining bits are
+    def __load_native_string(self, bytes_per_unit, encoding):
+        word = self.loadNumericType(4)
+        if word & 0x80000000:
+            return self.read(bytes_per_unit * (word & 0x7FFFFFFF)).decode(encoding)
+        return ''
+    
+    
+    # Load a native ASCII string (length in bytes)
     def loadNativeAsciiString(self):
-        hash_or_length = self.loadNumericType(4)
-        
-        # If the number has the highest bit set, it represents the string's length (amount of bytes following)
-        if hash_or_length & 0x80000000:
-            # Decode the following bytes as ASCII
-            return self.read(hash_or_length & 0x7FFFFFFF).decode('cp1252')
-        elif hash_or_length != 0:
-            raise RuntimeError('Native string (A) might be hash')
-            #return self.__string_storage.get_ascii_string(hash_or_length)
-        else:
-            return None
+        return self.__load_native_string(1, 'cp1252')
     
     
-    # Load variable amount of bytes, interpreted as raw Unicode string (or hash?)
+    # Load a native Unicode string (length in UTF-16 code units); a leading byte order mark is kept
     def loadNativeUnicodeString(self):
-        hash_or_length = self.loadNumericType(4)
-        
-        # If the number has the highest bit set, it represents the string's length (amount of pairs of bytes following)
-        if hash_or_length & 0x80000000:
-            # Decode the following bytes as Unicode
-            return self.read(2 * (hash_or_length & 0x7FFFFFFF)).decode('utf-16')
-        elif hash_or_length != 0:
-            raise RuntimeError('Native string (U) might be hash')
-            #return self.__string_storage.get_unicode_string(hash_or_length)
-        else:
-            return None
+        return self.__load_native_string(2, 'utf-16-le')

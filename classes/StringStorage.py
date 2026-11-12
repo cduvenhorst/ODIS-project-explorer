@@ -110,8 +110,8 @@ class StringStorage:
                 encoding = 'cp1252'
                 character_size = 1
             elif string_type == 'U':
-                # Unicode strings use encoding "UTF-16" and each character is 2 bytes
-                encoding = 'utf-16'
+                # Unicode strings use encoding "UTF-16 LE" (a leading byte order mark is kept) and each character is 2 bytes
+                encoding = 'utf-16-le'
                 character_size = 2
             else:
                 return None

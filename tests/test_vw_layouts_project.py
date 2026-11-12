@@ -771,11 +771,12 @@ class SpecialDataGroupCaptionTests(unittest.TestCase):
     def test_mcd_db_special_data_group_caption_minimal(self):
         body = ObjectBytes().native_ascii(None).native_ascii(None).native_ascii(None)
         body.native_unicode(None).native_unicode(None).native_ascii(None)
+        # kernel: a native string without length is empty
         self.assertEqual(load('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', body),
                          typed('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', {
-                             'description_id': None, 'long_name_id': None,
-                             'unique_object_id': None, 'description': None,
-                             'long_name': None, 'short_name': None}))
+                             'description_id': '', 'long_name_id': '',
+                             'unique_object_id': '', 'description': '',
+                             'long_name': '', 'short_name': ''}))
 
     def test_mcd_db_special_data_group_caption_all_branches(self):
         body = ObjectBytes().native_ascii('DescId').native_ascii('LongId').native_ascii('UID')
@@ -790,8 +791,9 @@ class SpecialDataGroupCaptionTests(unittest.TestCase):
         body.native_unicode('Überschrift').native_unicode('Länge').native_ascii('Maß')
         self.assertEqual(load('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', body),
                          typed('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', {
-                             'description_id': 'Größe', 'long_name_id': None,
-                             'unique_object_id': None, 'description': 'Überschrift',
+                             # kernel: a native string without length is empty
+                             'description_id': 'Größe', 'long_name_id': '',
+                             'unique_object_id': '', 'description': 'Überschrift',
                              'long_name': 'Länge', 'short_name': 'Maß'}))
 
 
