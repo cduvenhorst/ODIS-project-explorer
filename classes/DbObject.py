@@ -18,6 +18,10 @@ def load_object_from_stream(stream):
     # The first 2 bytes of an Object's data are an enum which represents the Object's type
     # It will be used for selecting a loader to parse the data
     object_type_enum = stream.loadEnumMediumRange()
+    
+    # kernel: type code 0 means no object
+    if object_type_enum == 0:
+        return None
     object_type = enum_converters.get_object_type_enum(object_type_enum)
     
     # All loaders were imported by the wildcard import, look for the appropriate loader in the global namespace
@@ -42,12 +46,9 @@ def load_object_from_stream_if_exists(stream):
     # Load the flag
     object_exists = stream.loadOneByteType()
     
-    # The flag is a byte, but it is only allowed to be 0 or 1
-    # Other values mean the data was read incorrectly, and the current position didn't really represent such a flag
-    if object_exists == 1:
+    # kernel: any non-zero presence byte means an object follows
+    if object_exists != 0:
         return load_object_from_stream(stream)
-    elif object_exists != 0:
-        raise RuntimeError('Invalid object existance flag value ({})'.format(object_exists))
     
     # Return None if the Object isn't present
     return None
