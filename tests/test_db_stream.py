@@ -207,6 +207,13 @@ class UnknownNamedStreamTests(unittest.TestCase):
         body = support.ObjectBytes().raw(b'#>\x00D\x01#>\x01')
         self.assertEqual(self.load(body), {})
 
+    def test_truncated_unknown_named_stream_is_rejected(self):
+        # after the name of the unknown stream fewer bytes remain than an end marker needs
+        body = support.ObjectBytes().raw(b'#>\x00D\x01#>\x01#<\x00#>\x00')
+        stream = open_stream(body)
+        with self.assertRaisesRegex(RuntimeError, 'runs past the object end'):
+            common_loaders.loadNamedStreams(stream, self.READERS)
+
 
 if __name__ == '__main__':
     unittest.main()

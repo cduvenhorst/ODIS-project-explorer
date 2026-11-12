@@ -292,6 +292,8 @@ def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], o
         else:
             # kernel: unknown named streams are ignored; skip up to and including the next separator,
             # or up to the object end marker when no separator follows
+            if stream.get_length() < MARKER_LENGTH:
+                raise RuntimeError('Named stream {} runs past the object end'.format(name))
             end = stream.find(STREAM_SEPARATOR)
             if end < 0 or end == stream.get_length() - MARKER_LENGTH:
                 stream.read(stream.get_length() - MARKER_LENGTH)

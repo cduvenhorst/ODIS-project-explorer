@@ -262,6 +262,17 @@ class StateChartDataTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Named stream C missing'):
             load('DB_STATE_CHART_DATA', body)
 
+    def test_db_state_chart_data_skips_unused_named_stream_c(self):
+        # kernel: stream C is only read when a definition needs it, otherwise it is ignored
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(PRECONDITION, precondition_body())])])
+        body.raw(b'#>\x00C')
+        table_ref_body(body, 1)
+        body.raw(b'#>\x01')
+        result = load('DB_STATE_CHART_DATA', body)
+        self.assertEqual(result['state_precondition_defs_map'],
+                         [{'map_key': 'S1', 'items': [precondition()]}])
+
     def test_db_state_chart_data_too_few_references(self):
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(PRECONDITION, precondition_body(diag_com=False)),

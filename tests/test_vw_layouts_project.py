@@ -838,6 +838,15 @@ class CodeInformationTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_CODE_INFORMATION', code_information_body(2)),
                          code_information(2))
 
+    def test_mcd_db_code_information_third_word_is_a_number_below_0012(self):
+        body = ObjectBytes().unicode('code.bin').unicode('Encryption').unicode('Syntax')
+        body.unicode('Revision').unicode('EntryPoint').u16(1)
+        body.ascii('LibKey').ascii('LibR').ascii('LibP').u32(7)
+        loaded = load('MCD_DB_CODE_INFORMATION', body, database_version='0011')
+        self.assertEqual(loaded['library_refs'],
+                         [{'map_key': 'LibKey',
+                           'reference': {'object_id': 'LibR', 'pool_id': 'LibP', 'object_id2': 7}}])
+
 
 class CodeInformationsTests(unittest.TestCase):
     def test_mcd_db_code_informations_minimal(self):
