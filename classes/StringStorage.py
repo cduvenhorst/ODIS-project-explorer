@@ -71,6 +71,8 @@ class StringStorage:
     # Read the database version number from DatabaseVersionInfo.txt in the project folder
     # * only the version value is kept, no other line of the file is stored
     # * returns None if the file, the entry or a valid value is missing
+    # * kernel: takes the four characters after the quote; it rejects a project without this file or below 0011,
+    #   the fork reads it as the newest layout so that no project becomes unreadable
     def __read_database_version(self, project_folder_path: str) -> int | None:
         version_file_path = os.path.join(project_folder_path, 'DatabaseVersionInfo.txt')
         try:
@@ -78,8 +80,8 @@ class StringStorage:
                 text = version_file.read().decode('latin-1')
         except FileNotFoundError:
             return None
-        match = re.search(r'^(?:PRODIS_MCD|VWMCD)_DatabaseVersionInfo="(\d{4})"\r?$', text, re.MULTILINE)
-        if match is None:
+        match = re.search(r'^(?:PRODIS_MCD|VWMCD)_DatabaseVersionInfo="(.{4})', text, re.MULTILINE)
+        if match is None or not re.fullmatch(r'[0-9]{4}', match.group(1)):
             return None
         return int(match.group(1))
     
@@ -254,6 +256,7 @@ class StringStorage:
     # Get an ASCII string by providing its hash
     ### string_hash = hash of the desired ASCII string
     def get_ascii_string(self, string_hash):
+        # kernel: stores the key and fails only when the string is used; an unknown key gives None here
         string_hash = int(string_hash)
         if string_hash in self.__ascii_tdb_dict:
             return self.__ascii_tdb_dict[string_hash]
@@ -263,6 +266,7 @@ class StringStorage:
     # Get a Unicode string by providing its hash
     ### string_hash = hash of the desired Unicode string
     def get_unicode_string(self, string_hash):
+        # kernel: stores the key and fails only when the string is used; an unknown key gives None here
         string_hash = int(string_hash)
         if string_hash in self.__unicode_tdb_dict:
             return self.__unicode_tdb_dict[string_hash]

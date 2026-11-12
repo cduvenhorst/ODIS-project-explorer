@@ -34,6 +34,12 @@ class DbStream:
         return database_version is None or database_version >= version
     
     
+    # Check whether the project's database version is exactly the given one
+    # * a project without a known database version matches no version
+    def is_database_version(self, version: int) -> bool:
+        return self.__string_storage.database_version == version
+    
+    
     # Destructor
     def __del__(self):
         # After an Object is fully loaded, its stream must be '#>\0' (3 characters)

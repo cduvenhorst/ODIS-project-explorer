@@ -415,7 +415,7 @@ LAYER_LOCATION_REFS = {0x0101: 'ecu_base_variant_ref', 0x0102: 'ecu_variant_ref'
                        0x0103: 'functional_group_ref'}
 
 
-def layer_data_body(full=False, location=0x0104, kernel_collections=False):
+def layer_data_body(full=False, location=0x0104, kernel_collections=False, byte=True):
     """DB_LAYER_DATA; full gives every collection two entries.
 
     kernel_collections fills the state chart, sub component, additional audience, special
@@ -460,7 +460,8 @@ def layer_data_body(full=False, location=0x0104, kernel_collections=False):
     body.u16(n)
     if full:
         body.nested('MCD_AUDIENCE', audience_body()).absent()
-    body.u8(0)
+    if byte:
+        body.u8(0)
     if kernel_collections:
         body.u8(1).u16(2).u32(7).u32(9)
         body.u16(1).ascii('J1')
@@ -540,6 +541,15 @@ class LayerDataTests(unittest.TestCase):
                     expected[LAYER_LOCATION_REFS[code]] = {'object_id': 'LOC',
                                                            'pool_id': 'LOCPOOL'}
                 self.assertEqual(load('DB_LAYER_DATA', layer_data_body(location=code)), expected)
+
+    def test_layer_data_skips_byte_only_outside_0015(self):
+        # kernel: the byte after the protocol parameters is absent only in version 0015
+        self.assertEqual(load('DB_LAYER_DATA', layer_data_body(byte=False),
+                              database_version='0015'), layer_data())
+        for version in (None, '0018'):
+            with self.subTest(database_version=version):
+                self.assertEqual(load('DB_LAYER_DATA', layer_data_body(),
+                                      database_version=version), layer_data())
 
 
 def location_refs_body(body, full):

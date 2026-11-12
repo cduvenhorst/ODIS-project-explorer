@@ -43,6 +43,21 @@ class DatabaseVersionTests(unittest.TestCase):
         storage = self._storage(raw=b'First="1"\nVWMCD_DatabaseVersionInfo="0018"\nOther="1"\n')
         self.assertEqual(storage.database_version, 18)
 
+    def test_version_with_trailing_text(self):
+        self.assertEqual(self._storage(['PRODIS_MCD_DatabaseVersionInfo="0016" build']).database_version, 16)
+
+    def test_version_with_trailing_quote_text(self):
+        self.assertEqual(self._storage(['VWMCD_DatabaseVersionInfo="0018"x']).database_version, 18)
+
+    def test_is_database_version(self):
+        stream = DbStream(bytearray(b'\x00\x00#>\x00'), self._storage(['PRODIS_MCD_DatabaseVersionInfo="0015"']))
+        stream.report_unread_on_delete = False
+        self.assertIs(stream.is_database_version(15), True)
+        self.assertIs(stream.is_database_version(18), False)
+        none_stream = DbStream(bytearray(b'\x00\x00#>\x00'), self._storage())
+        none_stream.report_unread_on_delete = False
+        self.assertIs(none_stream.is_database_version(15), False)
+
     def test_invalid_value_gives_none(self):
         self.assertIsNone(self._storage(['PRODIS_MCD_DatabaseVersionInfo="abc"']).database_version)
 

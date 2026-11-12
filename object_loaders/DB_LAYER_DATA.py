@@ -78,8 +78,9 @@ def load(stream):
     for i in range(counter):
         obj['protocol_parameters'].append(DbObject.load_object_from_stream_if_exists(stream))
     
-    # The kernel reads this byte only if a configuration value differs from '0015'; all known projects contain it
-    stream.loadOneByteType()
+    # kernel: this byte is present unless the database version is 0015; it is not used
+    if not stream.is_database_version(15):
+        stream.loadOneByteType()
     
     # SpecialDataGroupRefs
     if stream.loadOneByteType():
