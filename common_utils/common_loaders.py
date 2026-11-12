@@ -47,13 +47,18 @@ def load_DbDiagComObjectReference(stream, dummy = 0):
 
 
 # Named reference
-def loadNamedObjectReferenceFromObjectStream(stream, reference_loader = load_reference, reference_loader_argument = False):
+def _loadNamedObjectReferenceWithNameWord(stream, reference_loader, reference_loader_argument):
+    """Read a named reference; returns it together with the raw name word (0 = no name)."""
     obj = {}
     
-    obj['name'] = stream.loadAsciiString()[0]
+    obj['name'], name_word = stream.loadAsciiString()
     obj['reference'] = reference_loader(stream, reference_loader_argument)
     
-    return obj
+    return obj, name_word
+
+
+def loadNamedObjectReferenceFromObjectStream(stream, reference_loader = load_reference, reference_loader_argument = False):
+    return _loadNamedObjectReferenceWithNameWord(stream, reference_loader, reference_loader_argument)[0]
 
 
 # Collection of named references
@@ -62,7 +67,11 @@ def loadNamedObjectReferenceCollectionFromObjectStream(stream, reference_loader 
     
     collection_items = stream.loadNumericType(2)
     for i in range(collection_items):
-        obj.append(loadNamedObjectReferenceFromObjectStream(stream, reference_loader, reference_loader_argument))
+        item, name_word = _loadNamedObjectReferenceWithNameWord(stream, reference_loader, reference_loader_argument)
+        # kernel: a named reference collection rejects an entry without name; the string-to-reference map does not check
+        if name_word == 0:
+            raise RuntimeError('Named reference without name')
+        obj.append(item)
     
     return obj
 
@@ -276,10 +285,19 @@ def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], o
     _expect_marker(stream, STREAM_BEGIN)
     while True:
         name = chr(stream.read(1)[0])
-        if name not in readers:
-            raise RuntimeError('Unknown named stream: {}'.format(name))
-        streams[name] = readers[name](stream)
-        _expect_marker(stream, STREAM_END)
+        if name in readers:
+            streams[name] = readers[name](stream)
+            _expect_marker(stream, STREAM_END)
+        else:
+            # kernel: unknown named streams are ignored; skip up to and including the next separator,
+            # or up to the object end marker when no separator follows
+            end = stream.find(STREAM_SEPARATOR)
+            if end < 0 or end == stream.get_length() - MARKER_LENGTH:
+                stream.read(stream.get_length() - MARKER_LENGTH)
+                return streams
+            stream.read(end)
+            _expect_marker(stream, STREAM_SEPARATOR)
+            continue
         if stream.get_length() == MARKER_LENGTH:
             return streams
         _expect_marker(stream, STREAM_SEPARATOR)

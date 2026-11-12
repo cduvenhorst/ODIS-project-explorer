@@ -159,5 +159,54 @@ class DbStreamTests(unittest.TestCase):
         self.assertLess(time.perf_counter() - started, 5)
 
 
+class NamedReferenceTests(unittest.TestCase):
+    def test_named_collection_rejects_zero_name(self):
+        body = support.ObjectBytes().u16(1).u32(0).ascii('O').ascii('P')
+        stream = open_stream(body)
+        with self.assertRaisesRegex(RuntimeError, 'Named reference without name'):
+            common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+
+    def test_named_collection_accepts_embedded_empty_name(self):
+        # the check is on the raw name word, not on the resulting string
+        body = support.ObjectBytes().u16(1).u32(0x80000000).ascii('O').ascii('P')
+        stream = open_stream(body)
+        self.assertEqual(
+            common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream),
+            [{'name': '', 'reference': {'object_id': 'O', 'pool_id': 'P'}}])
+
+    def test_string_to_reference_map_accepts_zero_key(self):
+        body = support.ObjectBytes().u16(1).u32(0).ascii('O').ascii('P')
+        stream = open_stream(body)
+        self.assertEqual(
+            common_loaders.loadStringToReferenceMap(stream),
+            [{'map_key': None, 'reference': {'object_id': 'O', 'pool_id': 'P'}}])
+
+
+class UnknownNamedStreamTests(unittest.TestCase):
+    READERS = {'A': lambda s: s.loadAsciiString()[0], 'B': lambda s: s.loadAsciiString()[0]}
+    END_MARKER = b'#<\x00'
+
+    def load(self, body):
+        stream = open_stream(body, self.END_MARKER)
+        result = common_loaders.loadNamedStreams(stream, self.READERS)
+        self.assertEqual(stream.get_length(), 3)
+        return result
+
+    def test_unknown_named_stream_is_skipped(self):
+        body = (support.ObjectBytes().raw(b'#>\x00A').ascii('X').raw(b'#>\x01#<\x00')
+                .raw(b'D\x01\x02\x03#>\x01#<\x00')
+                .raw(b'B').ascii('Y').raw(b'#>\x01'))
+        self.assertEqual(self.load(body), {'A': 'X', 'B': 'Y'})
+
+    def test_unknown_last_named_stream_is_skipped(self):
+        body = (support.ObjectBytes().raw(b'#>\x00A').ascii('X').raw(b'#>\x01#<\x00')
+                .raw(b'D\x01\x02\x03#>\x01'))
+        self.assertEqual(self.load(body), {'A': 'X'})
+
+    def test_only_unknown_named_stream_is_skipped(self):
+        body = support.ObjectBytes().raw(b'#>\x00D\x01#>\x01')
+        self.assertEqual(self.load(body), {})
+
+
 if __name__ == '__main__':
     unittest.main()

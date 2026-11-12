@@ -63,6 +63,11 @@ class DbStream:
         return len(self.__stream)
     
     
+    # Offset of the next occurrence of a byte sequence, relative to the current position; -1 if none (reads nothing)
+    def find(self, sequence):
+        return self.__stream.find(sequence)
+    
+    
     # Read an arbitrary amount of bytes, returned as a bytearray
     def read(self, count):
         # Parameter checking

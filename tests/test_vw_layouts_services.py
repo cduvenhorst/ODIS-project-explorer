@@ -656,9 +656,10 @@ class TableParameterTests(unittest.TestCase):
                          typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
 
     def test_mcd_db_table_parameter_unknown_named_stream(self):
+        # kernel: unknown named streams are ignored
         streams = bytes.fromhex('233E00 4301 233E01')
-        with self.assertRaisesRegex(RuntimeError, 'Unknown named stream: C'):
-            load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams))
+        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams)),
+                         typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
 
     def test_mcd_db_table_parameter_unexpected_marker(self):
         streams = bytes.fromhex('233E01 4101 233E01')
@@ -1098,8 +1099,10 @@ class NamedStreamsTests(unittest.TestCase):
         self.assertEqual(stream.get_length(), 3)
 
     def test_load_named_streams_unknown_name(self):
-        with self.assertRaisesRegex(RuntimeError, 'Unknown named stream: D'):
-            common_loaders.loadNamedStreams(self.stream(b'D'), self.READERS)
+        # kernel: unknown named streams are ignored
+        stream = self.stream(b'D')
+        self.assertEqual(common_loaders.loadNamedStreams(stream, self.READERS), {})
+        self.assertEqual(stream.get_length(), 3)
 
 
 if __name__ == '__main__':
