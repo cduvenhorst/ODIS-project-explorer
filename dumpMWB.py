@@ -1089,7 +1089,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # The optional attribute BYTE-SIZE gives the size of the whole structure in bytes
             # If the STRUCTURE has any dynamic components (e.g. MUX, or any FIELD with dynamic length), the BYTE-SIZE should not be given
-            output_object['byte_size'] = dop['byte_size'] if dop['byte_size'] != 0 else None
+            output_object['byte_size'] = dop['byte_length'] if dop['byte_length'] != 0 else None
             
             # Add each PARAM of the STRUCTURE to a list
             output_object['parameters'] = []
@@ -1110,7 +1110,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['item_byte_size'] = dop['item_byte_size']
             
             # The reference to the BASIC-STRUCTURE defines the complex DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1122,7 +1122,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # The determination of the number of repetitions is described by DETERMINE-NUMBER-OF-ITEMS
             # The DATA-OBJECT-PROP referenced to is used to calculate the repetition number
-            determine_number_of_items_dop = object_loader.load_object_by_reference(project_folder_path, dop['determine_number_of_items_dop_ref']) # DB_DOP_SIMPLE_BASE
+            determine_number_of_items_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_base_ref']) # DB_DOP_SIMPLE_BASE
             output_object['determine_number_of_items'] = parse_dop(object_loader, layer_data_objects, project_folder_path, determine_number_of_items_dop)
             
             # The repetition number is contained in its physical value of type A_UINT32
@@ -1131,17 +1131,17 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # Its BYTE-POSITION is relative to that of the DYNAMIC-LENGTH-FIELD
             # The optional BIT-POSITION shall be between 0 and 7
-            output_object['determine_number_of_items']['byte_position'] = dop['determine_number_of_items_byte_position']
-            output_object['determine_number_of_items']['bit_position'] = dop['determine_number_of_items_bit_position']
+            output_object['determine_number_of_items']['byte_position'] = dop['simple_byte_position']
+            output_object['determine_number_of_items']['bit_position'] = dop['simple_bit_position']
             if output_object['determine_number_of_items']['bit_position'] not in range(0, 8):
                 raise RuntimeError('BIT-POSITION {} not between 0-7'.format(output_object['determine_number_of_items']['bit_position']))
             
             # For the first item, the byte position is given by OFFSET relatively to the byte position of the DYNAMIC-LENGTH-FIELD
-            output_object['offset'] = dop['first_item_offset']
+            output_object['offset'] = dop['offset']
             # Each further item starts at the byte edge following the item before
             
             # The reference to the BASIC-STRUCTURE defines the COMPLEX-DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1170,7 +1170,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # If the interpretation of the ENDMARKER bytes is not desired, they can be skipped with a RESERVED parameter
             
             # The reference to the BASIC-STRUCTURE defines the complex DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1184,7 +1184,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # Each further item starts at the byte edge following the item before
             
             # The reference to the BASIC-STRUCTURE defines the COMPLEX-DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1195,7 +1195,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['type'] = 'MUX'
             
             # Get the MUX's BYTE-POSITION
-            output_object['byte_position'] = dop['byte_position']
+            output_object['byte_position'] = dop['offset']
             
             # The determination of the actual switch-key is described inside SWITCH-KEY
             # The DATA-OBJECT-PROP referenced to is used to calculate the switch-key, which is contained in its physical value

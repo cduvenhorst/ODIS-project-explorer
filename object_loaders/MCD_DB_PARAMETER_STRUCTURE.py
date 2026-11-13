@@ -11,7 +11,8 @@ def load(stream):
     obj['description_id'] = stream.loadAsciiString()[0]
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     
-    obj['byte_size'] = stream.loadNumericType(2)
+    # kernel: getByteLength
+    obj['byte_length'] = stream.loadNumericType(2)
     
     obj['parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParametersImpl
     

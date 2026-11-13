@@ -260,8 +260,10 @@ def dop_field_body(environment=False):
 
 def dop_field(environment=False):
     if environment:
-        return {'env_data_desc_ref': ref('ENV')}
-    return {'structure_ref': ref('STRUCT')}
+        # kernel: getDopEnvDataDescRef
+        return {'dop_env_data_desc_ref': ref('ENV')}
+    # kernel: getDopStructure
+    return {'dop_structure_ref': ref('STRUCT')}
 
 
 class StaticFieldTests(unittest.TestCase):
@@ -299,9 +301,10 @@ class DynamicLengthFieldTests(unittest.TestCase):
 
     @staticmethod
     def fields():
-        return {'first_item_offset': 6, 'determine_number_of_items_dop_ref': ref('DOP'),
-                'determine_number_of_items_byte_position': 20,
-                'determine_number_of_items_bit_position': 5}
+        # kernel: getOffset, DbObjectReference<DbDopBase>, getSimpleBytePosition,
+        # setSimpleBitPosition
+        return {'offset': 6, 'dop_base_ref': ref('DOP'),
+                'simple_byte_position': 20, 'simple_bit_position': 5}
 
     def test_mcd_db_parameter_dynamic_length_field_minimal(self):
         self.assertEqual(
@@ -436,12 +439,13 @@ class MultiplexerTests(unittest.TestCase):
     def test_mcd_db_parameter_multiplexer_minimal(self):
         self.assertEqual(load('MCD_DB_PARAMETER_MULTIPLEXER', multiplexer_body()), typed(
             'MCD_DB_PARAMETER_MULTIPLEXER',
-            {'byte_position': 7, 'switch_key': None, 'cases': None, 'default_case': None}))
+            # kernel: getOffset
+            {'offset': 7, 'switch_key': None, 'cases': None, 'default_case': None}))
 
     def test_mcd_db_parameter_multiplexer_all_branches(self):
         self.assertEqual(load('MCD_DB_PARAMETER_MULTIPLEXER', multiplexer_body(True)), typed(
             'MCD_DB_PARAMETER_MULTIPLEXER', {
-                'byte_position': 7,
+                'offset': 7,
                 'switch_key': typed('DB_SWITCH_KEY', {
                     'bit_position': 2, 'byte_position': 3, 'is_byte_pos_available': True,
                     'dop_base_ref': ref('DOP')}),
@@ -460,7 +464,8 @@ def structure_body(parameters=False):
 def structure(parameters=None):
     return {'short_name': 'Struct', 'long_name': 'Struct long', 'long_name_id': 'LongId',
             'description': 'Struct description', 'description_id': 'DescId',
-            'unique_object_id': 'UID', 'byte_size': 6, 'parameters': parameters}
+            'unique_object_id': 'UID', 'byte_length': 6,  # kernel: getByteLength
+            'parameters': parameters}
 
 
 class StructureTests(unittest.TestCase):

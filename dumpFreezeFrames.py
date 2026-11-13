@@ -138,7 +138,7 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
                         'description': case['description'],
                         'lower_limit': lower_limit,
                         'upper_limit': upper_limit,
-                        'data_offset': freeze_frame_dop['byte_position'],
+                        'data_offset': freeze_frame_dop['offset'],
                         'obj': parsed_freeze_frame_mux_case_struct
                     }
                     

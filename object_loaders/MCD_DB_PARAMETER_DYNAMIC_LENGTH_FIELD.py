@@ -5,12 +5,16 @@ from object_loaders import DB_DOP_FIELD
 def load(stream):
     obj = DB_DOP_FIELD.load(stream) # super = DbDopField
     
-    obj['first_item_offset'] = stream.loadNumericType(4)
+    # kernel: getOffset
+    obj['offset'] = stream.loadNumericType(4)
     
-    obj['determine_number_of_items_dop_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
+    # kernel: the DOP that determines the number of items
+    obj['dop_base_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
     
-    obj['determine_number_of_items_byte_position'] = stream.loadNumericType(4)
+    # kernel: getSimpleBytePosition
+    obj['simple_byte_position'] = stream.loadNumericType(4)
     
-    obj['determine_number_of_items_bit_position'] = stream.loadOneByteType()
+    # kernel: setSimpleBitPosition
+    obj['simple_bit_position'] = stream.loadOneByteType()
     
     return obj
