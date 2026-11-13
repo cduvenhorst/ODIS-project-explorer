@@ -131,11 +131,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
                     try:
-                        parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['db_object_ref'])
+                        parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
                     
                     # If not found (error in project), mimic the MCD error that is thrown on projects with this sort of problem
                     except:
-                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(dop['db_object_ref']['object_id'])}
+                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(dop['dop_base_ref']['object_id'])}
                     
                     # The DOP is usually found
                     else:
@@ -162,7 +162,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['default_value']['value'] = dop['default_mcd_value']['value']
                     
                     # A parameter of type RESERVED shouldn't reference any DOP
-                    if dop['db_object_ref'] is not None:
+                    if dop['dop_base_ref'] is not None:
                         raise RuntimeError('CODED-CONST references DOP')
                     
                     # Instead, the DIAG-CODED-TYPE is included in the RESERVED PARAM's definition
@@ -191,7 +191,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['constant']['value'] = dop['default_mcd_value']['value']
                     
                     # A parameter of type CODED-CONST shouldn't reference any DOP
-                    if dop['db_object_ref'] is not None:
+                    if dop['dop_base_ref'] is not None:
                         raise RuntimeError('CODED-CONST references DOP')
                     
                     # Instead, the DIAG-CODED-TYPE is included in the CODED-CONST PARAM's definition
@@ -223,7 +223,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
-                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['db_object_ref'])
+                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
                     
                     # Add the referenced DOP to the object
                     output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, parameter_dop)
@@ -241,7 +241,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         raise RuntimeError('SYSTEM parameter has default')
                     
                     # The value received by the D-server is a physical value and shall be coded using the referenced DOP
-                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['db_object_ref'])
+                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
                     
                     # Add the referenced DOP to the object
                     output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, parameter_dop)

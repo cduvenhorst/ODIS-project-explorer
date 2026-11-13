@@ -18,6 +18,7 @@ gives pre_condition_state_refs == [] instead of None (None only when B is absent
 """
 import unittest
 
+from classes import DbObject
 from classes.DbStream import DbStream
 from common_utils import common_loaders
 from tests import support
@@ -91,8 +92,11 @@ def parameter(**changes):
               'description_id': 'SomeId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
               'bit_position': 3, 'byte_position': 12, 'default_mcd_value': None,
               'display_level': 2, 'semantic': None, 'sys_param': 'SYS',
-              'mcd_parameter_type': 'eVALUE', 'layer_id': None, 'diag_coded_type': None,
-              'db_object_ref': None, 'dop_base': None, 'is_byte_pos_available': False,
+              'mcd_parameter_type': 'eVALUE',
+              # kernel: cached MCDDataType of the parameter, None when not set
+              'parameter_type': None, 'diag_coded_type': None,
+              # kernel: DbObjectReference<DbDopBase>
+              'dop_base_ref': None, 'dop_base': None, 'is_byte_pos_available': False,
               'is_protocol_parameter': False,
               # kernel: an absent collection reads as an empty one
               'special_data_group_refs': [], 'nrc_const_values': None}
@@ -101,8 +105,8 @@ def parameter(**changes):
 
 
 def parameter_all():
-    return parameter(default_mcd_value=uint(7), semantic='SEM', layer_id=5,
-                     diag_coded_type=diag_coded_type(), db_object_ref=ref('REF'),
+    return parameter(default_mcd_value=uint(7), semantic='SEM', parameter_type='eA_FLOAT64',
+                     diag_coded_type=diag_coded_type(), dop_base_ref=ref('REF'),
                      is_byte_pos_available=True, is_protocol_parameter=True,
                      special_data_group_refs=[{'object_id': 11}, {'object_id': 22}])
 
@@ -122,10 +126,34 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER', parameter_body()),
                          typed('MCD_DB_PARAMETER', parameter()))
 
+    def test_mcd_db_parameter_no_type_byte_is_none(self):
+        # kernel: 0xFF means the cached data type is not set
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(layer=0xFF)),
+                         typed('MCD_DB_PARAMETER', parameter(parameter_type=None)))
+
+    def test_mcd_db_parameter_unknown_data_type_gives_number(self):
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(layer=0x40)),
+                         typed('MCD_DB_PARAMETER', parameter(parameter_type=0x40)))
+
+    def test_mcd_db_parameter_unknown_parameter_type_gives_number(self):
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(type_code=0x14)),
+                         typed('MCD_DB_PARAMETER', parameter(mcd_parameter_type=0x7014)))
+
+    def test_mcd_db_parameter_unknown_parameter_type_leaves_following_bytes(self):
+        # kernel: an unknown parameter type is kept and reading goes on without the NRC values
+        body = parameter_body(type_code=0x14).raw(b'tail')
+        storage = support.string_storage(body.ascii_strings, body.unicode_strings)
+        stream = DbStream(body.build('MCD_DB_PARAMETER'), storage)
+        stream.report_unread_on_delete = False
+        loaded = DbObject.load_object_from_stream(stream)
+        self.assertEqual(loaded['mcd_parameter_type'], 0x7014)
+        self.assertEqual(stream.get_length() - 3, 4)
+        self.assertEqual(bytes(stream.read(4)), b'tail')
+
     def test_mcd_db_parameter_dop_base(self):
         self.assertEqual(
             load('MCD_DB_PARAMETER', parameter_body(reference=True, dop_base=audience_body())),
-            typed('MCD_DB_PARAMETER', parameter(db_object_ref=ref('REF'), dop_base=audience())))
+            typed('MCD_DB_PARAMETER', parameter(dop_base_ref=ref('REF'), dop_base=audience())))
 
     def test_mcd_db_parameter_dop_base_flag_without_object(self):
         body = parameter_body(dop_base='absent')

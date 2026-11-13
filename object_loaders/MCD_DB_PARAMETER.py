@@ -3,6 +3,14 @@ from common_utils import enum_converters
 from classes import DbObject
 
 
+# kernel: an unknown enum value is kept as its number instead of aborting the load
+def _enum_name_or_number(converter, value):
+    try:
+        return converter(value)
+    except RuntimeError:
+        return value
+
+
 def load(stream):
     obj = {}
     
@@ -30,20 +38,23 @@ def load(stream):
     
     obj['sys_param'] = stream.loadAsciiString()[0]
     
-    obj['mcd_parameter_type'] = enum_converters.get_MCDParameterType(0x7000 + stream.loadNumericType(1))
+    # kernel: keeps an unknown parameter type and reads on
+    obj['mcd_parameter_type'] = _enum_name_or_number(enum_converters.get_MCDParameterType, 0x7000 + stream.loadNumericType(1))
     
-    obj['layer_id'] = None
-    layer_id = stream.loadEnumSmallRange()
-    if layer_id != 0xFF:
-        obj['layer_id'] = layer_id
+    # kernel: cached MCDDataType of the parameter, 0xFF means not set
+    obj['parameter_type'] = None
+    parameter_type = stream.loadEnumSmallRange()
+    if parameter_type != 0xFF:
+        obj['parameter_type'] = _enum_name_or_number(enum_converters.get_MCDDataType, parameter_type)
     
     obj['diag_coded_type'] = None
     if flags & (1 << 2):
         obj['diag_coded_type'] = DbObject.load_object_from_stream_if_exists(stream) # DbDiagCodedType
     
-    obj['db_object_ref'] = None
+    # kernel: DbObjectReference<DbDopBase>
+    obj['dop_base_ref'] = None
     if flags & (1 << 3):
-        obj['db_object_ref'] = common_loaders.load_reference(stream, False)
+        obj['dop_base_ref'] = common_loaders.load_reference(stream, False)
     
     obj['dop_base'] = None
     if flags & (1 << 4):
