@@ -286,17 +286,21 @@ def diag_coded_type():
             'is_high_low_byte_order': False, 'is_condensed': False}
 
 
-def case_base_body(structure_ref=False):
+def case_base_body(structure_ref=False, ids=None):
+    # ids: (unique_object_id, long_name_id, description_id); None writes word 0 three times
     body = ObjectBytes().ascii('Case').unicode('Case long').unicode(None)
-    body.ascii(None).ascii(None).ascii(None)
+    for identifier in ids or (None, None, None):
+        body.ascii(identifier)
     if structure_ref:
         return body.flag(True).ascii('STRUCT').ascii('POOL')
     return body.flag(False)
 
 
-def case_base(structure_ref=None):
+def case_base(structure_ref=None, ids=None):
+    unique_object_id, long_name_id, description_id = ids or (None, None, None)
     return {'short_name': 'Case', 'long_name': 'Case long', 'description': None,
-            'structure_dop_ref': structure_ref}
+            'unique_object_id': unique_object_id, 'long_name_id': long_name_id,
+            'description_id': description_id, 'structure_dop_ref': structure_ref}
 
 
 def case_body():
@@ -307,11 +311,11 @@ def case_expected():
     return {'lower_limit': limit(1, CLOSED), 'upper_limit': limit(9, OPEN)}
 
 
-def case(structure_ref=None, type_name='DB_CASE'):
+def case(structure_ref=None, type_name='DB_CASE', ids=None):
     result = {'#OBJECT_TYPE': type_name}
     if type_name == 'DB_CASE':
         result.update(case_expected())
-    result.update(case_base(structure_ref))
+    result.update(case_base(structure_ref, ids))
     return result
 
 
