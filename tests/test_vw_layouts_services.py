@@ -498,7 +498,23 @@ class ProtocolParameterTests(unittest.TestCase):
         body = concat(parameter_body(**PARAMETER_ALL), protocol_tail(True))
         self.assertEqual(load('MCD_DB_PROTOCOL_PARAMETER', body), typed(
             'MCD_DB_PROTOCOL_PARAMETER',
-            {**parameter_all(), **protocol_fields(two_parameters())}))
+            {**parameter_all(), **protocol_fields(two_parameters()),
+             # kernel: a protocol parameter with sub-parameters is a structure
+             'parameter_type': 'eSTRUCTURE'}))
+
+    def test_mcd_db_protocol_parameter_empty_sub_parameters_is_structure(self):
+        # kernel: only the presence of the collection object counts, an empty one included
+        tail = ObjectBytes().u16(0x0102).u16(0x0304).nested('MCD_DB_PARAMETERS', ObjectBytes().u16(0))
+        body = concat(parameter_body(layer=5), tail.ascii('STACK').ascii('PROTOCOL').u16(0x0506))
+        self.assertEqual(load('MCD_DB_PROTOCOL_PARAMETER', body), typed(
+            'MCD_DB_PROTOCOL_PARAMETER', {
+                **parameter(parameter_type='eSTRUCTURE'), **protocol_fields([])}))
+
+    def test_mcd_db_protocol_parameter_without_sub_parameters_keeps_type(self):
+        body = concat(parameter_body(layer=5), protocol_tail())
+        self.assertEqual(load('MCD_DB_PROTOCOL_PARAMETER', body), typed(
+            'MCD_DB_PROTOCOL_PARAMETER', {
+                **parameter(parameter_type='eA_FLOAT64'), **protocol_fields()}))
 
 
 class StructFieldTests(unittest.TestCase):
@@ -511,7 +527,8 @@ class StructFieldTests(unittest.TestCase):
         body = concat(parameter_body(**PARAMETER_ALL), protocol_tail(True))
         self.assertEqual(load('MCD_DB_PARAMETER_STRUCT_FIELD', body), typed(
             'MCD_DB_PARAMETER_STRUCT_FIELD',
-            {**parameter_all(), **protocol_fields(two_parameters())}))
+            {**parameter_all(), **protocol_fields(two_parameters()),
+             'parameter_type': 'eSTRUCTURE'}))
 
 
 class TableStructTests(unittest.TestCase):
@@ -616,7 +633,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter(), 'table': None, 'table_ref': attributed_ref(),
-                'is_table_row_reference': False, 'string': None}))
+                'is_table_row_reference': False, 'table_row_short_name': None}))
 
     def test_mcd_db_parameter_table_key_all_branches(self):
         body = concat(parameter_body(**PARAMETER_ALL),
@@ -625,7 +642,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter_all(), 'table': None, 'table_ref': attributed_ref(['S1', 'S2']),
-                'is_table_row_reference': True, 'string': 'Text'}))
+                'is_table_row_reference': True, 'table_row_short_name': 'Text'}))
 
     def test_mcd_db_parameter_table_key_with_table(self):
         body = concat(parameter_body(), ObjectBytes().nested('MCD_DB_TABLE', table_body(True)))
@@ -633,7 +650,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter(), 'table': typed('MCD_DB_TABLE', table(True)),
-                'is_table_row_reference': False, 'string': None}))
+                'is_table_row_reference': False, 'table_row_short_name': None}))
 
 
 NAMED_STREAMS_A = bytes.fromhex('233E00 4101 233E01')
