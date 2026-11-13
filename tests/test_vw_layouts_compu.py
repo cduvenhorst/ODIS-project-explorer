@@ -166,7 +166,7 @@ class LimitTests(unittest.TestCase):
         self.assertEqual(result, {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': None,
                                   'limit_type': 0x6D04})
 
-    def test_db_limit_mcd_value_types(self):
+    def test_db_limit_value_types(self):
         cases = [
             (ObjectBytes().u8(1).ascii('text'), {'data_type': 'eA_ASCIISTRING', 'value': 'text'}),
             (ObjectBytes().u8(14).unicode('Größe'),
@@ -223,7 +223,6 @@ class CompuScaleTests(unittest.TestCase):
         # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
         self.assertEqual(obj['compu_rational_coeffs'], None)
         self.assertEqual(obj['compu_rational_coeffs_as_coded_values'], coeffs())
-
 
     def test_db_compu_scale_unknown_limit_type(self):
         body = ObjectBytes().ascii('LN')
@@ -888,12 +887,12 @@ class PhysicalDimensionTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PHYSICAL_DIMENSION', body), expected)
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class EnumNameOrNumberTests(unittest.TestCase):
     def test_enum_name_or_number(self):
         convert = enum_converters.get_MCDLimitType
         self.assertEqual(enum_converters.enum_name_or_number(convert, 0x6D01), 'eLIMIT_OPEN')
         self.assertEqual(enum_converters.enum_name_or_number(convert, 0x6D04), 0x6D04)
+
+
+if __name__ == '__main__':
+    unittest.main()
