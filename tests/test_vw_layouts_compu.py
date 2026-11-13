@@ -295,7 +295,6 @@ class CaseTests(unittest.TestCase):
         self.assertEqual(load('DB_CASE', body),
                          case({'object_id': 'STRUCT', 'pool_id': 'POOL'}))
 
-
     def test_db_case_identifiers(self):
         # kernel: the three identifiers are read without a check, the reference follows them
         body = concat(case_body(), case_base_body(structure_ref=True, ids=('UID', 'LID', 'DID')))
@@ -303,6 +302,7 @@ class CaseTests(unittest.TestCase):
                          case({'object_id': 'STRUCT', 'pool_id': 'POOL'}, ids=('UID', 'LID', 'DID')))
 
     def test_db_case_missing_limit_message(self):
+        # kernel: a missing limit aborts loading
         with self.assertRaisesRegex(RuntimeError, 'DB_CASE needs a lower and an upper limit'):
             load('DB_CASE', ObjectBytes().absent().absent())
 
@@ -316,8 +316,8 @@ class DefaultCaseTests(unittest.TestCase):
         self.assertEqual(load('DB_DEFAULT_CASE', case_base_body(structure_ref=True)),
                          case({'object_id': 'STRUCT', 'pool_id': 'POOL'}, 'DB_DEFAULT_CASE'))
 
-
     def test_db_default_case_identifiers(self):
+        # kernel: shares the case base with DB_CASE and reads the three identifiers without a check
         body = case_base_body(structure_ref=True, ids=('UID', 'LID', 'DID'))
         self.assertEqual(load('DB_DEFAULT_CASE', body),
                          case({'object_id': 'STRUCT', 'pool_id': 'POOL'}, 'DB_DEFAULT_CASE',

@@ -38,11 +38,11 @@ def load(type_name, body):
 # Parameters
 # ---------------------------------------------------------------------------
 
-PARAMETER_ALL = dict(value=True, semantic=True, layer=5, coded_type=True, reference=True,
+PARAMETER_ALL = dict(value=True, semantic=True, parameter_type=5, coded_type=True, reference=True,
                      byte_pos=True, protocol=True, sdgs=[11, 22])
 
 
-def parameter_body(value=False, semantic=False, layer=None, coded_type=False, reference=False,
+def parameter_body(value=False, semantic=False, parameter_type=None, coded_type=False, reference=False,
                    byte_pos=False, protocol=False, type_code=1, sdgs=None, nrc_values=None, dop_base=None,
                    dop_base_type='MCD_AUDIENCE'):
     """MCD_DB_PARAMETER body; coded_type may also be 'absent' (flag set, object missing).
@@ -62,7 +62,7 @@ def parameter_body(value=False, semantic=False, layer=None, coded_type=False, re
     body.u32(2)
     if semantic:
         body.ascii('SEM')
-    body.ascii('SYS').u8(type_code).u8(0xFF if layer is None else layer)
+    body.ascii('SYS').u8(type_code).u8(0xFF if parameter_type is None else parameter_type)
     if coded_type == 'absent':
         body.absent()
     elif coded_type:
@@ -128,11 +128,11 @@ class ParameterTests(unittest.TestCase):
 
     def test_mcd_db_parameter_no_type_byte_is_none(self):
         # kernel: 0xFF means the cached data type is not set
-        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(layer=0xFF)),
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(parameter_type=0xFF)),
                          typed('MCD_DB_PARAMETER', parameter(parameter_type=None)))
 
     def test_mcd_db_parameter_unknown_data_type_gives_number(self):
-        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(layer=0x40)),
+        self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(parameter_type=0x40)),
                          typed('MCD_DB_PARAMETER', parameter(parameter_type=0x40)))
 
     def test_mcd_db_parameter_unknown_parameter_type_gives_number(self):
@@ -147,7 +147,7 @@ class ParameterTests(unittest.TestCase):
         stream.report_unread_on_delete = False
         loaded = DbObject.load_object_from_stream(stream)
         self.assertEqual(loaded['mcd_parameter_type'], 0x7014)
-        self.assertEqual(stream.get_length() - 3, 4)
+        self.assertEqual(stream.get_length() - len(support.END_MARKER), 4)
         self.assertEqual(bytes(stream.read(4)), b'tail')
 
     def test_mcd_db_parameter_dop_base(self):
@@ -510,13 +510,13 @@ class ProtocolParameterTests(unittest.TestCase):
     def test_mcd_db_protocol_parameter_empty_sub_parameters_is_structure(self):
         # kernel: only the presence of the collection object counts, an empty one included
         tail = ObjectBytes().u16(0x0102).u16(0x0304).nested('MCD_DB_PARAMETERS', ObjectBytes().u16(0))
-        body = concat(parameter_body(layer=5), tail.ascii('STACK').ascii('PROTOCOL').u16(0x0506))
+        body = concat(parameter_body(parameter_type=5), tail.ascii('STACK').ascii('PROTOCOL').u16(0x0506))
         self.assertEqual(load('MCD_DB_PROTOCOL_PARAMETER', body), typed(
             'MCD_DB_PROTOCOL_PARAMETER', {
                 **parameter(parameter_type='eSTRUCTURE'), **protocol_fields([])}))
 
     def test_mcd_db_protocol_parameter_without_sub_parameters_keeps_type(self):
-        body = concat(parameter_body(layer=5), protocol_tail())
+        body = concat(parameter_body(parameter_type=5), protocol_tail())
         self.assertEqual(load('MCD_DB_PROTOCOL_PARAMETER', body), typed(
             'MCD_DB_PROTOCOL_PARAMETER', {
                 **parameter(parameter_type='eA_FLOAT64'), **protocol_fields()}))
