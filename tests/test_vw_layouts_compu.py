@@ -47,7 +47,7 @@ def scale_body():
 
 def scale():
     return {'#OBJECT_TYPE': 'DB_COMPU_SCALE', 'long_name_id': None,
-            'compu_inverse_rational_coeffs': None, 'compu_rational_coeffs': None,
+            'compu_rational_coeffs': None, 'compu_rational_coeffs_as_coded_values': None,
             'lower_limit': None, 'upper_limit': None, 'compu_const': None,
             'compu_inverse_value': None, 'compu_const_as_coded_value': None,
             'lower_limit_as_coded_value': None, 'upper_limit_as_coded_value': None}
@@ -143,14 +143,16 @@ class CompuRationalCoeffsTests(unittest.TestCase):
 class LimitTests(unittest.TestCase):
     def test_db_limit_minimal(self):
         result = load('DB_LIMIT', no_value(ObjectBytes()).u8(OPEN))
-        self.assertEqual(result, {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': None,
+        # kernel: the limit value is read with getLimit
+        self.assertEqual(result, {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': None,
                                   'limit_type': 'eLIMIT_OPEN'})
 
     def test_db_limit_all_branches(self):
+        # kernel: the limit value is read with getLimit
         body = ObjectBytes().u8(7).i32(-3).u8(INFINITE)
         self.assertEqual(load('DB_LIMIT', body),
                          {'#OBJECT_TYPE': 'DB_LIMIT',
-                          'mcd_value': {'data_type': 'eA_INT32', 'value': -3},
+                          'limit': {'data_type': 'eA_INT32', 'value': -3},
                           'limit_type': 'eLIMIT_INFINITE'})
 
     def test_db_limit_closed(self):
@@ -173,7 +175,7 @@ class LimitTests(unittest.TestCase):
             with self.subTest(data_type=expected['data_type']):
                 body = concat(value_bytes, ObjectBytes().u8(CLOSED))
                 self.assertEqual(load('DB_LIMIT', body),
-                                 {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': expected,
+                                 {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': expected,
                                   'limit_type': 'eLIMIT_CLOSED'})
 
 
@@ -190,15 +192,29 @@ class CompuScaleTests(unittest.TestCase):
         uint_value(body, 7)
         body.u8(5).double(0.5)
         body.nested('DB_LIMIT', limit_body(3, OPEN)).nested('DB_LIMIT', limit_body(4, CLOSED))
+        # kernel: the first coefficient set is setCompuRationalCoeffs, the second setCompuRationalCoeffsAsCodedValues
         self.assertEqual(load('DB_COMPU_SCALE', body), {
             '#OBJECT_TYPE': 'DB_COMPU_SCALE', 'long_name_id': 'LN',
-            'compu_inverse_rational_coeffs': coeffs(), 'compu_rational_coeffs': coeffs(),
+            'compu_rational_coeffs': coeffs(), 'compu_rational_coeffs_as_coded_values': coeffs(),
             'lower_limit': limit(1, CLOSED), 'upper_limit': limit(2, OPEN),
             'compu_const': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
             'compu_inverse_value': uint(7),
             'compu_const_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
             'lower_limit_as_coded_value': limit(3, OPEN),
             'upper_limit_as_coded_value': limit(4, CLOSED)})
+
+    def test_db_compu_scale_second_coefficient_set_only(self):
+        body = ObjectBytes().ascii(None).absent()
+        body.nested('DB_COMPU_RATIONAL_COEFFS', coeffs_body())
+        body.absent().absent()
+        no_value(body)
+        no_value(body)
+        no_value(body)
+        body.absent().absent()
+        obj = load('DB_COMPU_SCALE', body)
+        # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
+        self.assertEqual(obj['compu_rational_coeffs'], None)
+        self.assertEqual(obj['compu_rational_coeffs_as_coded_values'], coeffs())
 
 
 class CompuScalesTests(unittest.TestCase):
@@ -362,10 +378,11 @@ class DiagCodedTypeTests(unittest.TestCase):
         body = ObjectBytes().u8(3).u32(16).u8(1).u8(11).flag(True).flag(True)
         body.nested('MCD_DB_PARAMETER_SIMPLE', parameter)
         self.assertEqual(load('DB_DIAG_CODED_TYPE', body), {
-            '#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'type': 'ePARAM_LENGTH_INFO_TYPE',
+            # kernel: getCodedType and isCondensedBitMask
+            '#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'coded_type': 'ePARAM_LENGTH_INFO_TYPE',
             'bit_length': 16, 'base_data_type': 'eDB_UINT32',
             'base_data_type_as_mcd_data_type': 'eA_UINT32', 'encoding': 'eNONE',
-            'is_high_low_byte_order': True, 'is_condensed': True,
+            'is_high_low_byte_order': True, 'is_condensed_bit_mask': True,
             'length_key_parameter': {
                 '#OBJECT_TYPE': 'MCD_DB_PARAMETER_SIMPLE', 'description': None,
                 'long_name': None, 'short_name': 'LEN', 'description_id': None,
@@ -383,28 +400,32 @@ class DiagCodedTypeTests(unittest.TestCase):
     def test_db_diag_coded_type_emin_max_length_type(self):
         body = ObjectBytes().u8(1).u32(10).u32(2).u8(1).u8(0).u8(3).flag(True).flag(False)
         self.assertEqual(load('DB_DIAG_CODED_TYPE', body), {
-            '#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'type': 'eMIN_MAX_LENGTH_TYPE',
+            # kernel: getCodedType and isCondensedBitMask
+            '#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'coded_type': 'eMIN_MAX_LENGTH_TYPE',
             'max_length': 10, 'min_length': 2, 'termination': 'eZERO',
             'base_data_type': 'eDB_INT32', 'base_data_type_as_mcd_data_type': 'eA_INT32',
-            'encoding': 'e2C', 'is_high_low_byte_order': True, 'is_condensed': False})
+            'encoding': 'e2C', 'is_high_low_byte_order': True, 'is_condensed_bit_mask': False})
 
     def test_db_diag_coded_type_estandard_length_type(self):
         body = ObjectBytes().u8(2).u32(12).u8(1).u32(2).raw(b'\x0f\xff').u8(0).u8(3)
         body.flag(False).flag(False)
         expected = diag_coded_type()
-        expected.update({'type': 'eSTANDARD_LENGTH_TYPE', 'bit_length': 12, 'bit_mask': b'\x0f\xff'})
+        # kernel: getCodedType
+        expected.update({'coded_type': 'eSTANDARD_LENGTH_TYPE', 'bit_length': 12, 'bit_mask': b'\x0f\xff'})
         self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
     def test_db_diag_coded_type_estandard_length_type_without_mask(self):
         body = ObjectBytes().u8(2).u32(12).u8(0).u8(0).u8(3).flag(False).flag(False)
         expected = diag_coded_type()
-        expected.update({'type': 'eSTANDARD_LENGTH_TYPE', 'bit_length': 12, 'bit_mask': b''})
+        # kernel: getCodedType
+        expected.update({'coded_type': 'eSTANDARD_LENGTH_TYPE', 'bit_length': 12, 'bit_mask': b''})
         self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
     def test_db_diag_coded_type_eparam_length_info_type_without_parameter(self):
         body = ObjectBytes().u8(3).u32(8).u8(0).u8(3).flag(False).flag(False).absent()
         expected = diag_coded_type()
-        expected.update({'type': 'ePARAM_LENGTH_INFO_TYPE', 'length_key_parameter': None})
+        # kernel: getCodedType
+        expected.update({'coded_type': 'ePARAM_LENGTH_INFO_TYPE', 'length_key_parameter': None})
         self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
     def test_db_diag_coded_type_terminations(self):
@@ -414,7 +435,8 @@ class DiagCodedTypeTests(unittest.TestCase):
                 body.flag(False).flag(False)
                 expected = diag_coded_type()
                 del expected['bit_length']
-                expected.update({'type': 'eMIN_MAX_LENGTH_TYPE', 'max_length': 4,
+                # kernel: getCodedType
+                expected.update({'coded_type': 'eMIN_MAX_LENGTH_TYPE', 'max_length': 4,
                                  'min_length': 1, 'termination': name})
                 self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
 
@@ -517,7 +539,8 @@ class DopSimpleBaseTests(unittest.TestCase):
         self.assertEqual(load('DB_DOP_SIMPLE_BASE', body), {
             '#OBJECT_TYPE': 'DB_DOP_SIMPLE_BASE', 'short_name': 'DOP', 'compu_method': None,
             'diag_coded_type': None, 'physical_type': None, 'phys_to_coded_index_map': [],
-            'coded_to_phys_index_map': [], 'units_ref': None, 'internal_constraint_ref': None,
+            # kernel: the unit reference is set with setDbUnit
+            'coded_to_phys_index_map': [], 'unit_ref': None, 'internal_constraint_ref': None,
             'physical_constraint_ref': None})
 
     def test_db_dop_simple_base_all_branches(self):
@@ -536,7 +559,8 @@ class DopSimpleBaseTests(unittest.TestCase):
             'physical_type': physical_type(),
             'phys_to_coded_index_map': [{'map_key': 1, 'item': 10}, {'map_key': 2, 'item': 20}],
             'coded_to_phys_index_map': [{'map_key': 3, 'item': 30}, {'map_key': 4, 'item': 40}],
-            'units_ref': {'object_id': 'UNIT', 'pool_id': 'POOL'},
+            # kernel: the unit reference is set with setDbUnit
+            'unit_ref': {'object_id': 'UNIT', 'pool_id': 'POOL'},
             'internal_constraint_ref': {'object_id': 'INT', 'pool_id': 'POOL'},
             'physical_constraint_ref': {'object_id': 'PHYS', 'pool_id': 'POOL'}})
 
@@ -699,10 +723,11 @@ class UnitGroupTests(unittest.TestCase):
 
     @staticmethod
     def expected(category, refs):
+        # kernel: the references are read with getUnits
         return {'#OBJECT_TYPE': 'MCD_DB_UNIT_GROUP', 'short_name': 'Group',
                 'long_name': 'Group long', 'description': None, 'unique_object_id': None,
                 'long_name_id': None, 'description_id': None, 'category': category,
-                'ref_collection': refs}
+                'unit_refs': refs}
 
     def test_mcd_db_unit_group_minimal(self):
         body = self.head().u16(0x0F00).u16(0)

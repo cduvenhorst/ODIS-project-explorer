@@ -27,9 +27,10 @@ def load(stream):
         item['item'] = stream.loadNumericType(2)
         obj['coded_to_phys_index_map'].append(item)
     
-    obj['units_ref'] = None
+    # kernel: the unit reference is set with setDbUnit
+    obj['unit_ref'] = None
     if stream.loadOneByteType():
-        obj['units_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbUnitImpl
+        obj['unit_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbUnitImpl
     
     obj['internal_constraint_ref'] = None
     if stream.loadOneByteType():

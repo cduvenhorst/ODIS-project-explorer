@@ -266,7 +266,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             diag_coded_type = dop['diag_coded_type']
             
             # Some sanity checks...
-            if diag_coded_type['is_condensed']:
+            if diag_coded_type['is_condensed_bit_mask']:
                 raise RuntimeError('Parameter is CONDENSED')
             if not diag_coded_type['base_data_type_as_mcd_data_type'].startswith('eA_'):
                 raise RuntimeError('Strange BASE-DATA-TYPE: {}'.format(diag_coded_type['base_data_type_as_mcd_data_type']))
@@ -281,7 +281,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 raise RuntimeError('Encountered A_BITFIELD as coded type')
             
             # Handle the DIAG-CODED-TYPE based on its type
-            match diag_coded_type['type']:
+            match diag_coded_type['coded_type']:
                 # The length of the parameter is to be extracted from the PDU
                 case 'eLEADING_LENGTH_INFO_TYPE':
                     output_object['diag_coded_type'] = 'LEADING-LENGTH-INFO-TYPE'
@@ -353,10 +353,10 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 
                 # I have not encountered other types yet
                 case _:
-                    raise RuntimeError('Unknown DIAG-CODED-TYPE type: {}'.format(diag_coded_type['type']))
+                    raise RuntimeError('Unknown DIAG-CODED-TYPE type: {}'.format(diag_coded_type['coded_type']))
             
             # MIN-MAX-LENGTH-TYPE is only allowed for the internal data types A_BYTEFIELD, A_ASCIISTRING, A_UNICODE2STRING and A_UTF8STRING
-            if diag_coded_type['type'] == 'eMIN_MAX_LENGTH_TYPE':
+            if diag_coded_type['coded_type'] == 'eMIN_MAX_LENGTH_TYPE':
                 if output_object['coded_base_data_type'] not in ['A_BYTEFIELD', 'A_ASCIISTRING', 'A_UNICODE2STRING', 'A_UTF8STRING']:
                     raise RuntimeError('MIN-MAX-LENGTH-TYPE not allowed for BASE-DATA-TYPE {}'.format(output_object['coded_base_data_type']))
             
@@ -452,11 +452,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # The calculated physical value can be directly displayed on the tester
             # Usually, units are used to augment this displayed value with additional information
             # The declaration of the unit to be used is given via the reference UNIT-REF
-            if 'units_ref' in dop:
+            if 'unit_ref' in dop:
                 output_object['units'] = None
-                if dop['units_ref'] is not None:
+                if dop['unit_ref'] is not None:
                     # Get the UNIT
-                    units_dop = object_loader.load_object_by_reference(project_folder_path, dop['units_ref']) # MCD_DB_UNIT
+                    units_dop = object_loader.load_object_by_reference(project_folder_path, dop['unit_ref']) # MCD_DB_UNIT
                     
                     # Store the UNIT's fields
                     output_object['units'] = {}
@@ -673,7 +673,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         compu_scale = compu_method['compu_internal_to_phys']['compu_scales'][0]
                         
                         # It contains COMPU-RATIONAL-COEFFS, within which COMPU-NUMERATOR and COMPU-DENOMINATOR are declared
-                        compu_rational_coeffs = compu_scale['compu_rational_coeffs']
+                        # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
+                        compu_rational_coeffs = compu_scale['compu_rational_coeffs_as_coded_values']
                         compu_numerator = compu_rational_coeffs['numerator']
                         compu_denominator = compu_rational_coeffs['denominator']
                             
@@ -711,9 +712,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if compu_scale_output_object['coded_lower_limit']['type'] == 'INFINITE':
                                 compu_scale_output_object['coded_lower_limit']['value'] = None
                             else:
-                                compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['mcd_value']['value']
-                                if compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                    raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
+                                if compu_scale['lower_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                    raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                         # Coded UPPER-LIMIT
                         if compu_scale['upper_limit_as_coded_value'] is None:
                             compu_scale_output_object['coded_upper_limit']['type'] = 'INFINITE'
@@ -723,9 +724,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if compu_scale_output_object['coded_upper_limit']['type'] == 'INFINITE':
                                 compu_scale_output_object['coded_upper_limit']['value'] = None
                             else:
-                                compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['mcd_value']['value']
-                                if compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                    raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['limit']['value']
+                                if compu_scale['upper_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                    raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                         # Physical LOWER-LIMIT
                         if compu_scale['lower_limit'] is None:
                             compu_scale_output_object['physical_lower_limit']['type'] = 'INFINITE'
@@ -735,9 +736,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if compu_scale_output_object['physical_lower_limit']['type'] == 'INFINITE':
                                 compu_scale_output_object['physical_lower_limit']['value'] = None
                             else:
-                                compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['mcd_value']['value']
-                                if compu_scale['lower_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                    raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['limit']['value']
+                                if compu_scale['lower_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                    raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                         # Physical UPPER-LIMIT
                         if compu_scale['upper_limit'] is None:
                             compu_scale_output_object['physical_upper_limit']['type'] = 'INFINITE'
@@ -747,9 +748,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if compu_scale_output_object['physical_upper_limit']['type'] == 'INFINITE':
                                 compu_scale_output_object['physical_upper_limit']['value'] = None
                             else:
-                                compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['mcd_value']['value']
-                                if compu_scale['upper_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                    raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['limit']['value']
+                                if compu_scale['upper_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                    raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                         
                         # Generate the mathematical expression (linear function) of the COMPU-SCALE
                         compu_scale_output_object['formula'] = '({} + (x * {})) / {}'.format(offset, factor, divisor)
@@ -775,7 +776,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         output_object['compu_scales'] = []
                         for compu_scale in compu_method['compu_internal_to_phys']['compu_scales']:
                             # A COMPU-SCALE contains COMPU-RATIONAL-COEFFS, within which COMPU-NUMERATOR and COMPU-DENOMINATOR are declared
-                            compu_rational_coeffs = compu_scale['compu_rational_coeffs']
+                            # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
+                            compu_rational_coeffs = compu_scale['compu_rational_coeffs_as_coded_values']
                             compu_numerator = compu_rational_coeffs['numerator']
                             compu_denominator = compu_rational_coeffs['denominator']
                             
@@ -813,9 +815,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['coded_lower_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['coded_lower_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['mcd_value']['value']
-                                    if compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                    compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
+                                    if compu_scale['lower_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                             # Coded UPPER-LIMIT
                             if compu_scale['upper_limit_as_coded_value'] is None:
                                 compu_scale_output_object['coded_upper_limit']['type'] = 'INFINITE'
@@ -825,9 +827,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['coded_upper_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['coded_upper_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['mcd_value']['value']
-                                    if compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                    compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['limit']['value']
+                                    if compu_scale['upper_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                             # Physical LOWER-LIMIT
                             if compu_scale['lower_limit'] is None:
                                 compu_scale_output_object['physical_lower_limit']['type'] = 'INFINITE'
@@ -837,9 +839,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['physical_lower_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['physical_lower_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['mcd_value']['value']
-                                    if compu_scale['lower_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                    compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['limit']['value']
+                                    if compu_scale['lower_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                             # Physical UPPER-LIMIT
                             if compu_scale['upper_limit'] is None:
                                 compu_scale_output_object['physical_upper_limit']['type'] = 'INFINITE'
@@ -849,9 +851,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['physical_upper_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['physical_upper_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['mcd_value']['value']
-                                    if compu_scale['upper_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                    compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['limit']['value']
+                                    if compu_scale['upper_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                             
                             # Generate the mathematical expression (linear function) of the COMPU-SCALE
                             compu_scale_output_object['formula'] = '({} + (x * {})) / {}'.format(offset, factor, divisor)
@@ -886,7 +888,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         output_object['compu_scales'] = []
                         for compu_scale in compu_method['compu_internal_to_phys']['compu_scales']:
                             # A COMPU-SCALE contains COMPU-RATIONAL-COEFFS, within which COMPU-NUMERATOR and COMPU-DENOMINATOR are declared
-                            compu_rational_coeffs = compu_scale['compu_rational_coeffs']
+                            # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
+                            compu_rational_coeffs = compu_scale['compu_rational_coeffs_as_coded_values']
                             compu_numerator = compu_rational_coeffs['numerator']
                             compu_denominator = compu_rational_coeffs['denominator']
                             
@@ -901,9 +904,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['coded_lower_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['coded_lower_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['mcd_value']['value']
-                                    if compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                    compu_scale_output_object['coded_lower_limit']['value'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
+                                    if compu_scale['lower_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE coded LOWER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['lower_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                             # Coded UPPER-LIMIT
                             if compu_scale['upper_limit_as_coded_value'] is None:
                                 compu_scale_output_object['coded_upper_limit']['type'] = 'INFINITE'
@@ -913,9 +916,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['coded_upper_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['coded_upper_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['mcd_value']['value']
-                                    if compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                                    compu_scale_output_object['coded_upper_limit']['value'] = compu_scale['upper_limit_as_coded_value']['limit']['value']
+                                    if compu_scale['upper_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE coded UPPER-LIMIT data type does not match coded type: {} vs {}'.format(compu_scale['upper_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                             # Physical LOWER-LIMIT
                             if compu_scale['lower_limit'] is None:
                                 compu_scale_output_object['physical_lower_limit']['type'] = 'INFINITE'
@@ -925,9 +928,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['physical_lower_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['physical_lower_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['mcd_value']['value']
-                                    if compu_scale['lower_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                    compu_scale_output_object['physical_lower_limit']['value'] = compu_scale['lower_limit']['limit']['value']
+                                    if compu_scale['lower_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE physical LOWER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['lower_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                             # Physical UPPER-LIMIT
                             if compu_scale['upper_limit'] is None:
                                 compu_scale_output_object['physical_upper_limit']['type'] = 'INFINITE'
@@ -937,9 +940,9 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 if compu_scale_output_object['physical_upper_limit']['type'] == 'INFINITE':
                                     compu_scale_output_object['physical_upper_limit']['value'] = None
                                 else:
-                                    compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['mcd_value']['value']
-                                    if compu_scale['upper_limit']['mcd_value']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                        raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['mcd_value']['data_type'], output_object['physical_base_data_type']))
+                                    compu_scale_output_object['physical_upper_limit']['value'] = compu_scale['upper_limit']['limit']['value']
+                                    if compu_scale['upper_limit']['limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                        raise RuntimeError('COMPU-SCALE physical UPPER-LIMIT data type does not match physical type: {} vs {}'.format(compu_scale['upper_limit']['limit']['data_type'], output_object['physical_base_data_type']))
                             
                             # Generate the mathematical expression (linear function) of the COMPU-SCALE
                             numerator = polynomial_to_string(compu_numerator)
@@ -987,12 +990,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                 raise RuntimeError('Unexpected LOWER/UPPER-LIMIT types: {}, {}'.format(compu_scale['lower_limit_as_coded_value']['limit_type'], compu_scale['upper_limit_as_coded_value']['limit_type']))
                             
                             # Both LIMITs' data types must match the coded data type
-                            if compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type'] or compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                raise RuntimeError('Data types of coded LOWER/UPPER-LIMIT {}, {} do not match coded data type {}'.format(compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'], compu_scale['upper_limit_as_coded_value']['mcd_value']['data_type'], output_object['coded_base_data_type']))
+                            if compu_scale['lower_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type'] or compu_scale['upper_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                raise RuntimeError('Data types of coded LOWER/UPPER-LIMIT {}, {} do not match coded data type {}'.format(compu_scale['lower_limit_as_coded_value']['limit']['data_type'], compu_scale['upper_limit_as_coded_value']['limit']['data_type'], output_object['coded_base_data_type']))
                             
                             # Get the LIMITs
-                            compu_scale_output_object['lower_limit'] = compu_scale['lower_limit_as_coded_value']['mcd_value']['value']
-                            compu_scale_output_object['upper_limit'] = compu_scale['upper_limit_as_coded_value']['mcd_value']['value']
+                            compu_scale_output_object['lower_limit'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
+                            compu_scale_output_object['upper_limit'] = compu_scale['upper_limit_as_coded_value']['limit']['value']
                             
                             # If the internal data type is a string type, the definition of a range is not allowed
                             # If the element UPPER-LIMIT is explicitly specified, its content shall be equal to the content of LOWER-LIMIT
@@ -1045,15 +1048,15 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             compu_scale_output_object = {}
                             
                             # The (LOWER-)LIMIT's data type must match the coded BASE-DATA-TYPE
-                            if compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type'] != 'e'+output_object['coded_base_data_type']:
-                                raise RuntimeError('LOWER-LIMIT data type for COMPU-SCALE of TAB-INTP must be {}, not {}'.format(output_object['coded_base_data_type'], compu_scale['lower_limit_as_coded_value']['mcd_value']['data_type']))
+                            if compu_scale['lower_limit_as_coded_value']['limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                                raise RuntimeError('LOWER-LIMIT data type for COMPU-SCALE of TAB-INTP must be {}, not {}'.format(output_object['coded_base_data_type'], compu_scale['lower_limit_as_coded_value']['limit']['data_type']))
                             
                             # The (LOWER-)LIMIT's type must be CLOSED
                             if compu_scale['lower_limit_as_coded_value']['limit_type'] != 'eLIMIT_CLOSED':
                                 raise RuntimeError('LOWER-LIMIT type for COMPU-SCALE of TAB-INTP must be CLOSED, not {}'.format(compu_scale['lower_limit_as_coded_value']['limit_type']))
                             
                             # Get the (LOWER-)LIMIT
-                            compu_scale_output_object['limit'] = compu_scale['lower_limit_as_coded_value']['mcd_value']['value']
+                            compu_scale_output_object['limit'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
                             
                             # Like with MUX, the data type seems to be Unicode string, even though it contains a number...
                             if compu_scale['compu_const']['data_type'] != 'eA_UNICODE2STRING':
@@ -1229,12 +1232,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     raise RuntimeError('SWITCH-CASE uknown limit types: {}, {}'.format(case['lower_limit']['limit_type'], case['upper_limit']['limit_type']))
                 
                 # Both limits should be Unicode strings, pretty strange...
-                if case['lower_limit']['mcd_value']['data_type'] != 'eA_UNICODE2STRING' or case['upper_limit']['mcd_value']['data_type'] != 'eA_UNICODE2STRING':
-                    raise RuntimeError('SWITCH-CASE limits are not strings: {}, {}'.format(case['lower_limit']['mcd_value']['data_type'], case['upper_limit']['mcd_value']['data_type']))
+                if case['lower_limit']['limit']['data_type'] != 'eA_UNICODE2STRING' or case['upper_limit']['limit']['data_type'] != 'eA_UNICODE2STRING':
+                    raise RuntimeError('SWITCH-CASE limits are not strings: {}, {}'.format(case['lower_limit']['limit']['data_type'], case['upper_limit']['limit']['data_type']))
                 
                 # Get the LOWER-LIMIT and UPPER-LIMIT of the CASE
-                case_output_object['lower_limit'] = case['lower_limit']['mcd_value']['value']
-                case_output_object['upper_limit'] = case['upper_limit']['mcd_value']['value']
+                case_output_object['lower_limit'] = case['lower_limit']['limit']['value']
+                case_output_object['upper_limit'] = case['upper_limit']['limit']['value']
                 
                 # If a matching CASE is found, the referenced STRUCTURE is analyzed at the BYTE-POSITION (child element of MUX), relatively to the byte position of the MUX
                 
@@ -1273,8 +1276,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             diag_coded_type = dop['diag_coded_type']
             physical_type = dop['physical_type']
             compu_method = dop['compu_method']
-            if diag_coded_type['type'] != 'eSTANDARD_LENGTH_TYPE':
-                raise RuntimeError('DTC DIAG-CODED-TYPE must be STANDARD-LENGTH-TYPE, not {}').format(diag_coded_type['type'])
+            if diag_coded_type['coded_type'] != 'eSTANDARD_LENGTH_TYPE':
+                raise RuntimeError('DTC DIAG-CODED-TYPE must be STANDARD-LENGTH-TYPE, not {}').format(diag_coded_type['coded_type'])
             if diag_coded_type['bit_length'] != 24:
                 raise RuntimeError('DTC BIT-LENGTH must be 24, not {}'.format(diag_coded_type['bit_length']))
             if diag_coded_type['bit_mask'] != bytearray():

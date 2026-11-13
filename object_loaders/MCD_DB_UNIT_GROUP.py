@@ -16,6 +16,7 @@ def load(stream):
     
     obj['category'] = enum_converters.get_MCDUnitGroupCategory(stream.loadEnumMediumRange())
     
-    obj['ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    # kernel: the references are read with getUnits
+    obj['unit_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
     return obj

@@ -40,16 +40,17 @@ def initEncoding(base_data_type, encoding):
 def load(stream):
     obj = {}
     
-    obj['type'] = enum_converters.get_EDbDiagCodedType(stream.loadEnumSmallRange())
+    # kernel: the type is read with getCodedType
+    obj['coded_type'] = enum_converters.get_EDbDiagCodedType(stream.loadEnumSmallRange())
     
-    if obj['type'] == 'eMIN_MAX_LENGTH_TYPE':
+    if obj['coded_type'] == 'eMIN_MAX_LENGTH_TYPE':
         obj['max_length'] = stream.loadNumericType(4)
         obj['min_length'] = stream.loadNumericType(4)
         obj['termination'] = enum_converters.get_EDbTermination(stream.loadEnumSmallRange())
     else:
         obj['bit_length'] = stream.loadNumericType(4)
         
-    if obj['type'] == 'eSTANDARD_LENGTH_TYPE':
+    if obj['coded_type'] == 'eSTANDARD_LENGTH_TYPE':
         obj['bit_mask'] = common_loaders.loadBytefieldFromObjectStream(stream)
     
     EDbDataType_enum = stream.loadEnumSmallRange()
@@ -58,9 +59,10 @@ def load(stream):
     obj['encoding'] = initEncoding(obj['base_data_type'], enum_converters.get_EDbEncoding(stream.loadEnumSmallRange()))
     
     obj['is_high_low_byte_order'] = bool(stream.loadOneByteType())
-    obj['is_condensed'] = bool(stream.loadOneByteType())
+    # kernel: the flag is read with isCondensedBitMask
+    obj['is_condensed_bit_mask'] = bool(stream.loadOneByteType())
     
-    if obj['type'] == 'ePARAM_LENGTH_INFO_TYPE':
+    if obj['coded_type'] == 'ePARAM_LENGTH_INFO_TYPE':
         obj['length_key_parameter'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
     
     return obj

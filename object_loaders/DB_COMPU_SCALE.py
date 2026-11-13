@@ -8,8 +8,9 @@ def load(stream):
     
     obj['long_name_id'] = stream.loadAsciiString()[0]
     
-    obj['compu_inverse_rational_coeffs'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuRationalCoeffs
+    # kernel: the first set is setCompuRationalCoeffs, the second setCompuRationalCoeffsAsCodedValues
     obj['compu_rational_coeffs'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuRationalCoeffs
+    obj['compu_rational_coeffs_as_coded_values'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuRationalCoeffs
     
     obj['lower_limit'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit
     obj['upper_limit'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit

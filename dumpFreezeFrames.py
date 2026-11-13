@@ -125,13 +125,13 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
                     
                     # In at least one project, an ECU-VARIANT has the CASE's name and value swapped, so the value appears as a string... just keep it as a string
                     try:
-                        lower_limit = int(case['lower_limit']['mcd_value']['value'])
+                        lower_limit = int(case['lower_limit']['limit']['value'])
                     except ValueError:
-                        lower_limit = case['lower_limit']['mcd_value']['value']
+                        lower_limit = case['lower_limit']['limit']['value']
                     try:
-                        upper_limit = int(case['upper_limit']['mcd_value']['value'])
+                        upper_limit = int(case['upper_limit']['limit']['value'])
                     except ValueError:
-                        upper_limit = case['upper_limit']['mcd_value']['value']
+                        upper_limit = case['upper_limit']['limit']['value']
                     
                     # This object will be written to the output file
                     obj = {

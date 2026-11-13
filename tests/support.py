@@ -272,7 +272,8 @@ def limit_body(number=5, kind=OPEN):
 
 
 def limit(number=5, kind=OPEN):
-    return {'#OBJECT_TYPE': 'DB_LIMIT', 'mcd_value': uint(number), 'limit_type': LIMIT_NAMES[kind]}
+    # kernel: the limit value is read with getLimit
+    return {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': uint(number), 'limit_type': LIMIT_NAMES[kind]}
 
 
 def diag_coded_type_body():
@@ -280,10 +281,11 @@ def diag_coded_type_body():
 
 
 def diag_coded_type():
-    return {'#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'type': 'eLEADING_LENGTH_INFO_TYPE',
+    # kernel: the type is read with getCodedType, the flag with isCondensedBitMask
+    return {'#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'coded_type': 'eLEADING_LENGTH_INFO_TYPE',
             'bit_length': 8, 'base_data_type': 'eDB_INT32',
             'base_data_type_as_mcd_data_type': 'eA_INT32', 'encoding': 'e2C',
-            'is_high_low_byte_order': False, 'is_condensed': False}
+            'is_high_low_byte_order': False, 'is_condensed_bit_mask': False}
 
 
 def case_base_body(structure_ref=False, ids=None):
