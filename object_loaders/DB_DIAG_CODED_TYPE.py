@@ -3,9 +3,8 @@ from common_utils import enum_converters
 from classes import DbObject
 
 
+# kernel: initEncoding replaces an encoding that does not fit the base data type
 def initEncoding(base_data_type, encoding):
-    orig_encoding = encoding
-    
     match base_data_type:
         case 'eDB_INT32':
             if encoding not in ['e1C', 'e2C', 'eSM']:
@@ -31,22 +30,19 @@ def initEncoding(base_data_type, encoding):
         case _:
             encoding = 'eNONE'
     
-    if orig_encoding != encoding:
-        raise RuntimeError('Encoding changed from {} to {} for type {}'.format(orig_encoding, encoding, base_data_type))
-    
     return encoding
 
 
 def load(stream):
     obj = {}
     
-    # kernel: the type is read with getCodedType
-    obj['coded_type'] = enum_converters.get_EDbDiagCodedType(stream.loadEnumSmallRange())
+    # kernel: the type is read with getCodedType; an unknown type is kept as its number
+    obj['coded_type'] = enum_converters.enum_name_or_number(enum_converters.get_EDbDiagCodedType, stream.loadEnumSmallRange())
     
     if obj['coded_type'] == 'eMIN_MAX_LENGTH_TYPE':
         obj['max_length'] = stream.loadNumericType(4)
         obj['min_length'] = stream.loadNumericType(4)
-        obj['termination'] = enum_converters.get_EDbTermination(stream.loadEnumSmallRange())
+        obj['termination'] = enum_converters.enum_name_or_number(enum_converters.get_EDbTermination, stream.loadEnumSmallRange())
     else:
         obj['bit_length'] = stream.loadNumericType(4)
         
@@ -54,9 +50,15 @@ def load(stream):
         obj['bit_mask'] = common_loaders.loadBytefieldFromObjectStream(stream)
     
     EDbDataType_enum = stream.loadEnumSmallRange()
-    obj['base_data_type'] = enum_converters.get_EDbDataType(EDbDataType_enum)
-    obj['base_data_type_as_mcd_data_type'] = enum_converters.get_MCDDataType(enum_converters.map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum))
-    obj['encoding'] = initEncoding(obj['base_data_type'], enum_converters.get_EDbEncoding(stream.loadEnumSmallRange()))
+    # kernel: an unknown base data type is kept as its number
+    obj['base_data_type'] = enum_converters.enum_name_or_number(enum_converters.get_EDbDataType, EDbDataType_enum)
+    # derived, not stored by the kernel
+    try:
+        obj['base_data_type_as_mcd_data_type'] = enum_converters.get_MCDDataType(enum_converters.map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum))
+    except RuntimeError:
+        obj['base_data_type_as_mcd_data_type'] = None
+    encoding = enum_converters.enum_name_or_number(enum_converters.get_EDbEncoding, stream.loadEnumSmallRange())
+    obj['encoding'] = initEncoding(obj['base_data_type'], encoding)
     
     obj['is_high_low_byte_order'] = bool(stream.loadOneByteType())
     # kernel: the flag is read with isCondensedBitMask

@@ -14,7 +14,8 @@ def load(stream):
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['description_id'] = stream.loadAsciiString()[0]
     
-    obj['category'] = enum_converters.get_MCDUnitGroupCategory(stream.loadEnumMediumRange())
+    # kernel: an unknown category is kept as its number
+    obj['category'] = enum_converters.enum_name_or_number(enum_converters.get_MCDUnitGroupCategory, stream.loadEnumMediumRange())
     
     # kernel: the references are read with getUnits
     obj['unit_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)

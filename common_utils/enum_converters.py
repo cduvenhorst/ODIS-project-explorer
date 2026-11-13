@@ -929,16 +929,12 @@ def get_MCDLimitType(value):
             raise RuntimeError('Invalid enum value ({:04X})'.format(value))
 
 
-def get_MCDLimitType(value):
-    match value:
-        case 0x6D02:
-            return 'eLIMIT_CLOSED'
-        case 0x6D03:
-            return 'eLIMIT_INFINITE'
-        case 0x6D01:
-            return 'eLIMIT_OPEN'
-        case _:
-            raise RuntimeError('Invalid enum value ({:04X})'.format(value))
+# kernel: an unknown enum value is kept as its number instead of aborting the load
+def enum_name_or_number(converter, value):
+    try:
+        return converter(value)
+    except RuntimeError:
+        return value
 
 
 def get_MCDRangeInfo(value):

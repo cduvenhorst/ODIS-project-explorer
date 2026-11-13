@@ -3,14 +3,6 @@ from common_utils import enum_converters
 from classes import DbObject
 
 
-# kernel: an unknown enum value is kept as its number instead of aborting the load
-def _enum_name_or_number(converter, value):
-    try:
-        return converter(value)
-    except RuntimeError:
-        return value
-
-
 def load(stream):
     obj = {}
     
@@ -39,13 +31,13 @@ def load(stream):
     obj['sys_param'] = stream.loadAsciiString()[0]
     
     # kernel: keeps an unknown parameter type and reads on
-    obj['mcd_parameter_type'] = _enum_name_or_number(enum_converters.get_MCDParameterType, 0x7000 + stream.loadNumericType(1))
+    obj['mcd_parameter_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDParameterType, 0x7000 + stream.loadNumericType(1))
     
     # kernel: cached MCDDataType of the parameter, 0xFF means not set
     obj['parameter_type'] = None
     parameter_type = stream.loadEnumSmallRange()
     if parameter_type != 0xFF:
-        obj['parameter_type'] = _enum_name_or_number(enum_converters.get_MCDDataType, parameter_type)
+        obj['parameter_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDDataType, parameter_type)
     
     obj['diag_coded_type'] = None
     if flags & (1 << 2):

@@ -13,6 +13,7 @@ unique_object_id.
 """
 import unittest
 
+from common_utils import enum_converters
 from tests import support
 from tests.support import (ObjectBytes, concat, CLOSED, INFINITE, OPEN, case, case_base_body,
                            case_body, diag_coded_type, diag_coded_type_body, limit, limit_body,
@@ -158,6 +159,12 @@ class LimitTests(unittest.TestCase):
     def test_db_limit_closed(self):
         self.assertEqual(load('DB_LIMIT', limit_body(5, CLOSED)), limit(5, CLOSED))
 
+    def test_db_limit_unknown_limit_type(self):
+        result = load('DB_LIMIT', no_value(ObjectBytes()).u8(4))
+        # kernel: an unknown limit type is kept as its number
+        self.assertEqual(result, {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': None,
+                                  'limit_type': 0x6D04})
+
     def test_db_limit_mcd_value_types(self):
         cases = [
             (ObjectBytes().u8(1).ascii('text'), {'data_type': 'eA_ASCIISTRING', 'value': 'text'}),
@@ -215,6 +222,28 @@ class CompuScaleTests(unittest.TestCase):
         # kernel: the second coefficient set is setCompuRationalCoeffsAsCodedValues
         self.assertEqual(obj['compu_rational_coeffs'], None)
         self.assertEqual(obj['compu_rational_coeffs_as_coded_values'], coeffs())
+
+
+    def test_db_compu_scale_unknown_limit_type(self):
+        body = ObjectBytes().ascii('LN')
+        body.nested('DB_COMPU_RATIONAL_COEFFS', coeffs_body())
+        body.nested('DB_COMPU_RATIONAL_COEFFS', coeffs_body())
+        body.nested('DB_LIMIT', limit_body(1, 4)).nested('DB_LIMIT', limit_body(2, OPEN))
+        body.u8(1).ascii('const')
+        uint_value(body, 7)
+        body.u8(5).double(0.5)
+        body.nested('DB_LIMIT', limit_body(3, OPEN)).nested('DB_LIMIT', limit_body(4, CLOSED))
+        # kernel: an unknown limit type is kept as its number and the scale is read on
+        self.assertEqual(load('DB_COMPU_SCALE', body), {
+            '#OBJECT_TYPE': 'DB_COMPU_SCALE', 'long_name_id': 'LN',
+            'compu_rational_coeffs': coeffs(), 'compu_rational_coeffs_as_coded_values': coeffs(),
+            'lower_limit': {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': uint(1), 'limit_type': 0x6D04},
+            'upper_limit': limit(2, OPEN),
+            'compu_const': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
+            'compu_inverse_value': uint(7),
+            'compu_const_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
+            'lower_limit_as_coded_value': limit(3, OPEN),
+            'upper_limit_as_coded_value': limit(4, CLOSED)})
 
 
 class CompuScalesTests(unittest.TestCase):
@@ -290,6 +319,16 @@ class CompuMethodTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': None, 'compu_internal_to_phys': compu_base(default=6),
             'compu_default_val_id': 'DEF'})
+
+    def test_db_compu_method_unknown_category(self):
+        body = ObjectBytes().u8(8)
+        body.nested('DB_COMPU_BASE', compu_base_body(inverse=5))
+        body.nested('DB_COMPU_BASE', compu_base_body(default=6))
+        # kernel: an unknown computation category is kept as its number
+        self.assertEqual(load('DB_COMPU_METHOD', body), {
+            '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 8,
+            'compu_phys_to_internal': compu_base(inverse=5),
+            'compu_internal_to_phys': compu_base(default=6)})
 
     def test_db_compu_method_categories(self):
         names = ['eIDENTICAL', 'eLINEAR', 'eSCALE_LINEAR', 'eTEXTTAB', 'eCOMPUCODE',
@@ -439,6 +478,48 @@ class DiagCodedTypeTests(unittest.TestCase):
                 expected.update({'coded_type': 'eMIN_MAX_LENGTH_TYPE', 'max_length': 4,
                                  'min_length': 1, 'termination': name})
                 self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
+
+    def test_db_diag_coded_type_unknown_coded_type(self):
+        body = ObjectBytes().u8(4).u32(8).u8(0).u8(3).flag(False).flag(False)
+        expected = diag_coded_type()
+        # kernel: an unknown type is kept as its number; the bit length is read, there is
+        # no bit mask and no length key parameter
+        expected.update({'coded_type': 4, 'bit_length': 8, 'encoding': 'e2C'})
+        result = load('DB_DIAG_CODED_TYPE', body)
+        self.assertEqual(result, expected)
+        for key in ('bit_mask', 'max_length', 'length_key_parameter'):
+            self.assertNotIn(key, result)
+
+    def test_db_diag_coded_type_unknown_termination(self):
+        body = ObjectBytes().u8(1).u32(4).u32(1).u8(3).u8(0).u8(3).flag(False).flag(False)
+        expected = diag_coded_type()
+        del expected['bit_length']
+        # kernel: an unknown termination is kept as its number
+        expected.update({'coded_type': 'eMIN_MAX_LENGTH_TYPE', 'max_length': 4,
+                         'min_length': 1, 'termination': 3})
+        self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
+
+    def test_db_diag_coded_type_unknown_base_data_type(self):
+        body = ObjectBytes().u8(0).u32(8).u8(9).u8(3).flag(False).flag(False)
+        expected = diag_coded_type()
+        # kernel: an unknown base data type is kept as its number; the MCD data type is
+        # derived, not stored by the kernel
+        expected.update({'base_data_type': 9, 'base_data_type_as_mcd_data_type': None,
+                         'encoding': 'eNONE'})
+        self.assertEqual(load('DB_DIAG_CODED_TYPE', body), expected)
+
+    def test_db_diag_coded_type_encoding_replaced(self):
+        # (base data type code, encoding code, expected base data type, expected encoding)
+        cases = [(0, 11, 'eDB_INT32', 'e2C'), (4, 12, 'eDB_ASCIISTRING', 'eISO_8859_1'),
+                 (1, 3, 'eDB_UINT32', 'eNONE')]
+        for data_code, encoding_code, name, encoding in cases:
+            with self.subTest(base_data_type=name, encoding_code=encoding_code):
+                body = ObjectBytes().u8(0).u32(8).u8(data_code).u8(encoding_code)
+                body.flag(False).flag(False)
+                result = load('DB_DIAG_CODED_TYPE', body)
+                # kernel: initEncoding replaces an encoding that does not fit the base data type
+                self.assertEqual(result['base_data_type'], name)
+                self.assertEqual(result['encoding'], encoding)
 
     def test_db_diag_coded_type_leading_length_info_type_data_types(self):
         # (EDbDataType code, name, MCD data type, EDbEncoding code, encoding name)
@@ -629,6 +710,15 @@ class ScaleConstraintTests(unittest.TestCase):
             'description_id': 'DESC_ID', 'short_label': 'Label',
             'short_label_id': 'LABEL_ID', 'is_computed': True})
 
+    def test_mcd_scale_constraint_unknown_range_info(self):
+        body = (ObjectBytes().absent().u8(8).unicode('Description').ascii('DESC_ID')
+                .ascii('Label').ascii('LABEL_ID').flag(True))
+        # kernel: an unknown range info is kept as its number
+        self.assertEqual(load('MCD_SCALE_CONSTRAINT', body), {
+            '#OBJECT_TYPE': 'MCD_SCALE_CONSTRAINT', 'interval': None, 'range_info': 0x608,
+            'description': 'Description', 'description_id': 'DESC_ID', 'short_label': 'Label',
+            'short_label_id': 'LABEL_ID', 'is_computed': True})
+
     def test_mcd_scale_constraint_range_infos(self):
         names = {2: 'eVALUE_VALID', 3: 'eVALUE_NOT_DEFINED', 4: 'eVALUE_NOT_AVAILABLE',
                  5: 'eVALUE_NOT_VALID', 6: 'eVALUE_NOT_INITIALIZED',
@@ -745,6 +835,12 @@ class UnitGroupTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_UNIT_GROUP', body), self.expected('eCOUNTRY', [
             {'name': 'N1', 'reference': {'object_id': 'R1', 'pool_id': 'POOL'}}]))
 
+    def test_mcd_db_unit_group_unknown_category(self):
+        body = self.head().u16(0x0F02).u16(1).ascii('N1').ascii('R1').ascii('POOL')
+        # kernel: an unknown group category is kept as its number
+        self.assertEqual(load('MCD_DB_UNIT_GROUP', body), self.expected(0x0F02, [
+            {'name': 'N1', 'reference': {'object_id': 'R1', 'pool_id': 'POOL'}}]))
+
     def test_mcd_db_unit_group_identifiers(self):
         body = (ObjectBytes().ascii('Group').unicode('Group long').unicode(None)
                 .ascii('UOI').ascii('LNID').ascii('DID').u16(0x0F00).u16(0))
@@ -780,3 +876,10 @@ class PhysicalDimensionTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class EnumNameOrNumberTests(unittest.TestCase):
+    def test_enum_name_or_number(self):
+        convert = enum_converters.get_MCDLimitType
+        self.assertEqual(enum_converters.enum_name_or_number(convert, 0x6D01), 'eLIMIT_OPEN')
+        self.assertEqual(enum_converters.enum_name_or_number(convert, 0x6D04), 0x6D04)

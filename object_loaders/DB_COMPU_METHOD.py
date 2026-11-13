@@ -5,7 +5,8 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['compu_category'] = enum_converters.get_EDbCompuCategory(stream.loadEnumSmallRange())
+    # kernel: an unknown category is kept as its number
+    obj['compu_category'] = enum_converters.enum_name_or_number(enum_converters.get_EDbCompuCategory, stream.loadEnumSmallRange())
     
     obj['compu_phys_to_internal'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuBase
     obj['compu_internal_to_phys'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuBase
