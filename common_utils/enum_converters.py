@@ -1220,6 +1220,24 @@ def map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum):
             raise RuntimeError('Invalid enum value ({:04X})'.format(EDbDataType_enum))
 
 
+def get_EDbPhysicalDataType(value):
+    match value:
+        case 0:
+            return 'eDB_PHYS_INT32'
+        case 1:
+            return 'eDB_PHYS_UINT32'
+        case 2:
+            return 'eDB_PHYS_FLOAT32'
+        case 3:
+            return 'eDB_PHYS_FLOAT64'
+        case 4:
+            return 'eDB_PHYS_UNICODE2STRING'
+        case 5:
+            return 'eDB_PHYS_BYTEFIELD'
+        case _:
+            raise RuntimeError('Invalid enum value ({:04X})'.format(value))
+
+
 def map_enum_EDbPhysicalDataType_to_EDbDataType(EDbPhysicalDataType_enum):
     match EDbPhysicalDataType_enum & 0xFF:
         case 0:

@@ -76,7 +76,8 @@ def compu_method_body():
 
 def compu_method():
     return {'#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eIDENTICAL',
-            'compu_phys_to_internal': None, 'compu_internal_to_phys': None}
+            'compu_phys_to_internal': None, 'compu_internal_to_phys': None,
+            'compu_inverse_val_id': None, 'compu_default_val_id': None}
 
 
 def physical_type_body():
@@ -84,7 +85,7 @@ def physical_type_body():
 
 
 def physical_type():
-    return {'#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_INT32',
+    return {'#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_PHYS_INT32',
             'base_data_type_as_mcd_data_type': 'eA_INT32', 'is_precision_available': False,
             'display_radix': 10}
 
@@ -302,7 +303,8 @@ class CompuMethodTests(unittest.TestCase):
         body.nested('DB_COMPU_BASE', compu_base_body()).nested('DB_COMPU_BASE', compu_base_body())
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
-            'compu_phys_to_internal': compu_base(), 'compu_internal_to_phys': compu_base()})
+            'compu_phys_to_internal': compu_base(), 'compu_internal_to_phys': compu_base(),
+            'compu_inverse_val_id': None, 'compu_default_val_id': None})
 
     def test_db_compu_method_etexttab_inverse_value_only(self):
         body = ObjectBytes().u8(3)
@@ -310,7 +312,7 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': compu_base(inverse=5), 'compu_internal_to_phys': None,
-            'compu_inverse_val_id': 'INV'})
+            'compu_inverse_val_id': 'INV', 'compu_default_val_id': None})
 
     def test_db_compu_method_etexttab_default_value_only(self):
         body = ObjectBytes().u8(3)
@@ -318,7 +320,7 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': None, 'compu_internal_to_phys': compu_base(default=6),
-            'compu_default_val_id': 'DEF'})
+            'compu_inverse_val_id': None, 'compu_default_val_id': 'DEF'})
 
     def test_db_compu_method_unknown_category(self):
         body = ObjectBytes().u8(8)
@@ -328,7 +330,8 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 8,
             'compu_phys_to_internal': compu_base(inverse=5),
-            'compu_internal_to_phys': compu_base(default=6)})
+            'compu_internal_to_phys': compu_base(default=6),
+            'compu_inverse_val_id': None, 'compu_default_val_id': None})
 
     def test_db_compu_method_categories(self):
         names = ['eIDENTICAL', 'eLINEAR', 'eSCALE_LINEAR', 'eTEXTTAB', 'eCOMPUCODE',
@@ -338,7 +341,9 @@ class CompuMethodTests(unittest.TestCase):
                 result = load('DB_COMPU_METHOD', ObjectBytes().u8(code).absent().absent())
                 self.assertEqual(result, {'#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': name,
                                           'compu_phys_to_internal': None,
-                                          'compu_internal_to_phys': None})
+                                          'compu_internal_to_phys': None,
+                                          'compu_inverse_val_id': None,
+                                          'compu_default_val_id': None})
 
 
 class CaseTests(unittest.TestCase):
@@ -552,15 +557,16 @@ class PhysicalTypeTests(unittest.TestCase):
     def test_db_physical_type_all_branches(self):
         body = ObjectBytes().u8(3).flag(True).u16(2).u8(16)
         self.assertEqual(load('DB_PHYSICAL_TYPE', body), {
-            '#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_FLOAT64',
+            '#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_PHYS_FLOAT64',
             'base_data_type_as_mcd_data_type': 'eA_FLOAT64', 'is_precision_available': True,
             'precision': 2, 'display_radix': 16})
 
     def test_db_physical_type_data_types(self):
-        cases = [(0, 'eDB_INT32', 'eA_INT32'), (1, 'eDB_UINT32', 'eA_UINT32'),
-                 (2, 'eDB_FLOAT32', 'eA_FLOAT32'), (3, 'eDB_FLOAT64', 'eA_FLOAT64'),
-                 (4, 'eDB_UNICODE2STRING', 'eA_UNICODE2STRING'),
-                 (5, 'eDB_BYTEFIELD', 'eA_BYTEFIELD')]
+        # kernel: the physical base type has its own enumeration
+        cases = [(0, 'eDB_PHYS_INT32', 'eA_INT32'), (1, 'eDB_PHYS_UINT32', 'eA_UINT32'),
+                 (2, 'eDB_PHYS_FLOAT32', 'eA_FLOAT32'), (3, 'eDB_PHYS_FLOAT64', 'eA_FLOAT64'),
+                 (4, 'eDB_PHYS_UNICODE2STRING', 'eA_UNICODE2STRING'),
+                 (5, 'eDB_PHYS_BYTEFIELD', 'eA_BYTEFIELD')]
         for code, name, mcd_name in cases:
             with self.subTest(base_data_type=name):
                 expected = physical_type()
@@ -568,6 +574,14 @@ class PhysicalTypeTests(unittest.TestCase):
                                  'base_data_type_as_mcd_data_type': mcd_name})
                 self.assertEqual(
                     load('DB_PHYSICAL_TYPE', ObjectBytes().u8(code).flag(False).u8(10)), expected)
+
+    def test_db_physical_type_unknown_base_data_type(self):
+        # kernel: an unknown physical base type is kept as its number
+        result = load('DB_PHYSICAL_TYPE', ObjectBytes().u8(6).flag(True).u16(3).u8(16))
+        self.assertEqual(result, {
+            '#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 6,
+            'base_data_type_as_mcd_data_type': None, 'is_precision_available': True,
+            'precision': 3, 'display_radix': 16})
 
 
 class DopDtcTests(unittest.TestCase):
