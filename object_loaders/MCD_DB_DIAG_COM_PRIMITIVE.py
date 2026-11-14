@@ -23,7 +23,7 @@ def load(stream):
     
     obj['semantic'] = stream.loadAsciiString()[0]
     
-    # kernel: an unknown transmission mode is kept as its number by the setter
+    # kernel: an unknown transmission mode is kept as its number
     obj['transmission_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDTransmissionMode, stream.loadEnumMediumRange())
     
     obj['is_api_executable'] = bool(stream.loadOneByteType())

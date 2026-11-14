@@ -950,7 +950,7 @@ def data_primitive(full=False, repetition_mode=None, access_level=None):
     return typed('MCD_DB_DATA_PRIMITIVE', fields)
 
 
-# kernel: each entry carries an optional parameters object; the second entry has none
+# kernel: fails when an entry has no parameters object; kept readable for VW projects (the second entry has none)
 PROTOCOL_PARAMETERS_MAP = [{'map_key': 'P1', 'service_protocol_parameters': two_parameters()},
                            {'map_key': 'P2', 'service_protocol_parameters': None}]
 
@@ -1067,7 +1067,7 @@ class ServiceTests(unittest.TestCase):
                                  typed('MCD_DB_SERVICE', service(runtime=name)))
 
     def test_mcd_db_service_unknown_addressing_mode(self):
-        # kernel: the addressing mode setter stores the number for an unknown value
+        # kernel: an unknown addressing mode is kept as its number
         self.assertEqual(load('MCD_DB_SERVICE', service_body(addressing=5)),
                          typed('MCD_DB_SERVICE', service(addressing=0x6005)))
 
@@ -1145,7 +1145,7 @@ def matching_parameter_body(by_path=False):
 def matching_parameter(by_path=False):
     fields = {'diag_com_primitive_ref': diag_com_ref(by_path)}
     # kernel: both response parameter names are present, the one not read is None, and the
-    # path flag is always present (setter dbResponseParameterIsShortNamePath)
+    # path flag is always present (dbResponseParameterIsShortNamePath)
     fields['response_parameter_name'] = None if by_path else 'RESP'
     fields['response_parameter_short_name_path'] = 'RESP' if by_path else None
     fields['response_parameter_is_short_name_path'] = by_path
