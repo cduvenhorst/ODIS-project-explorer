@@ -710,7 +710,6 @@ class VehicleConnectorPinTests(unittest.TestCase):
                 self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_body(5, code)),
                                  pin(5, name))
 
-
     def test_mcd_db_vehicle_connector_pin_unknown_pin_type(self):
         # kernel: an unknown pin type is kept as its number instead of aborting the load
         self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_body(4, 0x7409)),
@@ -941,7 +940,6 @@ class DiagTroubleCodeTests(unittest.TestCase):
     def test_mcd_db_diag_trouble_code_all_branches(self):
         self.assertEqual(load('MCD_DB_DIAG_TROUBLE_CODE', trouble_code_body([7, 70000])),
                          trouble_code([7, 70000]))
-
 
     def test_mcd_db_diag_trouble_code_level_out_of_kernel_range(self):
         # the loader keeps the level it reads, also outside 1 to 255
