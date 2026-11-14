@@ -914,9 +914,16 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
     return fields
 
 
-def data_primitive_body(full=False, repetition=None):
-    """MCD_DB_DATA_PRIMITIVE followed by its MCD_DB_DIAG_COM_PRIMITIVE."""
-    body = ObjectBytes().absent()
+def data_primitive_body(full=False, repetition=None, access_level=None):
+    """MCD_DB_DATA_PRIMITIVE followed by its MCD_DB_DIAG_COM_PRIMITIVE.
+
+    access_level is the body of a present MCD_DB_ACCESS_LEVEL; None leaves the object absent.
+    """
+    body = ObjectBytes()
+    if access_level is None:
+        body.absent()
+    else:
+        body.nested('MCD_DB_ACCESS_LEVEL', access_level)
     if not full:
         body.absent().u8(repetition or 1)
         named_refs_body(body)
@@ -931,8 +938,8 @@ def data_primitive_body(full=False, repetition=None):
     return concat(body, primitive_body(True))
 
 
-def data_primitive(full=False, repetition_mode=None):
-    fields = {'access_level': None, 'audience_state': audience() if full else None,
+def data_primitive(full=False, repetition_mode=None, access_level=None):
+    fields = {'access_level': access_level, 'audience_state': audience() if full else None,
               'repetition_mode': repetition_mode or ('eREPEATED' if full else 'eSINGLE'),
               'related_data_primitives': diag_com_refs() if full else [],
               # kernel: an absent collection reads as an empty one
@@ -1137,7 +1144,11 @@ def matching_parameter_body(by_path=False):
 
 def matching_parameter(by_path=False):
     fields = {'diag_com_primitive_ref': diag_com_ref(by_path)}
-    fields['response_parameter_short_name_path' if by_path else 'response_parameter_name'] = 'RESP'
+    # kernel: both response parameter names are present, the one not read is None, and the
+    # path flag is always present (setter dbResponseParameterIsShortNamePath)
+    fields['response_parameter_name'] = None if by_path else 'RESP'
+    fields['response_parameter_short_name_path'] = 'RESP' if by_path else None
+    fields['response_parameter_is_short_name_path'] = by_path
     fields['expected_value_string'] = 'Expected'
     return typed('MCD_DB_MATCHING_PARAMETER', fields)
 
@@ -1171,6 +1182,7 @@ class MatchingParametersTests(unittest.TestCase):
 
 
 class MatchingPatternTests(unittest.TestCase):
+    # kernel: fails when the matching parameters are missing; kept readable for VW projects
     def test_mcd_db_matching_pattern_minimal(self):
         self.assertEqual(load('MCD_DB_MATCHING_PATTERN', ObjectBytes().absent()),
                          typed('MCD_DB_MATCHING_PATTERN', {'matching_parameters': None}))
@@ -1206,6 +1218,62 @@ class MatchingRequestParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_MATCHING_REQUEST_PARAMETER', body), typed(
             'MCD_DB_MATCHING_REQUEST_PARAMETER',
             {**parameter_all(), 'request_byte_position': 2, 'byte_length': 3}))
+
+
+def access_level_name_block_body(body, filled=False):
+    if filled:
+        return (body.ascii('AL').unicode('AL long').unicode('AL desc').ascii('AL_UID')
+                .ascii('AL_LID').ascii('AL_DID'))
+    return body.ascii(None).unicode(None).unicode(None).ascii(None).ascii(None).ascii(None)
+
+
+def access_level_name_block(filled=False):
+    if filled:
+        return {'short_name': 'AL', 'long_name': 'AL long', 'description': 'AL desc',
+                'unique_object_id': 'AL_UID', 'long_name_id': 'AL_LID', 'description_id': 'AL_DID'}
+    return {key: None for key in ('short_name', 'long_name', 'description', 'unique_object_id',
+                                  'long_name_id', 'description_id')}
+
+
+def access_level_body(filled=False, method=None, value=0, primitive=None):
+    body = access_level_name_block_body(ObjectBytes(), filled).ascii(method).u32(value)
+    if primitive is None:
+        return body.absent()
+    return body.nested('MCD_AUDIENCE', primitive)
+
+
+def access_level(filled=False, method=None, value=0, primitive=None):
+    return typed('MCD_DB_ACCESS_LEVEL', {
+        **access_level_name_block(filled), 'external_access_method': method,
+        'access_level_value': value, 'access_diag_com_primitive': primitive})
+
+
+class AccessLevelTests(unittest.TestCase):
+    def test_mcd_db_access_level_minimal(self):
+        self.assertEqual(load('MCD_DB_ACCESS_LEVEL', access_level_body()), access_level())
+
+    def test_mcd_db_access_level_all_branches(self):
+        self.assertEqual(
+            load('MCD_DB_ACCESS_LEVEL',
+                 access_level_body(True, 'EAM', 3, audience_body())),
+            access_level(True, 'EAM', 3, audience()))
+
+    def test_mcd_db_access_level_outside_kernel_range(self):
+        # kernel: fails when the external access method is empty or the value exceeds 10;
+        # kept readable for VW projects
+        self.assertEqual(load('MCD_DB_ACCESS_LEVEL', access_level_body(value=11)),
+                         access_level(value=11))
+
+    def test_mcd_db_data_primitive_with_access_level(self):
+        # kernel: cannot read a present diag com primitive; kept readable for VW projects
+        body = concat(ObjectBytes().u32(1).u32(2).u32(3).absent().u8(0),
+                      data_primitive_body(access_level=access_level_body(
+                          True, None, 11, audience_body())))
+        self.assertEqual(
+            load('MCD_DB_SINGLE_ECU_JOB', body),
+            typed('MCD_DB_SINGLE_ECU_JOB', {
+                **job(), 'data_primitive': data_primitive(
+                    access_level=access_level(True, None, 11, audience()))}))
 
 
 class NamedStreamsTests(unittest.TestCase):
