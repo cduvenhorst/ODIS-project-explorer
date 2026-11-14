@@ -38,7 +38,7 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
         object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
     
     # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['ecu_base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_ref']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)

@@ -38,7 +38,7 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
         return
     
     # Get the BASE-VARIANT's name from the projectData (could get from filename too)
-    base_variant_name = db_project_data['ecu_base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_ref']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)

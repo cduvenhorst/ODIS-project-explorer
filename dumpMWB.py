@@ -1450,12 +1450,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
 # Get a dictionary containing all ECU-VARIANTs included in the BASE-VARIANT (where its name maps to its reference)
 def get_ecu_variant_map(base_variant_project_data):
     # Return None for BASE-VARIANTs which do not have ECU-VARIANTs defined
-    if len(base_variant_project_data['ecu_variant_ref_collection']) == 0:
+    if len(base_variant_project_data['ecu_variant_refs']) == 0:
         return None
     
     # Get each ECU-VARIANT referenced by the BASE-VARIANT
     ecu_variant_map = {}
-    for ecu_variant_ref in base_variant_project_data['ecu_variant_ref_collection']:
+    for ecu_variant_ref in base_variant_project_data['ecu_variant_refs']:
         ecu_variant_map[ecu_variant_ref['name']] = ecu_variant_ref['reference']
     return ecu_variant_map
 
@@ -1594,7 +1594,7 @@ def dump_mwbs_for_base_variant(object_loader, protocol_layer_data_list, project_
         object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
     
     # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['ecu_base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_ref']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)

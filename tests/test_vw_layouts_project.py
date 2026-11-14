@@ -590,13 +590,18 @@ def project_data_body(full=False):
 
 
 def project_data(full=False):
+    # kernel: the field names follow the kernel setters setLocationMap, setBaseVariantRef,
+    # setEcuVariantRefs, setContainerShortName, setLayerShortName, setLayerID,
+    # setFuncGroupParentPoolIds and setEcuVarProjects
     return typed('DB_PROJECT_DATA', {
-        'location_refs': location_refs(full), 'functional_group_ref': ref3('FG'),
-        'ecu_base_variant_ref': ref3('BV'),
-        'ecu_variant_ref_collection': named_refs(NAMED_REFS if full else ()),
-        'ecu_variant_ref': ref3('EV'), 'string1': 'String1', 'string2': 'String2',
-        'string3': 'String3', 'functional_groups': strings('Group', 2 if full else 0),
-        'ecu_variants': [typed('MCD_DB_ECU_VARIANT', {
+        'location_map': location_refs(full), 'functional_group_ref': ref3('FG'),
+        'base_variant_ref': ref3('BV'),
+        'ecu_variant_refs': named_refs(NAMED_REFS if full else ()),
+        'ecu_variant_ref': ref3('EV'), 'container_short_name': 'String1',
+        'layer_short_name': 'String2', 'layer_id': 'String3',
+        'func_group_parent_pool_ids': strings('Group', 2 if full else 0),
+        # kernel: the elements are the project data of the variants
+        'ecu_var_projects': [typed('MCD_DB_ECU_VARIANT', {
             'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
             'matching_patterns': None, 'ecu': ecu_part()}), None] if full else []})
 
