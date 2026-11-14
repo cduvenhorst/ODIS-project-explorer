@@ -375,24 +375,33 @@ GATEWAY_MODES = [(0x6E03, 'eNO_GATEWAY'), (0x6E01, 'eTRANSPARENT_GATEWAY'),
                  (0x6E02, 'eVISIBLE_GATEWAY')]
 
 
-def logical_link_body(full=False, gateway=0x6E03):
+def logical_link_body(full=False, gateway=0x6E03, gateway_links=()):
     body = ObjectBytes().ascii('Link').unicode('Link long').unicode('Link description')
     body.ascii('UID').ascii('LongId').ascii('DescId').ascii('ProtoShort')
     body.ascii('BaseVariantId').ascii('FunctionalGroupId').ascii('ProtoType')
-    body.u16(0)
+    body.u16(len(gateway_links))
+    for name, strings in gateway_links:
+        body.ascii(name)
+        attributed_ref_body(body, strings)
     ref3_body(body, 'PVL')
     body.u16(gateway).flag(full)
     object_map_body(body, 'Param', full)
     return object_map_body(body, 'Complex', full)
 
 
-def logical_link(full=False, gateway='eNO_GATEWAY'):
+GATEWAY_LINKS = [('Gw1', ('S1', 'S2')), ('Gw2', ())]
+
+
+def logical_link(full=False, gateway='eNO_GATEWAY', gateway_links=()):
     return typed('MCD_DB_LOGICAL_LINK', {
         'short_name': 'Link', 'long_name': 'Link long', 'description': 'Link description',
         'unique_object_id': 'UID', 'long_name_id': 'LongId', 'description_id': 'DescId',
         # kernel: the string is the protocol ID of the link (setProtocolID)
         'protocol_id': 'ProtoShort', 'base_variant_id': 'BaseVariantId',
         'functional_group_id': 'FunctionalGroupId', 'protocol_type': 'ProtoType',
+        # kernel: reads the logical links of gateways as a named collection
+        'logical_links_of_gateways': [{'name': name, 'reference': attributed_ref(strings)}
+                                      for name, strings in gateway_links],
         'physical_vehicle_link_or_interface_ref': ref3('PVL'), 'gateway_mode': gateway,
         'accessed_via_gateway': full, 'link_com_params_map': object_map('Param', full),
         'link_complex_com_params_map': object_map('Complex', full)})
@@ -406,6 +415,12 @@ class LogicalLinkTests(unittest.TestCase):
         body = logical_link_body(True, 0x6E01)
         self.assertEqual(load('MCD_DB_LOGICAL_LINK', body),
                          logical_link(True, 'eTRANSPARENT_GATEWAY'))
+
+    def test_mcd_db_logical_link_gateway_links(self):
+        # strict mode (the default of load) raises on any unread byte or content
+        body = logical_link_body(gateway_links=GATEWAY_LINKS)
+        self.assertEqual(load('MCD_DB_LOGICAL_LINK', body),
+                         logical_link(gateway_links=GATEWAY_LINKS))
 
     def test_mcd_db_logical_link_gateway_modes(self):
         for code, name in GATEWAY_MODES:
@@ -557,21 +572,23 @@ class LayerDataTests(unittest.TestCase):
 
 
 def location_refs_body(body, full):
-    """MCD_DB_LOCATION_REFERENCES entries; the access keys carry no existence flag."""
+    """MCD_DB_LOCATION_REFERENCES entries; the access key is optional, any non-zero byte is present."""
     if not full:
         return body.u16(0)
-    body.u16(2).ascii('LocO1').ascii('LocP1').u8(2)
-    for key_full in (True, False):
-        body = concat(body.u16(object_type_code('MCD_ACCESS_KEY')), access_key_body(key_full))
-    return body.ascii('LocO2').ascii('LocP2').u8(0)
+    # kernel: one optional access key per reference
+    body.u16(3).ascii('LocO1').ascii('LocP1')
+    body.nested('MCD_ACCESS_KEY', access_key_body(True))
+    body.ascii('LocO2').ascii('LocP2').absent()
+    body.ascii('LocO3').ascii('LocP3').u8(2).u16(object_type_code('MCD_ACCESS_KEY'))
+    return concat(body, access_key_body(False))
 
 
 def location_refs(full):
     if not full:
         return []
-    return [{'object_id': 'LocO1', 'pool_id': 'LocP1',
-             'access_keys': [access_key(True), access_key(False)]},
-            {'object_id': 'LocO2', 'pool_id': 'LocP2', 'access_keys': []}]
+    return [{'object_id': 'LocO1', 'pool_id': 'LocP1', 'access_key': access_key(True)},
+            {'object_id': 'LocO2', 'pool_id': 'LocP2', 'access_key': None},
+            {'object_id': 'LocO3', 'pool_id': 'LocP3', 'access_key': access_key(False)}]
 
 
 def minimal_variant_body():

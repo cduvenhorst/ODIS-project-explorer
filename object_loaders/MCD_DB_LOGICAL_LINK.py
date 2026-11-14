@@ -1,5 +1,4 @@
 from common_utils import common_loaders
-from common_utils import diagnostics
 from common_utils import enum_converters
 from classes import DbObject
 
@@ -36,9 +35,8 @@ def load(stream):
     obj['functional_group_id'] = stream.loadAsciiString()[0]
     obj['protocol_type'] = stream.loadAsciiString()[0]
     
-    counter = stream.loadNumericType(2)
-    if counter:
-        diagnostics.report_unread('logical link refs not 0')
+    # kernel: reads the logical links of gateways as a named collection
+    obj['logical_links_of_gateways'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     
     obj['physical_vehicle_link_or_interface_ref'] = common_loaders.load_reference(stream)
     
