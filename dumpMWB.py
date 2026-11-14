@@ -1329,12 +1329,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 if dtc['trouble_code'] != map_item['map_key']:
                     raise 'Trouble code {:X} does not match map key {:X}'.format(dtc['trouble_code'], map_item['map_key'])
                 
-                dtc_output_object['label'] = dtc['label']
+                dtc_output_object['label'] = dtc['unique_object_id']
                 dtc_output_object['short_name'] = dtc['short_name']
                 
-                dtc_output_object['dtc'] = dtc['trouble_code_text']
+                dtc_output_object['dtc'] = dtc['diag_trouble_code_text_id']
                 
-                dtc_output_object['description'] = dtc['description']
+                dtc_output_object['description'] = dtc['dtc_text']
                 dtc_output_object['level'] = dtc['level']
                 
                 output_object['dtc_list'].append(dtc_output_object)

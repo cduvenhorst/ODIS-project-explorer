@@ -7,7 +7,8 @@ def load(stream):
     num = stream.loadNumericType(2)
     loop_index_less_than_num = (num != 0)
     
-    obj['protocol_stack_map'] = []
+    # kernel: setProtStackMap; the key of each entry is the short name of the protocol stack
+    obj['prot_stack_map'] = []
     loop_index = 0
     while True:
         if not loop_index_less_than_num:
@@ -15,7 +16,7 @@ def load(stream):
         
         item = {}
         
-        item['string'] = stream.loadAsciiString()[0]
+        item['map_key'] = stream.loadAsciiString()[0]
         
         item['request_parameters_refs'] = []
         counter = stream.loadNumericType(2)
@@ -23,7 +24,7 @@ def load(stream):
             ref = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestParametersImpl
             item['request_parameters_refs'].append(ref)
         
-        obj['protocol_stack_map'].append(item)
+        obj['prot_stack_map'].append(item)
         
         loop_index += 1
         loop_index_less_than_num = (loop_index < num)

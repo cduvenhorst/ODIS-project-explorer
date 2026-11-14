@@ -356,7 +356,9 @@ class ReversedNameBlockIdentifierTests(unittest.TestCase):
     def test_mcd_db_vehicle_connector_identifiers(self):
         body = reversed_names_body(ObjectBytes()).absent()
         self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR', body), typed(
-            'MCD_DB_VEHICLE_CONNECTOR', {**IDS, **EMPTY_NAMES, 'connector_pins': None}))
+            'MCD_DB_VEHICLE_CONNECTOR', {**IDS, **EMPTY_NAMES,
+                # kernel: the pins are set with setDbVehicleConnectorPins
+                'vehicle_connector_pins': None}))
 
     def test_mcd_db_vehicle_connector_pin_identifiers(self):
         body = reversed_names_body(ObjectBytes()).u16(3).u16(0x7400)
@@ -388,7 +390,8 @@ def logical_link(full=False, gateway='eNO_GATEWAY'):
     return typed('MCD_DB_LOGICAL_LINK', {
         'short_name': 'Link', 'long_name': 'Link long', 'description': 'Link description',
         'unique_object_id': 'UID', 'long_name_id': 'LongId', 'description_id': 'DescId',
-        'protocol_short_name': 'ProtoShort', 'base_variant_id': 'BaseVariantId',
+        # kernel: the string is the protocol ID of the link (setProtocolID)
+        'protocol_id': 'ProtoShort', 'base_variant_id': 'BaseVariantId',
         'functional_group_id': 'FunctionalGroupId', 'protocol_type': 'ProtoType',
         'physical_vehicle_link_or_interface_ref': ref3('PVL'), 'gateway_mode': gateway,
         'accessed_via_gateway': full, 'link_com_params_map': object_map('Param', full),
@@ -618,19 +621,20 @@ class VehicleInfoDataTests(unittest.TestCase):
     def test_db_vehicle_info_data_minimal(self):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_information_refs': [], 'base_var_prot_id_to_link_info_map': []}))
+            # kernel: the map is set with setDbVehicleInfoRefs
+            'vehicle_info_refs': [], 'base_var_prot_id_to_link_info_map': []}))
 
     def test_db_vehicle_info_data_all_branches(self):
         body = ref_map_body(ObjectBytes(), 'Info', 2).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_information_refs': ref_map('Info', 2),
+            'vehicle_info_refs': ref_map('Info', 2),
             'base_var_prot_id_to_link_info_map': []}))
 
     def test_db_vehicle_info_data_link_info_map(self):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(2)
         body.ascii('K1').ascii('V1').ascii('K2').ascii(None)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_information_refs': [], 'base_var_prot_id_to_link_info_map': [
+            'vehicle_info_refs': [], 'base_var_prot_id_to_link_info_map': [
                 {'map_key': 'K1', 'value': 'V1'}, {'map_key': 'K2', 'value': None}]}))
 
 
@@ -700,7 +704,8 @@ def connector_body(with_pins):
 
 def connector(with_pins):
     return typed('MCD_DB_VEHICLE_CONNECTOR', {**described_ids(),
-                                              'connector_pins': pins(3) if with_pins else None})
+                                              # kernel: the pins are set with setDbVehicleConnectorPins
+                                              'vehicle_connector_pins': pins(3) if with_pins else None})
 
 
 class VehicleConnectorTests(unittest.TestCase):
@@ -878,11 +883,16 @@ def trouble_code_body(groups=None):
 
 
 def trouble_code(groups=None):
-    fields = {'label': 'Label', 'short_name': 'DtcName', 'long_name': 'DtcLong',
-              'description': 'Description', 'level': 3, 'trouble_code': 0x123456,
+    fields = {# kernel: the first string sits where the name block keeps the unique object identifier
+              'unique_object_id': 'Label', 'short_name': 'DtcName',
+              # kernel: the second string is the displayed trouble code (getDisplayTroubleCode)
+              'display_trouble_code': 'DtcLong',
+              # kernel: the unicode string is the DTC text (getDTCText)
+              'dtc_text': 'Description', 'level': 3, 'trouble_code': 0x123456,
               # kernel: an absent collection reads as an empty one
               'special_data_group_refs': [],
-              'trouble_code_text': 'Text'}
+              # kernel: the last string is the text ID of the trouble code (getDiagTroubleCodeTextID)
+              'diag_trouble_code_text_id': 'Text'}
     if groups is not None:
         fields['special_data_group_refs'] = [{'object_id': number} for number in groups]
     return typed('MCD_DB_DIAG_TROUBLE_CODE', fields)

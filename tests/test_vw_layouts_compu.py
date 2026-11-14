@@ -397,7 +397,8 @@ class CasesTests(unittest.TestCase):
 class ComParamSpecTests(unittest.TestCase):
     def test_db_com_param_spec_minimal(self):
         self.assertEqual(load('DB_COM_PARAM_SPEC', ObjectBytes().u16(0)),
-                         {'#OBJECT_TYPE': 'DB_COM_PARAM_SPEC', 'protocol_stack_map': []})
+                         # kernel: the map is set with setProtStackMap
+                         {'#OBJECT_TYPE': 'DB_COM_PARAM_SPEC', 'prot_stack_map': []})
 
     def test_db_com_param_spec_all_branches(self):
         body = ObjectBytes().u16(2)
@@ -405,10 +406,11 @@ class ComParamSpecTests(unittest.TestCase):
         body.ascii('STACK2').u16(0)
         self.assertEqual(load('DB_COM_PARAM_SPEC', body), {
             '#OBJECT_TYPE': 'DB_COM_PARAM_SPEC',
-            'protocol_stack_map': [
-                {'string': 'STACK1', 'request_parameters_refs': [
+            'prot_stack_map': [
+                # kernel: the key is the short name of the protocol stack
+                {'map_key': 'STACK1', 'request_parameters_refs': [
                     {'object_id': 'R1', 'pool_id': 'P1'}, {'object_id': 'R2', 'pool_id': 'P2'}]},
-                {'string': 'STACK2', 'request_parameters_refs': []}]})
+                {'map_key': 'STACK2', 'request_parameters_refs': []}]})
 
 
 class DiagCodedTypeTests(unittest.TestCase):

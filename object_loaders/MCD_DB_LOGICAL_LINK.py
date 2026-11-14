@@ -30,7 +30,8 @@ def load(stream):
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['description_id'] = stream.loadAsciiString()[0]
 
-    obj['protocol_short_name'] = stream.loadAsciiString()[0]
+    # kernel: setProtocolID; the ID of the protocol, not the short name of the stack
+    obj['protocol_id'] = stream.loadAsciiString()[0]
     obj['base_variant_id'] = stream.loadAsciiString()[0]
     obj['functional_group_id'] = stream.loadAsciiString()[0]
     obj['protocol_type'] = stream.loadAsciiString()[0]

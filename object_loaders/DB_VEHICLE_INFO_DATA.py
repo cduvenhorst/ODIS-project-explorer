@@ -4,7 +4,8 @@ from common_utils import common_loaders
 def load(stream):
     obj = {}
     
-    obj['vehicle_information_refs'] = common_loaders.loadStringToReferenceMap(stream)
+    # kernel: setDbVehicleInfoRefs
+    obj['vehicle_info_refs'] = common_loaders.loadStringToReferenceMap(stream)
     
     # BaseVarProtIdToLinkInfoMap
     obj['base_var_prot_id_to_link_info_map'] = []

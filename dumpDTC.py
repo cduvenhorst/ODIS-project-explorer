@@ -106,12 +106,12 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
                     # Get the fields of the definition
                     output_object = {}
                     output_object['trouble_code'] = trouble_code
-                    output_object['dtc'] = dtc_object['trouble_code_text']
+                    output_object['dtc'] = dtc_object['diag_trouble_code_text_id']
                     output_object['level'] = dtc_object['level']
-                    output_object['raw_description'] = dtc_object['description']
+                    output_object['raw_description'] = dtc_object['dtc_text']
                     
                     # The "LONG-NAME" is used as a LONG-NAME-ID to get a more detailed description
-                    output_object['translated_description'] = long_name_translation.get_long_name_translation(dtc_object['long_name'], 'No translation database provided')
+                    output_object['translated_description'] = long_name_translation.get_long_name_translation(dtc_object['display_trouble_code'], 'No translation database provided')
                     
                     # Add the definition to the list
                     dtcs_output_object.append(output_object)
