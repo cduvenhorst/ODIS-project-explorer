@@ -573,7 +573,10 @@ def table_body(full=False):
 
 
 def table(full=False):
-    fields = {'some_id': 'SomeId', 'object_id': 'OBJ', 'description': 'Description',
+    # kernel: the first name word is the description id; the next two are the long name id and
+    # the unique object id, as in the standard name block
+    fields = {'description_id': None, 'long_name_id': 'SomeId', 'unique_object_id': 'OBJ',
+              'description': 'Description',
               'long_name': 'Long name', 'short_name': 'Table', 'table_key_map': [],
               'semantic': None, 'diag_com_primitives_refs': [],
               # kernel: an absent collection reads as an empty one
@@ -581,9 +584,9 @@ def table(full=False):
     if full:
         fields['table_key_map'] = [
             {'map_key': 'K1', 'reference': {'object_id': 'O1', 'pool_id': 'P1',
-                                            'short_name': 'Short1'}},
+                                            'object_id2': 'Short1'}},
             {'map_key': 'K2', 'reference': {'object_id': 'O2', 'pool_id': None,
-                                            'short_name': 'Short2'}}]
+                                            'object_id2': 'Short2'}}]
         fields['semantic'] = 'SEM'
         fields['diag_com_primitives_refs'] = diag_com_refs()
         fields['dop_simple_ref'] = ref('DOP')
@@ -602,12 +605,19 @@ class TableTests(unittest.TestCase):
         # kernel: an absent collection reads as an empty one
         self.assertEqual(load('MCD_DB_TABLE', table_body())['special_data_group_refs'], [])
 
-    def test_mcd_db_table_with_sdgs_still_fails(self):
+    def test_mcd_db_table_reads_sdgs(self):
         body = ObjectBytes().ascii(None).ascii('SomeId').ascii('OBJ').unicode('Description')
         body.unicode('Long name').ascii('Table').u32(0).ascii(None).u16(0).u8(0)
-        body.u8(1).u16(1).u32(11)
-        with self.assertRaisesRegex(RuntimeError, 'SDGs present'):
-            load('MCD_DB_TABLE', body)
+        body.u8(1).u16(2).u32(11).u32(22)
+        obj = load('MCD_DB_TABLE', body)
+        self.assertEqual(obj['special_data_group_refs'], [{'object_id': 11}, {'object_id': 22}])
+
+    def test_mcd_db_table_reads_description_id(self):
+        body = ObjectBytes().ascii('DESC').ascii('SomeId').ascii('OBJ').unicode('Description')
+        body.unicode('Long name').ascii('Table')
+        body.u32(0).ascii(None).u16(0).u8(0).u8(0)
+        self.assertEqual(load('MCD_DB_TABLE', body),
+                         typed('MCD_DB_TABLE', {**table(), 'description_id': 'DESC'}))
 
 
 class TableKeyThirdWordTests(unittest.TestCase):
@@ -622,13 +632,13 @@ class TableKeyThirdWordTests(unittest.TestCase):
     def test_mcd_db_table_key_short_name_is_a_number_below_0012(self):
         body = self.key_body(lambda b: b.u32(7))
         loaded = support.load('MCD_DB_TABLE', body, database_version='0011')
-        self.assertEqual(loaded['table_key_map'][0]['reference']['short_name'], 7)
+        self.assertEqual(loaded['table_key_map'][0]['reference']['object_id2'], 7)
 
     def test_mcd_db_table_key_short_name_is_a_string_from_0012(self):
         body = self.key_body(lambda b: b.ascii('Short1'))
         for version in (None, '0012'):
             loaded = support.load('MCD_DB_TABLE', body, database_version=version)
-            self.assertEqual(loaded['table_key_map'][0]['reference']['short_name'], 'Short1')
+            self.assertEqual(loaded['table_key_map'][0]['reference']['object_id2'], 'Short1')
 
 
 class TableKeyTests(unittest.TestCase):
