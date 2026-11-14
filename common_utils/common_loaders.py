@@ -1,6 +1,7 @@
 import struct
 from collections.abc import Callable
 from classes.DbStream import DbStream
+from classes import DbObject
 from common_utils import enum_converters
 
 
@@ -246,6 +247,24 @@ def loadAsciiToUnicodeStringMap(stream: DbStream) -> list[dict[str, str | None]]
         
         item['map_key'] = stream.loadAsciiString()[0]
         item['value'] = stream.loadUnicodeString()[0]
+        
+        obj.append(item)
+    
+    return obj
+
+
+# Service protocol parameters map (key + optional MCDDbRequestParametersImpl)
+def loadServiceProtocolParametersMap(stream: DbStream) -> list[dict[str, object]]:
+    """Read a u16-counted map of ASCII keys to optional request parameters objects, in stream order."""
+    obj = []
+    
+    map_items = stream.loadNumericType(2)
+    for i in range(map_items):
+        item = {}
+        
+        item['map_key'] = stream.loadAsciiString()[0]
+        # kernel: fails when an entry has no parameters object; kept readable for VW projects
+        item['service_protocol_parameters'] = DbObject.load_object_from_stream_if_exists(stream)
         
         obj.append(item)
     

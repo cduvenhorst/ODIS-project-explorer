@@ -1,22 +1,15 @@
+from common_utils import common_loaders
 from common_utils import enum_converters
 from object_loaders import MCD_DB_DATA_PRIMITIVE
-from classes import DbObject
 
 
 def load(stream):
     obj = {}
     
-    obj['items'] = []
-    counter = stream.loadNumericType(2)
-    for i in range(counter):
-        item = {}
-        
-        item['string'] = stream.loadAsciiString()[0]
-        item['service_protocol_parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbRequestParametersImpl
-        
-        obj['items'].append(item)
+    obj['service_protocol_parameters_map'] = common_loaders.loadServiceProtocolParametersMap(stream)
     
-    obj['runtime_mode'] = enum_converters.get_MCDRuntimeMode(stream.loadEnumMediumRange())
+    # kernel: an unknown runtime mode is kept as its number
+    obj['runtime_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDRuntimeMode, stream.loadEnumMediumRange())
     
     obj['is_multiple'] = bool(stream.loadOneByteType())
     

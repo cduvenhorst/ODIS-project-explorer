@@ -929,29 +929,35 @@ def data_primitive(full=False):
     return typed('MCD_DB_DATA_PRIMITIVE', fields)
 
 
+# kernel: each entry carries an optional parameters object; the second entry has none
+PROTOCOL_PARAMETERS_MAP = [{'map_key': 'P1', 'service_protocol_parameters': two_parameters()},
+                           {'map_key': 'P2', 'service_protocol_parameters': None}]
+
+
 class StartCommunicationTests(unittest.TestCase):
     def test_mcd_db_startcommunication_minimal(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
-            'MCD_DB_STARTCOMMUNICATION', {**primitive(), 'service_protocol_parameters': []}))
+            'MCD_DB_STARTCOMMUNICATION', {**primitive(), 'service_protocol_parameters_map': []}))
 
     def test_mcd_db_startcommunication_all_branches(self):
-        body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').ascii('P2'))
+        body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').nested(
+            'MCD_DB_REQUEST_PARAMETERS', two_parameters_body()).ascii('P2').absent())
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True), 'service_protocol_parameters': ['P1', 'P2']}))
+            {**primitive(True), 'service_protocol_parameters_map': PROTOCOL_PARAMETERS_MAP}))
 
     def test_mcd_db_startcommunication_suppression_without_path(self):
         body = concat(primitive_body(True, suppression='name'), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True, suppression='name'), 'service_protocol_parameters': []}))
+            {**primitive(True, suppression='name'), 'service_protocol_parameters_map': []}))
 
     def test_mcd_db_startcommunication_empty_bytefield(self):
         body = concat(primitive_body(True, suppression='empty'), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True, suppression='empty'), 'service_protocol_parameters': []}))
+            {**primitive(True, suppression='empty'), 'service_protocol_parameters_map': []}))
 
     def test_mcd_db_startcommunication_transmission_modes(self):
         names = {0x6A01: 'eNO_TRANSMISSION', 0x6A02: 'eRECEIVE', 0x6A03: 'eSEND',
@@ -961,20 +967,21 @@ class StartCommunicationTests(unittest.TestCase):
                 body = concat(primitive_body(transmission=code), ObjectBytes().u16(0))
                 self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
                     'MCD_DB_STARTCOMMUNICATION',
-                    {**primitive(transmission_mode=name), 'service_protocol_parameters': []}))
+                    {**primitive(transmission_mode=name), 'service_protocol_parameters_map': []}))
 
 
 class StopCommunicationTests(unittest.TestCase):
     def test_mcd_db_stopcommunication_minimal(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STOPCOMMUNICATION', body), typed(
-            'MCD_DB_STOPCOMMUNICATION', {**primitive(), 'service_protocol_parameters': []}))
+            'MCD_DB_STOPCOMMUNICATION', {**primitive(), 'service_protocol_parameters_map': []}))
 
     def test_mcd_db_stopcommunication_all_branches(self):
-        body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').ascii('P2'))
+        body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').nested(
+            'MCD_DB_REQUEST_PARAMETERS', two_parameters_body()).ascii('P2').absent())
         self.assertEqual(load('MCD_DB_STOPCOMMUNICATION', body), typed(
             'MCD_DB_STOPCOMMUNICATION',
-            {**primitive(True), 'service_protocol_parameters': ['P1', 'P2']}))
+            {**primitive(True), 'service_protocol_parameters_map': PROTOCOL_PARAMETERS_MAP}))
 
 
 def service_body(full=False, addressing=2, runtime=0x6901):
@@ -982,6 +989,7 @@ def service_body(full=False, addressing=2, runtime=0x6901):
     if full:
         body.u16(2)
         body.ascii('Item1').nested('MCD_DB_REQUEST_PARAMETERS', two_parameters_body())
+        # kernel: fails when an entry has no parameters object; kept readable for VW projects
         body.ascii('Item2').absent()
     else:
         body.u16(0)
@@ -990,11 +998,13 @@ def service_body(full=False, addressing=2, runtime=0x6901):
 
 
 def service(full=False, addressing='ePHYSICAL', runtime='eNONCYCLIC'):
-    items = []
+    entries = []
     if full:
-        items = [{'string': 'Item1', 'service_protocol_parameters': two_parameters()},
-                 {'string': 'Item2', 'service_protocol_parameters': None}]
-    return {'repetition_mode': addressing, 'items': items, 'runtime_mode': runtime,
+        entries = [{'map_key': 'Item1', 'service_protocol_parameters': two_parameters()},
+                   {'map_key': 'Item2', 'service_protocol_parameters': None}]
+    # kernel: the first byte is the addressing mode; the second field is the protocol parameters map
+    return {'addressing_mode': addressing, 'service_protocol_parameters_map': entries,
+            'runtime_mode': runtime,
             'is_multiple': full, 'data_primitive': data_primitive(full)}
 
 
@@ -1020,6 +1030,17 @@ class ServiceTests(unittest.TestCase):
             with self.subTest(runtime_mode=name):
                 self.assertEqual(load('MCD_DB_SERVICE', service_body(runtime=code)),
                                  typed('MCD_DB_SERVICE', service(runtime=name)))
+
+    def test_mcd_db_service_unknown_addressing_mode(self):
+        # kernel: the addressing mode setter stores the number for an unknown value
+        self.assertEqual(load('MCD_DB_SERVICE', service_body(addressing=5)),
+                         typed('MCD_DB_SERVICE', service(addressing=0x6005)))
+
+    def test_mcd_db_service_unknown_runtime_mode(self):
+        # kernel: an unknown runtime mode is kept as its number
+        body = service_body(full=True, runtime=0x6903)
+        self.assertEqual(load('MCD_DB_SERVICE', body),
+                         typed('MCD_DB_SERVICE', service(full=True, runtime=0x6903)))
 
 
 def job_body(full=False):
