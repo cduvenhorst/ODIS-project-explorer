@@ -574,11 +574,11 @@ def table_body(full=False):
 
 def table(full=False):
     # kernel: the first name word is the description id; the next two are the long name id and
-    # the unique object id, as in the standard name block
+    # the unique object id, as in the standard name block; the primitives follow setDbDiagComPrimitives
     fields = {'description_id': None, 'long_name_id': 'SomeId', 'unique_object_id': 'OBJ',
               'description': 'Description',
               'long_name': 'Long name', 'short_name': 'Table', 'table_key_map': [],
-              'semantic': None, 'diag_com_primitives_refs': [],
+              'semantic': None, 'diag_com_primitive_refs': [],
               # kernel: an absent collection reads as an empty one
               'special_data_group_refs': []}
     if full:
@@ -588,7 +588,7 @@ def table(full=False):
             {'map_key': 'K2', 'reference': {'object_id': 'O2', 'pool_id': None,
                                             'object_id2': 'Short2'}}]
         fields['semantic'] = 'SEM'
-        fields['diag_com_primitives_refs'] = diag_com_refs()
+        fields['diag_com_primitive_refs'] = diag_com_refs()
         fields['dop_simple_ref'] = ref('DOP')
     return fields
 

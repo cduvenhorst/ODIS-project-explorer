@@ -24,7 +24,7 @@ def load(stream):
         item['map_key'] = stream.loadUnicodeString()[0]
         
         # DbNamedObjectReference : MCDDbTableParameterImpl
-        # kernel: the third word is read as object_id2, as in a reference with a third string
+        # kernel: the third word of the reference is object_id2
         item['reference'] = common_loaders.load_reference(stream, True)
         
         obj['table_key_map'].append(item)
@@ -33,7 +33,7 @@ def load(stream):
     
     # kernel: setDbDiagComPrimitives
     # MCDDbDiagComObjectReferences : DbDiagComObjectReference, MCDDbDiagComPrimitives, MCDDbDiagComPrimitive, MCDDbDiagComPrimitiveImpl
-    obj['diag_com_primitives_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
+    obj['diag_com_primitive_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
     
     if stream.loadOneByteType():
         obj['dop_simple_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopSimple
