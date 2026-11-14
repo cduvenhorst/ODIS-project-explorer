@@ -1492,11 +1492,11 @@ def get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_pat
     rdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_RDBI['reference']['attrib_obj_ref'])
     
     # The service should only have one positve response referenced
-    if len(rdbi_service['data_primitive']['diag_com_primitive']['positive_response_ref_collection']) != 1:
+    if len(rdbi_service['data_primitive']['diag_com_primitive']['positive_response_refs']) != 1:
         raise RuntimeError('RDBI service has multiple positive responses')
     
     # Load the positive response from its reference in the service
-    response = object_loader.load_object_by_reference(project_folder_path, rdbi_service['data_primitive']['diag_com_primitive']['positive_response_ref_collection'][0]['reference'])
+    response = object_loader.load_object_by_reference(project_folder_path, rdbi_service['data_primitive']['diag_com_primitive']['positive_response_refs'][0]['reference'])
     
     # One parameter will be the table key (MWB-DID) and the other one will be the table structure (MWB)
     data_record_table_key_parameter = None

@@ -16,38 +16,47 @@ def load(stream):
     if stream.loadOneByteType():
         obj['request_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestImpl
     
-    obj['positive_response_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    obj['negative_response_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    obj['functional_class_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses
+    obj['positive_response_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['negative_response_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['functional_class_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
     obj['semantic'] = stream.loadAsciiString()[0]
     
-    obj['transmission_mode'] = enum_converters.get_MCDTransmissionMode(stream.loadEnumMediumRange())
+    # kernel: an unknown transmission mode is kept as its number by the setter
+    obj['transmission_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDTransmissionMode, stream.loadEnumMediumRange())
     
     obj['is_api_executable'] = bool(stream.loadOneByteType())
-    obj['is_no_operataion'] = bool(stream.loadOneByteType())
+    # kernel: setIsNoOperation (fixed: upstream misspelt the key)
+    obj['is_no_operation'] = bool(stream.loadOneByteType())
     
     obj['diagnostic_class'] = stream.loadEnumSmallRange()
     
+    # kernel: setDbEcuStateTransitions
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateTransitionImpl
-    obj['ecu_state_transition_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+    obj['ecu_state_transition_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
         stream, common_loaders.loadDbAttributedObjectReference)
     # Elements are DbSemanticAttributedObjectReference
     
+    # kernel: setDbEcuStates
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateImpl
-    obj['ecu_state_ref_collection'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+    obj['ecu_state_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
         stream, common_loaders.loadDbAttributedObjectReference)
     # Elements are DbSemanticAttributedObjectReference
     
     obj['has_suppress_positive_response_capability'] = bool(stream.loadOneByteType())
     
     if obj['has_suppress_positive_response_capability']:
-        obj['bytefield'] = common_loaders.loadBytefieldFromObjectStream(stream)
+        # kernel: setPosRespSuppressBitMask, setPosRespSuppressParamSNPath and
+        # setPosRespSuppressParamShortName; both names are always present, the one not read is None
+        obj['pos_resp_suppress_bit_mask'] = common_loaders.loadBytefieldFromObjectStream(stream)
         
-        obj['has_positive_response_suppression_parameter_short_name_path'] = bool(stream.loadOneByteType())
-        if obj['has_positive_response_suppression_parameter_short_name_path']:
-            obj['positive_response_suppression_parameter_short_name_path'] = stream.loadAsciiString()[0]
+        obj['has_pos_resp_suppress_param_sn_path'] = bool(stream.loadOneByteType())
+        obj['pos_resp_suppress_param_sn_path'] = None
+        obj['pos_resp_suppress_param_short_name'] = None
+        if obj['has_pos_resp_suppress_param_sn_path']:
+            obj['pos_resp_suppress_param_sn_path'] = stream.loadAsciiString()[0]
         else:
-            obj['positive_response_suppression_parameter_short_name'] = stream.loadAsciiString()[0]
+            obj['pos_resp_suppress_param_short_name'] = stream.loadAsciiString()[0]
     
     return obj

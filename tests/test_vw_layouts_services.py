@@ -883,32 +883,36 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
               'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive'}
     if full:
         fields['request_ref'] = ref('REQ')
+    # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses,
+    # setIsNoOperation (fixed: upstream misspelt the key), setDbEcuStateTransitions and
+    # setDbEcuStates
     fields.update({
-        'positive_response_ref_collection': refs, 'negative_response_ref_collection': refs,
-        'functional_class_ref_collection': refs, 'semantic': None,
+        'positive_response_refs': refs, 'negative_response_refs': refs,
+        'functional_class_refs': refs, 'semantic': None,
         'transmission_mode': transmission_mode, 'is_api_executable': True,
-        'is_no_operataion': False, 'diagnostic_class': 2,
-        'ecu_state_transition_ref_collection': state_refs, 'ecu_state_ref_collection': state_refs,
+        'is_no_operation': False, 'diagnostic_class': 2,
+        'ecu_state_transition_refs': state_refs, 'ecu_state_refs': state_refs,
         'has_suppress_positive_response_capability': suppression is not None})
     if suppression is not None:
         by_path = suppression != 'name'
-        fields['bytefield'] = b'' if suppression == 'empty' else b'\x12\x34'
-        fields['has_positive_response_suppression_parameter_short_name_path'] = by_path
-        fields['positive_response_suppression_parameter_short_name_path' if by_path
-               else 'positive_response_suppression_parameter_short_name'] = (
-            'PATH' if by_path else 'NAME')
+        # kernel: setPosRespSuppressBitMask, setPosRespSuppressParamSNPath and
+        # setPosRespSuppressParamShortName; both names are present, the one not read is None
+        fields['pos_resp_suppress_bit_mask'] = b'' if suppression == 'empty' else b'\x12\x34'
+        fields['has_pos_resp_suppress_param_sn_path'] = by_path
+        fields['pos_resp_suppress_param_sn_path'] = 'PATH' if by_path else None
+        fields['pos_resp_suppress_param_short_name'] = None if by_path else 'NAME'
     return fields
 
 
-def data_primitive_body(full=False):
+def data_primitive_body(full=False, repetition=None):
     """MCD_DB_DATA_PRIMITIVE followed by its MCD_DB_DIAG_COM_PRIMITIVE."""
     body = ObjectBytes().absent()
     if not full:
-        body.absent().u8(1)
+        body.absent().u8(repetition or 1)
         named_refs_body(body)
         body.u8(0)
         return concat(body, primitive_body())
-    body.nested('MCD_AUDIENCE', audience_body()).u8(2)
+    body.nested('MCD_AUDIENCE', audience_body()).u8(repetition or 2)
     diag_com_refs_body(body)
     body.u8(7)
     named_refs_body(body, NAMED_REFS)
@@ -917,9 +921,9 @@ def data_primitive_body(full=False):
     return concat(body, primitive_body(True))
 
 
-def data_primitive(full=False):
+def data_primitive(full=False, repetition_mode=None):
     fields = {'access_level': None, 'audience_state': audience() if full else None,
-              'repetition_mode': 'eREPEATED' if full else 'eSINGLE',
+              'repetition_mode': repetition_mode or ('eREPEATED' if full else 'eSINGLE'),
               'related_data_primitives': diag_com_refs() if full else [],
               # kernel: an absent collection reads as an empty one
               'disabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
@@ -946,6 +950,20 @@ class StartCommunicationTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
             {**primitive(True), 'service_protocol_parameters_map': PROTOCOL_PARAMETERS_MAP}))
+
+    def test_mcd_db_startcommunication_without_suppression_has_no_branch_keys(self):
+        body = concat(primitive_body(), ObjectBytes().u16(0))
+        result = load('MCD_DB_STARTCOMMUNICATION', body)
+        for key in ('pos_resp_suppress_bit_mask', 'has_pos_resp_suppress_param_sn_path',
+                    'pos_resp_suppress_param_sn_path', 'pos_resp_suppress_param_short_name'):
+            self.assertNotIn(key, result)
+
+    def test_mcd_db_diag_com_primitive_unknown_transmission_mode(self):
+        # kernel: an unknown transmission mode is kept as its number and reading goes on
+        body = concat(primitive_body(transmission=0x6A06), ObjectBytes().u16(0))
+        self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
+            'MCD_DB_STARTCOMMUNICATION',
+            {**primitive(transmission_mode=0x6A06), 'service_protocol_parameters_map': []}))
 
     def test_mcd_db_startcommunication_suppression_without_path(self):
         body = concat(primitive_body(True, suppression='name'), ObjectBytes().u16(0))
@@ -1059,6 +1077,15 @@ def job(full=False):
 
 
 class SingleEcuJobTests(unittest.TestCase):
+    def test_mcd_db_data_primitive_unknown_repetition_mode(self):
+        # kernel: an unknown repetition mode is kept as its number and reading goes on
+        body = concat(ObjectBytes().u32(1).u32(2).u32(3).absent().u8(0),
+                      data_primitive_body(repetition=3))
+        self.assertEqual(
+            load('MCD_DB_SINGLE_ECU_JOB', body),
+            typed('MCD_DB_SINGLE_ECU_JOB',
+                  {**job(), 'data_primitive': data_primitive(repetition_mode=0x6603)}))
+
     def test_mcd_db_single_ecu_job_minimal(self):
         self.assertEqual(load('MCD_DB_SINGLE_ECU_JOB', job_body()),
                          typed('MCD_DB_SINGLE_ECU_JOB', job()))

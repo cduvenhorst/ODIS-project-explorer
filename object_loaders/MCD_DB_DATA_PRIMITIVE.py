@@ -10,7 +10,8 @@ def load(stream):
     obj['access_level'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbAccessLevelImpl
     obj['audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl
     
-    obj['repetition_mode'] = enum_converters.get_MCDRepetitionMode(0x6600 + stream.loadNumericType(1))
+    # kernel: an unknown repetition mode is kept as its number by the setter
+    obj['repetition_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDRepetitionMode, 0x6600 + stream.loadNumericType(1))
     
     obj['related_data_primitives'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference) # MCDDbDiagComObjectReferences : DbDiagComObjectReference, MCDDbDataPrimitives, MCDDbDataPrimitive, MCDDbDataPrimitiveImpl
     

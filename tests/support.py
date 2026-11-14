@@ -410,5 +410,6 @@ def audience_body():
 
 
 def audience():
-    return typed('MCD_AUDIENCE', {'supplier': 1, 'development': 0, 'manufacturing': 1,
-                                  'after_sales': 0, 'after_market': 1})
+    return typed('MCD_AUDIENCE', {'supplier': True, 'development': False,
+                                  'manufacturing': True, 'after_sales': False,
+                                  'after_market': True})

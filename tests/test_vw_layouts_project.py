@@ -953,11 +953,21 @@ class AudienceTests(unittest.TestCase):
     def test_mcd_audience_minimal(self):
         body = ObjectBytes().u8(0).u8(0).u8(0).u8(0).u8(0)
         self.assertEqual(load('MCD_AUDIENCE', body), typed('MCD_AUDIENCE', {
-            'supplier': 0, 'development': 0, 'manufacturing': 0, 'after_sales': 0,
-            'after_market': 0}))
+            'supplier': False, 'development': False, 'manufacturing': False,
+            'after_sales': False, 'after_market': False}))
 
     def test_mcd_audience_all_branches(self):
         self.assertEqual(load('MCD_AUDIENCE', audience_body()), audience())
+
+    def test_mcd_audience_values_are_bool(self):
+        # kernel: the five audience flags are booleans (True == 1, so check the type)
+        result = load('MCD_AUDIENCE', audience_body())
+        for key in ('supplier', 'development', 'manufacturing', 'after_sales', 'after_market'):
+            with self.subTest(key=key):
+                self.assertIsInstance(result[key], bool)
+        self.assertEqual(
+            [result[k] for k in ('supplier', 'development', 'manufacturing', 'after_sales',
+                                 'after_market')], [True, False, True, False, True])
 
 
 # ---------------------------------------------------------------------------
