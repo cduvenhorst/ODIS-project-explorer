@@ -14,6 +14,7 @@ def load(stream):
     obj['short_name'] = stream.loadAsciiString()[0]
     
     obj['pin_number'] = stream.loadNumericType(2)
-    obj['pin_type'] = enum_converters.get_MCDConnectorPinType(stream.loadEnumMediumRange())
+    # kernel: an unknown pin type is kept as its number instead of aborting the load
+    obj['pin_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDConnectorPinType, stream.loadEnumMediumRange())
     
     return obj

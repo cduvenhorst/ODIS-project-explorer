@@ -13,6 +13,7 @@ def load(stream):
     # kernel: setDTCText / getDTCText
     obj['dtc_text'] = stream.loadUnicodeString()[0]
     
+    # kernel: fails when the level is outside 1..255; kept readable for VW projects
     obj['level'] = stream.loadNumericType(4)
     
     obj['trouble_code'] = stream.loadNumericType(4)

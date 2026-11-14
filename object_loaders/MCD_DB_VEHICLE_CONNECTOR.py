@@ -15,6 +15,7 @@ def load(stream):
     obj['short_name'] = stream.loadAsciiString()[0]
     
     # kernel: setDbVehicleConnectorPins
+    # kernel: fails when the pins are missing; kept readable for VW projects
     obj['vehicle_connector_pins'] = DbObject.load_object_from_stream_if_exists(stream)
     
     return obj

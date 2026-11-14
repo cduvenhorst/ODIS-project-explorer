@@ -31,6 +31,7 @@ def load(stream):
     obj['ecu_var_projects'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
+        # kernel: fails when an element is not project data; kept readable for VW projects
         obj['ecu_var_projects'].append(DbObject.load_object_from_stream_if_exists(stream))
     
     return obj

@@ -25,6 +25,7 @@ import importlib
 import unittest
 
 import object_loaders
+from common_utils import enum_converters
 from tests.support import (NAMED_REFS, ObjectBytes, attributed_ref, attributed_ref_body, audience,
                            audience_body, concat, diag_com_ref, diag_com_ref_body,
                            diag_com_refs, diag_com_refs_body, load, named_refs, named_refs_body,
@@ -344,7 +345,7 @@ class ReversedNameBlockIdentifierTests(unittest.TestCase):
             'MCD_DB_PHYSICAL_VEHICLE_LINK_OR_INTERFACE', {
                 **IDS, **EMPTY_NAMES, 'type': None,
                 'vehicle_connector_pins': [typed('MCD_DB_VEHICLE_CONNECTOR_PIN', {
-                    **IDS, **EMPTY_NAMES, 'pin_number': 1, 'pin_type': None})]}))
+                    **IDS, **EMPTY_NAMES, 'pin_number': 1, 'pin_type': 'eHI'})]}))
 
     def test_mcd_db_vehicle_information_identifiers(self):
         body = reversed_names_body(ObjectBytes()).u16(0).u16(0).absent()
@@ -364,7 +365,7 @@ class ReversedNameBlockIdentifierTests(unittest.TestCase):
         body = reversed_names_body(ObjectBytes()).u16(3).u16(0x7400)
         self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', body), typed(
             'MCD_DB_VEHICLE_CONNECTOR_PIN', {
-                **IDS, **EMPTY_NAMES, 'pin_number': 3, 'pin_type': None}))
+                **IDS, **EMPTY_NAMES, 'pin_number': 3, 'pin_type': 'eHI'}))
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +422,12 @@ class LogicalLinkTests(unittest.TestCase):
         body = logical_link_body(gateway_links=GATEWAY_LINKS)
         self.assertEqual(load('MCD_DB_LOGICAL_LINK', body),
                          logical_link(gateway_links=GATEWAY_LINKS))
+
+    def test_mcd_db_logical_link_unknown_gateway_mode(self):
+        # kernel: an unknown gateway mode is kept as its number instead of aborting the load
+        body = logical_link_body(True, 0x6E04, gateway_links=GATEWAY_LINKS)
+        self.assertEqual(load('MCD_DB_LOGICAL_LINK', body),
+                         logical_link(True, 0x6E04, gateway_links=GATEWAY_LINKS))
 
     def test_mcd_db_logical_link_gateway_modes(self):
         for code, name in GATEWAY_MODES:
@@ -659,8 +666,7 @@ class VehicleInfoDataTests(unittest.TestCase):
 # Vehicle connectors, links and information
 # ---------------------------------------------------------------------------
 
-# enum_converters.get_MCDConnectorPinType accepts these nine codes but has no return
-# statement, so the loaded pin type is None for every one of them today.
+# kernel: the nine pin types the converter names
 PIN_TYPE_CODES = [(0x7400, 'eHI'), (0x7401, 'eLOW'), (0x7402, 'eK'), (0x7403, 'eL'),
                   (0x7404, 'eTX'), (0x7405, 'eRX'), (0x7406, 'ePLUS'), (0x7407, 'eMINUS'),
                   (0x7408, 'eSINGLEWIRE')]
@@ -670,9 +676,9 @@ def pin_body(number=1, code=0x7400):
     return described_body(ObjectBytes()).u16(number).u16(code)
 
 
-def pin(number=1):
+def pin(number=1, pin_type='eHI'):
     return typed('MCD_DB_VEHICLE_CONNECTOR_PIN', {**described_ids(), 'pin_number': number,
-                                                  'pin_type': None})
+                                                  'pin_type': pin_type})
 
 
 def pins_body(count=0):
@@ -687,7 +693,7 @@ def pins_body(count=0):
 
 
 def pins(count=0):
-    return [None if i == 1 else pin(i + 1) for i in range(count)]
+    return [None if i == 1 else pin(i + 1, PIN_TYPE_CODES[i][1]) for i in range(count)]
 
 
 class VehicleConnectorPinTests(unittest.TestCase):
@@ -696,12 +702,25 @@ class VehicleConnectorPinTests(unittest.TestCase):
 
     def test_mcd_db_vehicle_connector_pin_all_branches(self):
         body = pin_body(12, 0x7408)
-        self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', body), pin(12))
+        self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', body), pin(12, 'eSINGLEWIRE'))
 
     def test_mcd_db_vehicle_connector_pin_types(self):
         for code, name in PIN_TYPE_CODES:
             with self.subTest(pin_type=name):
-                self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_body(5, code)), pin(5))
+                self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_body(5, code)),
+                                 pin(5, name))
+
+
+    def test_mcd_db_vehicle_connector_pin_unknown_pin_type(self):
+        # kernel: an unknown pin type is kept as its number instead of aborting the load
+        self.assertEqual(load('MCD_DB_VEHICLE_CONNECTOR_PIN', pin_body(4, 0x7409)),
+                         pin(4, 0x7409))
+
+    def test_get_mcd_connector_pin_type(self):
+        self.assertEqual(enum_converters.get_MCDConnectorPinType(0x7400), 'eHI')
+        self.assertEqual(enum_converters.get_MCDConnectorPinType(0x7408), 'eSINGLEWIRE')
+        with self.assertRaises(RuntimeError):
+            enum_converters.get_MCDConnectorPinType(0x7409)
 
 
 class VehicleConnectorPinsTests(unittest.TestCase):
@@ -887,10 +906,10 @@ class CodeInformationsTests(unittest.TestCase):
                          [code_information(2), None, code_information()])
 
 
-def trouble_code_body(groups=None):
+def trouble_code_body(groups=None, level=3):
     """MCD_DB_DIAG_TROUBLE_CODE; groups is None (flag off) or a list of object numbers."""
     body = ObjectBytes().ascii('Label').ascii('DtcName').ascii('DtcLong')
-    body.unicode('Description').u32(3).u32(0x123456)
+    body.unicode('Description').u32(level).u32(0x123456)
     body.flag(groups is not None)
     if groups is not None:
         body.u16(len(groups))
@@ -899,13 +918,13 @@ def trouble_code_body(groups=None):
     return body.ascii('Text')
 
 
-def trouble_code(groups=None):
+def trouble_code(groups=None, level=3):
     fields = {# kernel: the first string sits where the name block keeps the unique object identifier
               'unique_object_id': 'Label', 'short_name': 'DtcName',
               # kernel: the second string is the displayed trouble code (getDisplayTroubleCode)
               'display_trouble_code': 'DtcLong',
               # kernel: the unicode string is the DTC text (getDTCText)
-              'dtc_text': 'Description', 'level': 3, 'trouble_code': 0x123456,
+              'dtc_text': 'Description', 'level': level, 'trouble_code': 0x123456,
               # kernel: an absent collection reads as an empty one
               'special_data_group_refs': [],
               # kernel: the last string is the text ID of the trouble code (getDiagTroubleCodeTextID)
@@ -922,6 +941,14 @@ class DiagTroubleCodeTests(unittest.TestCase):
     def test_mcd_db_diag_trouble_code_all_branches(self):
         self.assertEqual(load('MCD_DB_DIAG_TROUBLE_CODE', trouble_code_body([7, 70000])),
                          trouble_code([7, 70000]))
+
+
+    def test_mcd_db_diag_trouble_code_level_out_of_kernel_range(self):
+        # the loader keeps the level it reads, also outside 1 to 255
+        for level in (0, 256):
+            with self.subTest(level=level):
+                self.assertEqual(load('MCD_DB_DIAG_TROUBLE_CODE', trouble_code_body(level=level)),
+                                 trouble_code(level=level))
 
 
 class AudienceTests(unittest.TestCase):

@@ -409,6 +409,9 @@ def get_MCDConnectorPinType(value):
             pin_type = 'eSINGLEWIRE'
         case _:
             raise RuntimeError('Invalid enum value ({:04X})'.format(value))
+    
+    # fixed: the name was assigned but not returned
+    return pin_type
 
 
 def get_MCDObjectType(value):

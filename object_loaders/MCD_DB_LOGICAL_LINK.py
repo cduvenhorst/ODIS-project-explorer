@@ -40,7 +40,8 @@ def load(stream):
     
     obj['physical_vehicle_link_or_interface_ref'] = common_loaders.load_reference(stream)
     
-    obj['gateway_mode'] = enum_converters.get_MCDGatewayMode(stream.loadEnumMediumRange())
+    # kernel: an unknown gateway mode is kept as its number instead of aborting the load
+    obj['gateway_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDGatewayMode, stream.loadEnumMediumRange())
     
     obj['accessed_via_gateway'] = bool(stream.loadOneByteType())
     
