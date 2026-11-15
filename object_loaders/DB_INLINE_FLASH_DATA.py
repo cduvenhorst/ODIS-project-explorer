@@ -32,7 +32,7 @@ def content_bytes(parts: list[bytearray]) -> bytes:
             raise ValueError('Inline flash data record is too short for its length word')
         length_word = int.from_bytes(first[2:6], 'little')
         length = length_word & 0x7FFFFFFF
-        # kernel: does not check the length against the record
+        # kernel: does not check the length against the record; the fork fails here instead of reading past it
         if length_word & 0x80000000 and 6 + length > len(first):
             raise ValueError('Inline flash data string is longer than its record')
         text = bytes(first[6:6 + length]) if length_word & 0x80000000 else b''

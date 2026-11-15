@@ -1220,7 +1220,7 @@ def map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum):
         case 8: # eDB_BITFIELD
             return 2 # eA_BITFIELD
         case _:
-            # kernel: an unknown base data type maps to eNO_TYPE; kept as None for VW projects
+            # kernel: an unknown base data type maps to eNO_TYPE; the caller keeps None for VW projects
             raise RuntimeError('Invalid enum value ({:04X})'.format(EDbDataType_enum))
 
 
@@ -1276,6 +1276,6 @@ def map_enum_EDbPhysicalDataType_to_MCDDataType(EDbPhysicalDataType_enum):
         case 5:
             return 3 # eA_BYTEFIELD
         case _:
-            # kernel: an unknown base data type maps to eNO_TYPE; kept as None for VW projects
+            # kernel: an unknown base data type maps to eNO_TYPE; the caller keeps None for VW projects
             raise RuntimeError('Invalid enum value ({:04X})'.format(EDbPhysicalDataType_enum))
 

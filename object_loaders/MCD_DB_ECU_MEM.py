@@ -3,7 +3,6 @@ from classes import DbObject
 
 
 def load(stream):
-    # kernel: with session renaming switched on, the default, the element name names the session and an entry without name fails
     obj = common_loaders.loadStandardNameBlock(stream)
     
     # No setter; name chosen for the flag, not taken from the kernel
@@ -20,6 +19,8 @@ def load(stream):
         obj['base_variants'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
         obj['variants'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
+    # kernel: with session renaming switched on, the default, the element name names the session
+    # and an entry without name fails
     obj['flash_sessions'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     obj['additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
