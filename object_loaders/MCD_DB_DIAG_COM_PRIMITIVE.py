@@ -13,6 +13,8 @@ def load(stream):
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     
+    # kernel: getDbRequestAsSharedPtr reports 'request not set' without the flag
+    obj['request_reference'] = None
     if stream.loadOneByteType():
         obj['request_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbRequestImpl
     

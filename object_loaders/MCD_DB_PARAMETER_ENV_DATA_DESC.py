@@ -5,6 +5,9 @@ def load(stream):
     obj = {}
     
     obj['is_parameter_short_name_path_available'] = bool(stream.loadOneByteType())
+    # kernel: getParameterShortNamePath and getParameterName report 'not set' for the one not read
+    obj['parameter_short_name_path'] = None
+    obj['parameter_name'] = None
     if obj['is_parameter_short_name_path_available']:
         obj['parameter_short_name_path'] = stream.loadAsciiString()[0]
     else:

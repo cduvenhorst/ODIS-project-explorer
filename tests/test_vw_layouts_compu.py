@@ -449,7 +449,8 @@ class DiagCodedTypeTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'coded_type': 'eMIN_MAX_LENGTH_TYPE',
             'max_length': 10, 'min_length': 2, 'termination': 'eZERO',
             'base_data_type': 'eDB_INT32', 'base_data_type_as_mcd_data_type': 'eA_INT32',
-            'encoding': 'e2C', 'is_high_low_byte_order': True, 'is_condensed_bit_mask': False})
+            'encoding': 'e2C', 'is_high_low_byte_order': True, 'is_condensed_bit_mask': False,
+            'length_key_parameter': None})
 
     def test_db_diag_coded_type_estandard_length_type(self):
         body = ObjectBytes().u8(2).u32(12).u8(1).u32(2).raw(b'\x0f\xff').u8(0).u8(3)
@@ -493,8 +494,10 @@ class DiagCodedTypeTests(unittest.TestCase):
         expected.update({'coded_type': 4, 'bit_length': 8, 'encoding': 'e2C'})
         result = load('DB_DIAG_CODED_TYPE', body)
         self.assertEqual(result, expected)
-        for key in ('bit_mask', 'max_length', 'length_key_parameter'):
+        for key in ('bit_mask', 'max_length'):
             self.assertNotIn(key, result)
+        self.assertIn('length_key_parameter', result)
+        self.assertIsNone(result['length_key_parameter'])
 
     def test_db_diag_coded_type_unknown_termination(self):
         body = ObjectBytes().u8(1).u32(4).u32(1).u8(3).u8(0).u8(3).flag(False).flag(False)

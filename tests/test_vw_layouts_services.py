@@ -261,9 +261,9 @@ def dop_field_body(environment=False):
 def dop_field(environment=False):
     if environment:
         # kernel: getDopEnvDataDescRef
-        return {'dop_env_data_desc_reference': ref('ENV')}
+        return {'dop_structure_reference': None, 'dop_env_data_desc_reference': ref('ENV')}
     # kernel: getDopStructure
-    return {'dop_structure_reference': ref('STRUCT')}
+    return {'dop_structure_reference': ref('STRUCT'), 'dop_env_data_desc_reference': None}
 
 
 class StaticFieldTests(unittest.TestCase):
@@ -366,7 +366,8 @@ def env_data_desc_body(full=False):
 def env_data_desc(full=False):
     fields = {'description': None, 'long_name': 'Long', 'short_name': 'Desc',
               'description_id': None, 'long_name_id': None, 'unique_object_id': None,
-              'env_data_parameter_map': [], 'env_data_information_map': []}
+              'env_data_parameter_map': [], 'all_value_env_data_parameter': None,
+              'env_data_information_map': []}
     if full:
         fields['env_data_parameter_map'] = [{'map_key': 1, 'value': 'S1'}, {'map_key': 2, 'value': None}]
         fields['all_value_env_data_parameter'] = typed('MCD_DB_PARAMETER', parameter())
@@ -400,7 +401,8 @@ class EnvDataDescIdentifierTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed('MCD_DB_ENV_DATA_DESC', {
             'description': 'Desc', 'long_name': 'Long', 'short_name': 'Name',
             'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI',
-            'env_data_parameter_map': [], 'env_data_information_map': []}))
+            'env_data_parameter_map': [], 'all_value_env_data_parameter': None,
+            'env_data_information_map': []}))
 
 
 class ParameterEnvDataDescTests(unittest.TestCase):
@@ -410,12 +412,14 @@ class ParameterEnvDataDescTests(unittest.TestCase):
         result = load('MCD_DB_PARAMETER_ENV_DATA_DESC', body)
         self.assertEqual(result, typed(
             'MCD_DB_PARAMETER_ENV_DATA_DESC', {
-                'is_parameter_short_name_path_available': False, 'parameter_name': 'PName',
+                'is_parameter_short_name_path_available': False,
+                'parameter_short_name_path': None, 'parameter_name': 'PName',
                 'env_data_desc': typed('MCD_DB_ENV_DATA_DESC', env_data_desc()),
                 'byte_length': 4}))
         # 0 == False, so the type has to be checked explicitly
         self.assertIs(type(result['is_parameter_short_name_path_available']), bool)
-        self.assertNotIn('parameter_short_name_path', result)
+        self.assertIn('parameter_short_name_path', result)
+        self.assertIsNone(result['parameter_short_name_path'])
 
     def test_mcd_db_parameter_env_data_desc_all_branches(self):
         body = ObjectBytes().u8(1).ascii('PATH')
@@ -424,11 +428,12 @@ class ParameterEnvDataDescTests(unittest.TestCase):
         self.assertEqual(result, typed(
             'MCD_DB_PARAMETER_ENV_DATA_DESC', {
                 'is_parameter_short_name_path_available': True,
-                'parameter_short_name_path': 'PATH',
+                'parameter_short_name_path': 'PATH', 'parameter_name': None,
                 'env_data_desc': typed('MCD_DB_ENV_DATA_DESC', env_data_desc(True)),
                 'byte_length': 4}))
         self.assertIs(type(result['is_parameter_short_name_path_available']), bool)
-        self.assertNotIn('parameter_name', result)
+        self.assertIn('parameter_name', result)
+        self.assertIsNone(result['parameter_name'])
 
 
 def multiplexer_body(full=False):
@@ -586,6 +591,8 @@ def table(full=False):
               'description': 'Description',
               'long_name': 'Long name', 'short_name': 'Table', 'table_key_map': [],
               'semantic': None, 'diag_com_primitive_references': [],
+              # kernel: getDopSimple reports 'not set' without the flag
+              'dop_simple_reference': None,
               # kernel: an absent collection reads as an empty one
               'special_data_group_references': []}
     if full:
@@ -691,7 +698,7 @@ class TableKeyTests(unittest.TestCase):
         body.u8(0).ascii(None)
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
-                **parameter(), 'table': typed('MCD_DB_TABLE', table(True)),
+                **parameter(), 'table': typed('MCD_DB_TABLE', table(True)), 'table_reference': None,
                 'is_table_row_reference': False, 'row_reference_short_name': None}))
 
 
@@ -923,9 +930,9 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
     refs = named_refs(NAMED_REFS) if full else []
     state_refs = named_attributed_refs(NAMED_ATTRIBUTED_REFS) if full else []
     fields = {'description_id': 'ID', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
-              'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive'}
-    if full:
-        fields['request_reference'] = ref('REQ')
+              'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive',
+              # kernel: getDbRequestAsSharedPtr reports 'not set' without the flag
+              'request_reference': ref('REQ') if full else None}
     # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses,
     # setIsNoOperation (fixed: upstream misspelt the key), setDbEcuStateTransitions and
     # setDbEcuStates

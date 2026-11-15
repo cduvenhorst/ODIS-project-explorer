@@ -41,6 +41,8 @@ def load(stream):
     # MCDDbDiagComObjectReferences : DbDiagComObjectReference, MCDDbDiagComPrimitives, MCDDbDiagComPrimitive, MCDDbDiagComPrimitiveImpl
     obj['diag_com_primitive_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
     
+    # kernel: getDopSimple reports 'not set' without the flag
+    obj['dop_simple_reference'] = None
     if stream.loadOneByteType():
         obj['dop_simple_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : DbDopSimple
     

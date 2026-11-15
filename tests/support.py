@@ -285,7 +285,9 @@ def diag_coded_type():
     return {'#OBJECT_TYPE': 'DB_DIAG_CODED_TYPE', 'coded_type': 'eLEADING_LENGTH_INFO_TYPE',
             'bit_length': 8, 'base_data_type': 'eDB_INT32',
             'base_data_type_as_mcd_data_type': 'eA_INT32', 'encoding': 'e2C',
-            'is_high_low_byte_order': False, 'is_condensed_bit_mask': False}
+            'is_high_low_byte_order': False, 'is_condensed_bit_mask': False,
+            # kernel: getLengthKeyParam reports 'not set' unless the type is a parameter length info type
+            'length_key_parameter': None}
 
 
 def case_base_body(structure_ref=False, ids=None):

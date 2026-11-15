@@ -4,6 +4,9 @@ from common_utils import common_loaders
 def load(stream):
     obj = {}
     
+    # kernel: getDopStructure and getDopEnvDataDescRef report 'not set' for the one the choice byte does not select
+    obj['dop_structure_reference'] = None
+    obj['dop_env_data_desc_reference'] = None
     val = stream.loadOneByteType()
     if val == 0:
         # kernel: getDopStructure

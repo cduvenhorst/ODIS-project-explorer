@@ -26,6 +26,8 @@ def load(stream):
         common_loaders.put_map_entry(obj['env_data_parameter_map'], positions, item['map_key'], item)
     
     # Not a mistake, 1b is checked twice
+    # kernel: getAllValueEnvDataParam reports 'not set' without the flag
+    obj['all_value_env_data_parameter'] = None
     if stream.loadOneByteType():
         obj['all_value_env_data_parameter'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
     

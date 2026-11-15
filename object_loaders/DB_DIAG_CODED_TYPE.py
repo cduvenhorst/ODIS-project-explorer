@@ -64,6 +64,8 @@ def load(stream):
     # kernel: the flag is read with isCondensedBitMask
     obj['is_condensed_bit_mask'] = bool(stream.loadOneByteType())
     
+    # kernel: getLengthKeyParam reports 'length key parameter not set' unless the type is a parameter length info type
+    obj['length_key_parameter'] = None
     if obj['coded_type'] == 'ePARAM_LENGTH_INFO_TYPE':
         # kernel: fails when the length key parameter is missing; kept readable for VW projects
         obj['length_key_parameter'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
