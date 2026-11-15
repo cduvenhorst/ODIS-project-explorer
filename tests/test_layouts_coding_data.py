@@ -467,7 +467,7 @@ def configuration_data(full=False):
             'configuration_record_references': [], 'base_variant_to_case_map': [],
             # kernel: an absent collection reads as an empty one
             'special_data_group_references': [], 'major': 0, 'minor': 0, 'revision': 0,
-            'is_revision_label_available': False, 'additional_audience_refs': []})
+            'is_revision_label_available': False, 'additional_audiences': []})
     return typed('MCD_DB_CONFIGURATION_DATA', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Data',
@@ -476,7 +476,7 @@ def configuration_data(full=False):
                                  {'map_key': 'BV2', 'unknown_1': 4, 'values': []}],
         'special_data_group_references': [{'object_id': 1}], 'major': 1, 'minor': 2, 'revision': 3,
         'is_revision_label_available': True,
-        'additional_audience_refs': named_refs(NAMED_REFS)})
+        'additional_audiences': named_refs(NAMED_REFS)})
 
 
 def config_info_map_body(body, entries, with_value=False):
@@ -498,7 +498,7 @@ def config_info_map(entries, with_value=False):
     for key, items in entries:
         elements = []
         for item in items:
-            element = {'object_id': item[0], 'unknown_1': item[1]}
+            element = {'object_id': item[0], 'name': item[1]}
             if with_value:
                 element['value'] = None if item[2] is None else uint(item[2])
             elements.append(element)

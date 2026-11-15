@@ -16,7 +16,8 @@ def _load_map(stream, with_value):
             # The first string is the object id of the target
             item = {}
             item['object_id'] = stream.loadAsciiString()[0]
-            item['unknown_1'] = stream.loadAsciiString()[0]
+            # kernel: the second string names the reference built from the item
+            item['name'] = stream.loadAsciiString()[0]
             if with_value:
                 item['value'] = common_loaders.loadMCDValueFromObjectStream(stream)
             entry['items'].append(item)

@@ -55,6 +55,6 @@ def load(stream):
     obj['minor'] = stream.loadNumericType(4)
     obj['revision'] = stream.loadNumericType(4)
     obj['is_revision_label_available'] = bool(stream.loadOneByteType())
-    obj['additional_audience_refs'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
+    obj['additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     return obj
