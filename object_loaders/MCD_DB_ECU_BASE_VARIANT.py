@@ -20,7 +20,7 @@ def load(stream):
         
         obj['ecu_variant_patterns'].append(item)
     
-    obj['ecu'] = {'#OBJECT_TYPE': 'MCD_DB_ECU'}
-    obj['ecu'].update(MCD_DB_ECU.load(stream))
+    # kernel: the MCDDbEcuImpl part is read into the same object
+    obj.update(MCD_DB_ECU.load(stream))
     
     return obj

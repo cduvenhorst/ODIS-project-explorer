@@ -8,7 +8,7 @@ def load(stream):
     # kernel: setGroupMembers
     obj['group_member_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
-    obj['ecu'] = {'#OBJECT_TYPE': 'MCD_DB_ECU'}
-    obj['ecu'].update(MCD_DB_ECU.load(stream))
+    # kernel: the MCDDbEcuImpl part is read into the same object
+    obj.update(MCD_DB_ECU.load(stream))
     
     return obj

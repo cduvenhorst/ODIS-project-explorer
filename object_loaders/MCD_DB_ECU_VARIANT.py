@@ -11,7 +11,7 @@ def load(stream):
     # kernel: setDbVariantPatterns
     obj['variant_patterns'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbMatchingPatternsImpl
     
-    obj['ecu'] = {'#OBJECT_TYPE': 'MCD_DB_ECU'}
-    obj['ecu'].update(MCD_DB_ECU.load(stream))
+    # kernel: the MCDDbEcuImpl part is read into the same object
+    obj.update(MCD_DB_ECU.load(stream))
     
     return obj

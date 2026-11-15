@@ -1469,7 +1469,7 @@ def get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_r
     ecu_variant = object_loader.load_object_by_reference(project_folder_path, ecu_variant_reference)
     
     # Get the ObjectID of the Layer Data object
-    ecu_variant_layer_data_ObjectID = ecu_variant['ecu']['location_references'][0]['reference']['access_key']['pool_id']
+    ecu_variant_layer_data_ObjectID = ecu_variant['location_references'][0]['reference']['access_key']['pool_id']
     
     # Load the Layer Data object from the same pool as the ECU-VARIANT object
     return object_loader.load_object_by_id(project_folder_path, ecu_variant_PoolID, ecu_variant_layer_data_ObjectID)

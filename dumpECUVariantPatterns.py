@@ -63,8 +63,8 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
             
             # The file will contain the ECU-VARIANT's name, description and matching patterns
             output_object = {}
-            output_object['name'] = ecu_variant['ecu']['long_name']
-            output_object['description'] = ecu_variant['ecu']['description']
+            output_object['name'] = ecu_variant['long_name']
+            output_object['description'] = ecu_variant['description']
             output_object['matching_patterns'] = []
             
             # Go through each matching pattern of the ECU-VARIANT
@@ -122,7 +122,7 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
             
             # Dump to the output file
             with open(ecu_variant_output_file_path, 'w', encoding='utf-8') as ecu_variant_output_file:
-                object_printer.print_object(output_object, '\'{}\''.format(ecu_variant['ecu']['short_name']), 0, ecu_variant_output_file)
+                object_printer.print_object(output_object, '\'{}\''.format(ecu_variant['short_name']), 0, ecu_variant_output_file)
                 object_printer.print_indented(0, '', ecu_variant_output_file)
 
 
