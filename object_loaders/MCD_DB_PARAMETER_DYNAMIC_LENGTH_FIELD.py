@@ -9,7 +9,7 @@ def load(stream):
     obj['offset'] = stream.loadNumericType(4)
     
     # kernel: DbObjectReference<DbDopBase>, the DOP that determines the number of items
-    obj['dop_base_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
+    obj['dop_base_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : DbDopBase
     
     # kernel: getSimpleBytePosition
     obj['simple_byte_position'] = stream.loadNumericType(4)

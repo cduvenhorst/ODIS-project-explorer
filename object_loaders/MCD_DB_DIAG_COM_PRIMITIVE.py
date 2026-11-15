@@ -14,7 +14,7 @@ def load(stream):
     obj['short_name'] = stream.loadAsciiString()[0]
     
     if stream.loadOneByteType():
-        obj['request_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestImpl
+        obj['request_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbRequestImpl
     
     # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses
     obj['positive_response_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)

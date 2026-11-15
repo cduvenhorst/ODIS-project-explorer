@@ -22,12 +22,13 @@ def load(stream):
         case 'eFUNCTIONAL_GROUP':
             obj['functional_group_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbFunctionalGroupImpl
     
-    obj['diag_com_primitive_references'] = common_loaders.loadStringToReferenceMap(stream, False, True)
+    obj['diag_com_primitive_references'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference=True)
     
     obj['dtc_dop_names'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)
     
     obj['dop_references'] = common_loaders.loadStringToReferenceMap(stream)
-    obj['table_references'] = common_loaders.loadStringToReferenceMap(stream, True)
+    # kernel: DbSemanticAttributedObjectReference, read as an attributed reference
+    obj['table_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
     obj['request_references'] = common_loaders.loadStringToReferenceMap(stream)
     obj['global_negative_response_references'] = common_loaders.loadStringToReferenceMap(stream)
     obj['functional_class_references'] = common_loaders.loadStringToReferenceMap(stream)
@@ -43,10 +44,11 @@ def load(stream):
         
         obj['functional_class_data_primitives_map'].append(item)
     
+    # kernel: DbSemanticAttributedObjectReference, read as an attributed reference
     # EcuStateChartRefs
-    obj['ecu_state_chart_references'] = common_loaders.loadStringToReferenceMap(stream, string_vector_in_reference=True)
+    obj['ecu_state_chart_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
     # SubComponentRefs
-    obj['sub_component_references'] = common_loaders.loadStringToReferenceMap(stream, string_vector_in_reference=True)
+    obj['sub_component_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
     # AdditionalAudienceRefs
     obj['additional_audience_references'] = common_loaders.loadStringToReferenceMap(stream)
     

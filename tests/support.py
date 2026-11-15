@@ -357,7 +357,7 @@ def attributed_ref_body(body, strings=()):
 
 
 def attributed_ref(strings=()):
-    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings)}
+    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'attributes': list(strings)}
 
 
 NAMED_ATTRIBUTED_REFS = [('S1', ('A1', 'A2')), ('S2', ())]
@@ -385,11 +385,9 @@ def diag_com_ref_body(body, with_strings):
 
 
 def diag_com_ref(with_strings):
-    result = {'attrib_obj_ref': attributed_ref(['A1'] if with_strings else []),
-              'number': 3, 'mcd_object_type': 'eMCDAUDIENCE'}
-    if with_strings:
-        result['strings'] = ['V1', 'V2']
-    return result
+    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'attributes': ['A1'] if with_strings else [],
+            'audience_filter': 3, 'object_type': 'eMCDAUDIENCE',
+            'protocol_short_name_references': ['V1', 'V2'] if with_strings else None}
 
 
 def diag_com_refs_body(body):

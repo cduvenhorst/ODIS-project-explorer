@@ -64,7 +64,7 @@ def ref_map(prefix, count, vector=False):
     for i in range(1, count + 1):
         reference = {'object_id': '%sR%d' % (prefix, i), 'pool_id': '%sP%d' % (prefix, i)}
         if vector:
-            reference['strings'] = ['%sS%da' % (prefix, i), '%sS%db' % (prefix, i)]
+            reference['attributes'] = ['%sS%da' % (prefix, i), '%sS%db' % (prefix, i)]
         result.append({'map_key': '%sK%d' % (prefix, i), 'reference': reference})
     return result
 

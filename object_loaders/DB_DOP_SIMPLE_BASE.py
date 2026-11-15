@@ -30,14 +30,14 @@ def load(stream):
     # kernel: the unit reference is set with setDbUnit
     obj['unit_reference'] = None
     if stream.loadOneByteType():
-        obj['unit_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbUnitImpl
+        obj['unit_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbUnitImpl
     
     obj['internal_constraint_reference'] = None
     if stream.loadOneByteType():
-        obj['internal_constraint_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
+        obj['internal_constraint_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDConstraintImpl
     
     obj['physical_constraint_reference'] = None
     if stream.loadOneByteType():
-        obj['physical_constraint_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
+        obj['physical_constraint_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDConstraintImpl
     
     return obj

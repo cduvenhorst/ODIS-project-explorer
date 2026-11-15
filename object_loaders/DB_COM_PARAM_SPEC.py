@@ -21,7 +21,7 @@ def load(stream):
         item['request_parameters_references'] = []
         counter = stream.loadNumericType(2)
         for i in range(counter):
-            ref = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestParametersImpl
+            ref = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbRequestParametersImpl
             item['request_parameters_references'].append(ref)
         
         obj['protocol_stack_map'].append(item)

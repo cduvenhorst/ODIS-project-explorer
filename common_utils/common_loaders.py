@@ -15,7 +15,7 @@ def loadNamedReferenceThirdWord(stream: DbStream) -> str | int | None:
 
 
 # "Standard" loader for DbObjectReference
-def load_reference(stream, third_string = True, string_vector = False):
+def load_reference(stream, third_string = True):
     obj = {}
     
     obj['object_id'] = stream.loadAsciiString()[0]
@@ -23,26 +23,21 @@ def load_reference(stream, third_string = True, string_vector = False):
     if third_string:
         obj['object_id2'] = loadNamedReferenceThirdWord(stream)
     
-    if string_vector:
-        obj['strings'] = []
-        counter = stream.loadOneByteType()
-        for i in range(counter):
-            obj['strings'].append(stream.loadAsciiString()[0])
-    
     return obj
 
 
 # Custom loader for DbDiagComObjectReference
 def load_DbDiagComObjectReference(stream, dummy = 0):
-    item = {}
+    # kernel: DbDiagComObjectReference extends the attributed reference; the base part is stored in the same object
+    item = loadDbAttributedObjectReference(stream)
     
-    item['attrib_obj_ref'] = loadDbAttributedObjectReference(stream)
+    # kernel: setAudienceFilter
+    item['audience_filter'] = stream.loadNumericType(1)
+    # kernel: the object type is stored without a check
+    item['object_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDObjectType, stream.loadEnumMediumRange())
     
-    item['number'] = stream.loadNumericType(1)
-    item['mcd_object_type'] = enum_converters.get_MCDObjectType(stream.loadEnumMediumRange())
-    
-    if stream.loadOneByteType():
-        item['strings'] = loadAsciiStringVectorFromObjectStream(stream)
+    # kernel: isProtocolSnRefsAvailable, getProtocolSnRefs
+    item['protocol_short_name_references'] = loadAsciiStringVectorFromObjectStream(stream) if stream.loadOneByteType() else None
     
     return item
 
@@ -105,7 +100,7 @@ def loadStringVectorMapFromObjectStream(stream):
 
 
 # String-to-reference map (key + reference)
-def loadStringToReferenceMap(stream, string_vector_in_reference = False, is_DbDiagComObjectReference = False, is_three_word_reference = False):
+def loadStringToReferenceMap(stream, is_DbDiagComObjectReference = False, is_three_word_reference = False, is_attributed_reference = False):
     obj = []
     
     map_items = stream.loadNumericType(2)
@@ -118,25 +113,28 @@ def loadStringToReferenceMap(stream, string_vector_in_reference = False, is_DbDi
             item['reference'] = load_DbDiagComObjectReference(stream)
         elif is_three_word_reference:
             item['reference'] = load_reference(stream, True)
+        elif is_attributed_reference:
+            item['reference'] = loadDbAttributedObjectReference(stream)
         else:
-            item['reference'] = load_reference(stream, False, string_vector_in_reference)
+            item['reference'] = load_reference(stream, False)
         
         obj.append(item)
     
     return obj
 
 
-# Attributed reference (reference + strings)
+# Attributed reference (reference + attributes)
 def loadDbAttributedObjectReference(stream, dummy = 0):
     obj = {}
     
     obj['object_id'] = stream.loadAsciiString()[0]
     obj['pool_id'] = stream.loadAsciiString()[0]
     
-    obj['strings'] = []
+    # kernel: getAttributeCount and getSemantic read this vector
+    obj['attributes'] = []
     counter = stream.loadOneByteType()
     for i in range(counter):
-        obj['strings'].append(stream.loadAsciiString()[0])
+        obj['attributes'].append(stream.loadAsciiString()[0])
     
     return obj
 

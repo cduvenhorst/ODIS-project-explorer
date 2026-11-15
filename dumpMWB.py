@@ -1489,7 +1489,7 @@ def get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_pat
         return None
             
     # Load the DIAG-SERVICE object from its reference
-    rdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_RDBI['reference']['attrib_obj_ref'])
+    rdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_RDBI['reference'])
     
     # The service should only have one positve response referenced
     if len(rdbi_service['data_primitive']['diag_com_primitive']['positive_response_references']) != 1:

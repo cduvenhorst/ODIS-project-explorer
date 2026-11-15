@@ -10,7 +10,7 @@ def load(stream):
     for i in range(map_items):
         item = {}
         item['map_key'] = stream.loadNumericType(4)
-        item['reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbDiagTroubleCodeImpl
+        item['reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbDiagTroubleCodeImpl
         obj['diag_trouble_code_references'].append(item)
     
     # LinkedDtcDops

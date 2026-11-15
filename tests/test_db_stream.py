@@ -174,6 +174,18 @@ class NamedReferenceTests(unittest.TestCase):
             common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream),
             [{'name': '', 'reference': {'object_id': 'O', 'pool_id': 'P'}}])
 
+    def test_diag_com_reference_unknown_object_type(self):
+        # kernel: the object type is stored without a check
+        body = support.attributed_ref_body(support.ObjectBytes(), []).u8(3).u16(0x7FFF).u8(0)
+        result = common_loaders.load_DbDiagComObjectReference(open_stream(body))
+        self.assertEqual(result['object_type'], 0x7FFF)
+        self.assertIsNone(result['protocol_short_name_references'])
+
+    def test_diag_com_reference_empty_protocol_short_name_references(self):
+        body = support.attributed_ref_body(support.ObjectBytes(), []).u8(3).u16(0x0DAC).u8(1).u16(0)
+        result = common_loaders.load_DbDiagComObjectReference(open_stream(body))
+        self.assertEqual(result['protocol_short_name_references'], [])
+
     def test_string_to_reference_map_accepts_zero_key(self):
         body = support.ObjectBytes().u16(1).u32(0).ascii('O').ascii('P')
         stream = open_stream(body)

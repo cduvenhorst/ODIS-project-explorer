@@ -282,7 +282,7 @@ def value_attributed_ref_body(body, strings=(), value=None):
 
 
 def value_attributed_ref(strings=(), value=None):
-    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'strings': list(strings),
+    return {'object_id': 'OBJ', 'pool_id': 'POOL', 'attributes': list(strings),
             'value': None if value is None else uint(value)}
 
 

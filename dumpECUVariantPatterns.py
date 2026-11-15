@@ -84,7 +84,7 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
                 
                 # Get the parameters
                 for matching_parameter in matching_parameters:
-                    match matching_parameter['diag_com_primitive_reference']['attrib_obj_ref']['object_id']:
+                    match matching_parameter['diag_com_primitive_reference']['object_id']:
                         # ODX File Identifier
                         case 'DiagnServi_ReadDataByIdentASAMODXFileIdent':
                             file_identifier = matching_parameter['expected_value_string']
@@ -103,7 +103,7 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
                             return
                         
                         case _:
-                            raise RuntimeError('Unknown matching parameter: {}'.format(matching_parameter['diag_com_primitive_reference']['attrib_obj_ref']['object_id']))
+                            raise RuntimeError('Unknown matching parameter: {}'.format(matching_parameter['diag_com_primitive_reference']['object_id']))
                 
                 # The pattern object contains the Identifier and Version, if defined
                 output_matching_parameters = {

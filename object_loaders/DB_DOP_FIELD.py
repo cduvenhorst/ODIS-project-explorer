@@ -7,9 +7,9 @@ def load(stream):
     val = stream.loadOneByteType()
     if val == 0:
         # kernel: getDopStructure
-        obj['dop_structure_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopStructure
+        obj['dop_structure_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : DbDopStructure
     else:
         # kernel: getDopEnvDataDescRef
-        obj['dop_env_data_desc_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopEnvDataDesc
+        obj['dop_env_data_desc_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : DbDopEnvDataDesc
     
     return obj

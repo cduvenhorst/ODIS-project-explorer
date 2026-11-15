@@ -10,6 +10,6 @@ def load(stream):
     obj['revision'] = stream.loadUnicodeString()[0]
     obj['entry_point'] = stream.loadUnicodeString()[0]
     
-    obj['library_references'] = common_loaders.loadStringToReferenceMap(stream, False, False, True)
+    obj['library_references'] = common_loaders.loadStringToReferenceMap(stream, is_three_word_reference=True)
         
     return obj

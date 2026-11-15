@@ -36,7 +36,7 @@ def load(stream):
     obj['diag_com_primitive_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
     
     if stream.loadOneByteType():
-        obj['dop_simple_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopSimple
+        obj['dop_simple_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : DbDopSimple
     
     # kernel: an absent collection reads as an empty one
     obj['special_data_group_references'] = []
