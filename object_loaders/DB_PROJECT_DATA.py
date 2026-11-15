@@ -6,11 +6,19 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    # kernel: setLocationMap
+    # kernel: setLocationMap; std::map ordered by the number of the access key string; a later duplicate key replaces the earlier entry; kept in read order
     obj['location_map'] = []
+    positions = {}
     counter = stream.loadNumericType(2)
     for i in range(counter):
-        obj['location_map'].append(MCD_DB_LOCATION_REFERENCES.load(stream))
+        entry = MCD_DB_LOCATION_REFERENCES.load(stream)
+        access_key = entry['access_key']
+        key_string = access_key['string'] if access_key is not None else None
+        if key_string is None:
+            # No key: the entry is always appended
+            obj['location_map'].append(entry)
+        else:
+            common_loaders.put_map_entry(obj['location_map'], positions, key_string, entry)
     
     obj['functional_group_reference'] = common_loaders.load_reference(stream)
     # kernel: setBaseVariantRef

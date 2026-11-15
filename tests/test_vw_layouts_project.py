@@ -688,7 +688,10 @@ def minimal_variant_body():
 
 
 def project_data_body(full=False):
-    body = location_refs_body(ObjectBytes(), full)
+    return project_data_tail_body(location_refs_body(ObjectBytes(), full), full)
+
+
+def project_data_tail_body(body, full):
     ref3_body(body, 'FG')
     ref3_body(body, 'BV')
     named_refs_body(body, NAMED_REFS if full else ())
@@ -724,6 +727,15 @@ class ProjectDataTests(unittest.TestCase):
 
     def test_db_project_data_all_branches(self):
         self.assertEqual(load('DB_PROJECT_DATA', project_data_body(True)), project_data(True))
+
+    def test_db_project_data_duplicate_location_key_replaces_earlier_entry(self):
+        # kernel: std::map keyed by the access key string; a later duplicate replaces the earlier entry
+        body = ObjectBytes().u16(2)
+        for object_id in ('LocA', 'LocB'):
+            body.ascii(object_id).ascii('LocP').nested('MCD_ACCESS_KEY', access_key_body(True))
+        result = load('DB_PROJECT_DATA', project_data_tail_body(body, False))
+        self.assertEqual(result['location_map'],
+                         [{'object_id': 'LocB', 'pool_id': 'LocP', 'access_key': access_key(True)}])
 
 
 class VehicleInfoDataTests(unittest.TestCase):
