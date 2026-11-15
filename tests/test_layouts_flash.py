@@ -258,7 +258,7 @@ class FlashDataTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_FLASH_DATA', body), typed('MCD_DB_FLASH_DATA', {
             **name_block(), 'data_file_name_or_inline_flash_data': None,
             'data_reference': {'kind': 'external_file', 'file_name': None},
-            'late_bound_or_is_inline': False, 'data_format': 0x6B01,
+            'late_bound_or_is_inline': False, 'data_format': 'eBINARY',
             'encryption_compression_method': None, 'flash_file_sub_directory_name': None}))
 
     def test_mcd_db_flash_data_all_branches(self):
@@ -268,7 +268,7 @@ class FlashDataTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_FLASH_DATA', body), typed('MCD_DB_FLASH_DATA', {
             **name_block(True), 'data_file_name_or_inline_flash_data': 'DSA_INLINE_POOLDDDSSSBBBKEY',
             'data_reference': {'kind': 'big_data_object', 'pool_id': 'POOL', 'object_id': 'KEY'},
-            'late_bound_or_is_inline': True, 'data_format': 0x6B02,
+            'late_bound_or_is_inline': True, 'data_format': 'eINTEL_HEX',
             'encryption_compression_method': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
             'flash_file_sub_directory_name': 'SUB'}))
 
@@ -310,7 +310,7 @@ class FlashDataTests(unittest.TestCase):
         flash_data = typed('MCD_DB_FLASH_DATA', {
             **name_block(), 'data_file_name_or_inline_flash_data': None,
             'data_reference': {'kind': 'external_file', 'file_name': None},
-            'late_bound_or_is_inline': False, 'data_format': 0x6B01,
+            'late_bound_or_is_inline': False, 'data_format': 'eBINARY',
             'encryption_compression_method': None, 'flash_file_sub_directory_name': None})
         self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
             **name_block(True), 'address_offset': 2**33, 'data_block_type': 'APPLICATION',
@@ -327,6 +327,13 @@ SESSION_KEYS = ('short_name', 'odx_session_short_name', 'long_name', 'descriptio
                 'expected_idents', 'flash_job_name', 'has_flash_session_classes',
                 'flash_sessions_classes', 'securities', 'flash_key', 'priority', 'is_download',
                 'special_data_group_references')
+
+
+class FlashDataFormatTests(unittest.TestCase):
+    def test_mcd_db_flash_data_unknown_data_format(self):
+        # kernel: an unknown flash data format is kept as its number
+        body = name_block_body(ObjectBytes()).ascii(None).u8(0).u16(0x6B04).u8(255).ascii(None)
+        self.assertEqual(load('MCD_DB_FLASH_DATA', body)['data_format'], 0x6B04)
 
 
 class FlashTopLevelTests(unittest.TestCase):

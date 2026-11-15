@@ -1,4 +1,4 @@
-from common_utils import common_loaders
+from common_utils import common_loaders, enum_converters
 
 INLINE_PREFIX = 'DSA_INLINE_'
 OBJECT_MARKER = 'DDDSSSAAA'
@@ -29,8 +29,8 @@ def load(stream):
     obj['data_file_name_or_inline_flash_data'] = stream.loadAsciiString()[0]
     obj['data_reference'] = decode_data_reference(obj['data_file_name_or_inline_flash_data'])
     obj['late_bound_or_is_inline'] = bool(stream.loadOneByteType())
-    # 0x6B01/0x6B02/0x6B03 are inferred as binary/Intel hex/Motorola, no name table was found
-    obj['data_format'] = stream.loadNumericType(2)
+    # kernel: MCDFlashDataFormat; an unknown value is kept as its number
+    obj['data_format'] = enum_converters.enum_name_or_number(enum_converters.get_MCDFlashDataFormat, stream.loadNumericType(2))
     obj['encryption_compression_method'] = common_loaders.loadMCDValueFromObjectStream(stream)
     obj['flash_file_sub_directory_name'] = stream.loadAsciiString()[0]
     

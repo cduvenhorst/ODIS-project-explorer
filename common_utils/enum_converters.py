@@ -249,7 +249,8 @@ object_types = {
   0x0308: 'MCD_DB_ENV_DATA_CONNECTORS',
   0x0309: 'MCD_DB_ENV_DATA_DESC',
   0x030A: 'MCD_DB_FUNCTION_DIAG_COM_CONNECTOR',
-  0x030B: 'MCD_DB_FUNCTION_DIAG_COM_CONNECTORS',
+  # kernel: names 0x030B like 0x030A
+  0x030B: 'MCD_DB_FUNCTION_DIAG_COM_CONNECTOR',
   0x030C: 'MCD_DB_FUNCTION_DICTIONARY',
   0x030D: 'MCD_DB_FUNCTION_DICTIONARIES',
   0x030E: 'MCD_DB_FUNCTION_IN_PARAMETER',
@@ -1017,6 +1018,18 @@ def get_MCDResponseType(value):
             raise RuntimeError('Invalid enum value ({:04X})'.format(value))
 
 
+def get_MCDFlashDataFormat(value):
+    match value:
+        case 0x6B01:
+            return 'eBINARY'
+        case 0x6B02:
+            return 'eINTEL_HEX'
+        case 0x6B03:
+            return 'eMOTOROLA_S'
+        case _:
+            raise RuntimeError('Invalid enum value ({:04X})'.format(value))
+
+
 def get_EDbCompuCategory(value):
     match value:
         case 0:
@@ -1198,6 +1211,7 @@ def map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum):
         case 4: # eDB_ASCIISTRING
             return 1 # eA_ASCIISTRING
         case 5: # eDB_UTF8STRING
+            # kernel: maps a UTF-8 string to eA_UNICODE2STRING; kept apart as eA_UTF8STRING for the ODX export and the VW tests
             return 0x001D # eA_UTF8STRING -> "artificial"
         case 6: # eDB_UNICODE2STRING
             return 14 # eA_UNICODE2STRING
@@ -1206,7 +1220,7 @@ def map_enum_EDbDataType_to_MCDDataType(EDbDataType_enum):
         case 8: # eDB_BITFIELD
             return 2 # eA_BITFIELD
         case _:
-            #return 0xFF
+            # kernel: an unknown base data type maps to eNO_TYPE; kept as None for VW projects
             raise RuntimeError('Invalid enum value ({:04X})'.format(EDbDataType_enum))
 
 
@@ -1243,8 +1257,8 @@ def map_enum_EDbPhysicalDataType_to_EDbDataType(EDbPhysicalDataType_enum):
         case 5:
             return 7
         case _:
-            #return 0
-            raise RuntimeError('Invalid enum value ({:04X})'.format(EDbPhysicalDataType_enum))
+            # kernel: an unknown physical base data type maps to 0
+            return 0
 
 
 def map_enum_EDbPhysicalDataType_to_MCDDataType(EDbPhysicalDataType_enum):
@@ -1262,6 +1276,6 @@ def map_enum_EDbPhysicalDataType_to_MCDDataType(EDbPhysicalDataType_enum):
         case 5:
             return 3 # eA_BYTEFIELD
         case _:
-            #return 0xFF
+            # kernel: an unknown base data type maps to eNO_TYPE; kept as None for VW projects
             raise RuntimeError('Invalid enum value ({:04X})'.format(EDbPhysicalDataType_enum))
 

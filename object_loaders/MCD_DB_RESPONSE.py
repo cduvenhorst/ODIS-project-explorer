@@ -15,7 +15,8 @@ def load(stream):
     
     obj['response_parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbResponseParametersImpl
     
-    obj['response_type'] = enum_converters.get_MCDResponseType(stream.loadEnumMediumRange())
+    # kernel: an unknown response type is kept as its number
+    obj['response_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDResponseType, stream.loadEnumMediumRange())
     
     # kernel: an absent collection reads as an empty one
     obj['special_data_group_references'] = []

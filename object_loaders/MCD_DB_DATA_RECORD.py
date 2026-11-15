@@ -1,5 +1,5 @@
 from classes import DbObject
-from common_utils import common_loaders
+from common_utils import common_loaders, enum_converters
 
 
 def load(stream):
@@ -16,7 +16,8 @@ def load(stream):
     
     obj['audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl
     obj['binary_data'] = common_loaders.loadBytefieldFromObjectStream(stream)
-    obj['data_format'] = stream.loadEnumMediumRange() # MCDFlashDataFormat
+    # kernel: MCDFlashDataFormat; an unknown value is kept as its number
+    obj['data_format'] = enum_converters.enum_name_or_number(enum_converters.get_MCDFlashDataFormat, stream.loadEnumMediumRange())
     obj['data_id'] = common_loaders.loadMCDValueFromObjectStream(stream)
     
     # The object follows its own presence byte, independent of this flag

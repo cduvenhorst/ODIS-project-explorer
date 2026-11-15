@@ -336,7 +336,7 @@ def data_record(full=False, **changes):
     return typed('MCD_DB_DATA_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
-        'audience_state': audience(), 'binary_data': b'\x01\x02', 'data_format': 0x6B01,
+        'audience_state': audience(), 'binary_data': b'\x01\x02', 'data_format': 'eBINARY',
         'data_id': uint(42), 'has_coding_data': True, 'coding_data': coding_data(True),
         'special_data_group_references': [{'object_id': 5}], 'key': 'KEY', 'rule': 'RULE',
         'configuration_record_value_size': 16, 'parent_configuration_data_short_name': 'PARENT',

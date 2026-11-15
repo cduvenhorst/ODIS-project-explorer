@@ -872,6 +872,11 @@ class ResponseTests(unittest.TestCase):
                 self.assertEqual(load('MCD_DB_RESPONSE', response_body(response_type=code)),
                                  typed('MCD_DB_RESPONSE', response(response_type=name)))
 
+    def test_mcd_db_response_unknown_type(self):
+        # kernel: an unknown response type is kept as its number
+        self.assertEqual(load('MCD_DB_RESPONSE', response_body(response_type=0x6F04)),
+                         typed('MCD_DB_RESPONSE', response(response_type=0x6F04)))
+
 
 # ---------------------------------------------------------------------------
 # Diagnostic communication primitives, services, jobs
