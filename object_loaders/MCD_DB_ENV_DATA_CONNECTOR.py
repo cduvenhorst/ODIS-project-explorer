@@ -5,12 +5,13 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    # No setter; non-zero selects a DbOdxLink instead of the reference
-    obj['env_data_desc_dop_is_odx_link'] = bool(stream.loadOneByteType())
+    # kernel: setEnvDataDescDop(DbOdxLink); the byte only selects the branch
+    is_odx_link = bool(stream.loadOneByteType())
     obj['env_data_desc_dop_reference'] = None
-    obj['env_data_desc_dop_odx_link'] = None
-    if obj['env_data_desc_dop_is_odx_link']:
-        obj['env_data_desc_dop_odx_link'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
+    obj['env_data_desc_dop'] = None
+    if is_odx_link:
+        # kernel: fails when the ODX link is missing; kept readable for VW projects
+        obj['env_data_desc_dop'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
     else:
         obj['env_data_desc_dop_reference'] = common_loaders.load_reference(stream, False)
     

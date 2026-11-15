@@ -5,12 +5,13 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    # No setter; non-zero selects a DbOdxLink instead of the reference
-    obj['table_is_odx_link'] = bool(stream.loadOneByteType())
+    # kernel: setDbTable(DbOdxLink); the byte only selects the branch
+    is_odx_link = bool(stream.loadOneByteType())
     obj['table_reference'] = None
-    obj['table_odx_link'] = None
-    if obj['table_is_odx_link']:
-        obj['table_odx_link'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
+    obj['table'] = None
+    if is_odx_link:
+        # kernel: fails when the ODX link is missing; kept readable for VW projects
+        obj['table'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLink
     else:
         obj['table_reference'] = common_loaders.loadDbAttributedObjectReference(stream)
     
