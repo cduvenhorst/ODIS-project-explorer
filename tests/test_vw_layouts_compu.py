@@ -656,8 +656,8 @@ class DopSimpleBaseTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_DOP_SIMPLE_BASE', 'short_name': 'DOP',
             'compu_method': compu_method(), 'diag_coded_type': diag_coded_type(),
             'physical_type': physical_type(),
-            'physical_to_coded_index_map': [{'map_key': 1, 'item': 10}, {'map_key': 2, 'item': 20}],
-            'coded_to_physical_index_map': [{'map_key': 3, 'item': 30}, {'map_key': 4, 'item': 40}],
+            'physical_to_coded_index_map': [{'map_key': 1, 'value': 10}, {'map_key': 2, 'value': 20}],
+            'coded_to_physical_index_map': [{'map_key': 3, 'value': 30}, {'map_key': 4, 'value': 40}],
             # kernel: the unit reference is set with setDbUnit
             'unit_reference': {'object_id': 'UNIT', 'pool_id': 'POOL'},
             'internal_constraint_reference': {'object_id': 'INT', 'pool_id': 'POOL'},
@@ -671,9 +671,9 @@ class DopSimpleBaseTests(unittest.TestCase):
         body.flag(False).flag(False).flag(False)
         loaded = load('DB_DOP_SIMPLE_BASE', body)
         self.assertEqual(loaded['physical_to_coded_index_map'],
-                         [{'map_key': 1, 'item': 30}, {'map_key': 2, 'item': 20}])
+                         [{'map_key': 1, 'value': 30}, {'map_key': 2, 'value': 20}])
         self.assertEqual(loaded['coded_to_physical_index_map'],
-                         [{'map_key': 5, 'item': 60}, {'map_key': 6, 'item': 50}])
+                         [{'map_key': 5, 'value': 60}, {'map_key': 6, 'value': 50}])
 
 
 class KeyVectorTests(unittest.TestCase):
