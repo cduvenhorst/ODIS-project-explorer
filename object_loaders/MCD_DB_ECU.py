@@ -17,12 +17,16 @@ def load(stream):
     for i in range(counter):
         item = {}
         
-        item['name'] = stream.loadAsciiString()[0]
+        item['name'], name_word = stream.loadAsciiString()
         
         item['reference'] = {}
         item['reference']['object_id'] = stream.loadAsciiString()[0]
         item['reference']['pool_id'] = stream.loadAsciiString()[0]
         item['reference']['access_key'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAccessKeyImpl
+        
+        # kernel: a location without name aborts loading, checked after the whole element is read
+        if name_word == 0:
+            raise RuntimeError('Named reference without name')
         
         obj['location_refs'].append(item)
     

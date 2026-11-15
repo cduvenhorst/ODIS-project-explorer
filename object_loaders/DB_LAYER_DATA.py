@@ -32,15 +32,16 @@ def load(stream):
     obj['global_negative_response_refs_map'] = common_loaders.loadStringToReferenceMap(stream)
     obj['functional_class_refs_map'] = common_loaders.loadStringToReferenceMap(stream)
     
-    obj['functional_class_data_primitive_refs_map'] = []
+    # kernel: setFunctClassDataPrimitivesMap; the entry's own map is the data primitives map
+    obj['funct_class_data_primitives_map'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         
-        item['string'] = stream.loadAsciiString()[0]
-        item['map'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)
+        item['map_key'] = stream.loadAsciiString()[0]
+        item['data_primitives_map'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)
         
-        obj['functional_class_data_primitive_refs_map'].append(item)
+        obj['funct_class_data_primitives_map'].append(item)
     
     # EcuStateChartRefs
     obj['ecu_state_chart_refs_map'] = common_loaders.loadStringToReferenceMap(stream, string_vector_in_reference=True)

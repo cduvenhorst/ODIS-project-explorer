@@ -235,6 +235,12 @@ class EcuTests(unittest.TestCase):
             'description': 'Ecu description', 'unique_object_id': 'UOI',
             'long_name_id': 'LNID', 'description_id': 'DID', 'location_refs': []})
 
+    def test_mcd_db_ecu_location_without_name(self):
+        # kernel: a location without name aborts loading
+        body = ecu_body(ObjectBytes(), [(None, 'OBJ', 'POOL', False)])
+        with self.assertRaisesRegex(RuntimeError, 'Named reference without name'):
+            load('MCD_DB_ECU', body)
+
 
 # ---------------------------------------------------------------------------
 # Variants and groups
@@ -512,9 +518,9 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=Fals
               'request_refs_map': ref_map('Request', n),
               'global_negative_response_refs_map': ref_map('Negative', n),
               'functional_class_refs_map': ref_map('Class', n),
-              'functional_class_data_primitive_refs_map': [
-                  {'string': 'Primitive%d' % i,
-                   'map': diag_com_map()} for i in range(1, n + 1)],
+              'funct_class_data_primitives_map': [
+                  {'map_key': 'Primitive%d' % i,
+                   'data_primitives_map': diag_com_map()} for i in range(1, n + 1)],
               'env_data_descs_map': [{'map_key': 'Env1', 'env_data_desc': audience()},
                                      {'map_key': 'Env2', 'env_data_desc': None}] if full else [],
               'parent_layers_vector': strings('Parent', n),
