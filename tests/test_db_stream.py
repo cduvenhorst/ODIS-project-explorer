@@ -160,6 +160,22 @@ class DbStreamTests(unittest.TestCase):
 
 
 class NamedReferenceTests(unittest.TestCase):
+    def test_string_to_reference_map_duplicate_key_replaces_earlier_entry(self):
+        # kernel: std::map; a later duplicate key replaces the earlier entry in its place
+        body = support.ObjectBytes().u16(3)
+        for key, object_id in (('K', 'O1'), ('L', 'O2'), ('K', 'O3')):
+            body.ascii(key).ascii(object_id).ascii('P')
+        self.assertEqual(common_loaders.loadStringToReferenceMap(open_stream(body)),
+                         [{'map_key': 'K', 'reference': {'object_id': 'O3', 'pool_id': 'P'}},
+                          {'map_key': 'L', 'reference': {'object_id': 'O2', 'pool_id': 'P'}}])
+
+    def test_string_to_reference_map_duplicate_embedded_key(self):
+        body = support.ObjectBytes().u16(2)
+        for object_id in ('O1', 'O2'):
+            body.embedded_ascii('K').ascii(object_id).ascii('P')
+        self.assertEqual(common_loaders.loadStringToReferenceMap(open_stream(body)),
+                         [{'map_key': 'K', 'reference': {'object_id': 'O2', 'pool_id': 'P'}}])
+
     def test_named_collection_rejects_zero_name(self):
         body = support.ObjectBytes().u16(1).u32(0).ascii('O').ascii('P')
         stream = open_stream(body)

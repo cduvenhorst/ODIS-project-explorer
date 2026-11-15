@@ -250,7 +250,7 @@ def connector(full=False):
         'uncompressed_size': 0x1000, 'start_address': 0x8000,
         'write_parameter_value_map': string_map([('K1', 'V1')]),
         'write_parameter_value_short_name_path_map': string_map([('K3', 'V4')]),
-        'read_parameter_value_map': string_map([('K2', 'V2'), ('K2', 'V3')]),
+        'read_parameter_value_map': string_map([('K2', 'V3')]),  # the later duplicate key replaces the earlier entry
         'read_parameter_value_short_name_path_map': string_map([('K4', 'V5')])})
 
 

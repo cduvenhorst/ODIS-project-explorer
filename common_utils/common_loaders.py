@@ -73,6 +73,28 @@ def loadNamedObjectReferenceCollectionFromObjectStream(stream, reference_loader 
 
 
 # ASCII string vector
+def put_map_entry(entries: list[dict], positions: dict[object, int], kernel_key: object, entry: dict) -> None:
+    """Add an entry to a map kept as a list in read order; a later entry with a known key replaces the earlier one in its place."""
+    if kernel_key in positions:
+        entries[positions[kernel_key]] = entry
+    else:
+        positions[kernel_key] = len(entries)
+        entries.append(entry)
+
+
+def add_set_value(values: list, seen: set, kernel_key: object, value: object) -> None:
+    """Add a value to a set kept as a list in read order; a value with a known key is dropped."""
+    if kernel_key not in seen:
+        seen.add(kernel_key)
+        values.append(value)
+
+
+def kernel_string_key(loaded: tuple[str | None, int | None]) -> object:
+    """Return the kernel's comparison key of a loaded string: its word, or its text when it is stored in the object."""
+    text, word = loaded
+    return text if word is None else word
+
+
 def loadAsciiStringVectorFromObjectStream(stream):
     obj = []
     
@@ -86,15 +108,18 @@ def loadAsciiStringVectorFromObjectStream(stream):
 # ASCII string vector map (key + string vector)
 def loadStringVectorMapFromObjectStream(stream):
     obj = []
+    positions = {}
     
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         item['strings'] = loadAsciiStringVectorFromObjectStream(stream)
         
-        obj.append(item)
+        put_map_entry(obj, positions, kernel_string_key(key), item)
     
     return obj
 
@@ -102,12 +127,15 @@ def loadStringVectorMapFromObjectStream(stream):
 # String-to-reference map (key + reference)
 def loadStringToReferenceMap(stream, is_DbDiagComObjectReference = False, is_three_word_reference = False, is_attributed_reference = False):
     obj = []
+    positions = {}
     
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         
         if is_DbDiagComObjectReference:
             item['reference'] = load_DbDiagComObjectReference(stream)
@@ -118,7 +146,7 @@ def loadStringToReferenceMap(stream, is_DbDiagComObjectReference = False, is_thr
         else:
             item['reference'] = load_reference(stream, False)
         
-        obj.append(item)
+        put_map_entry(obj, positions, kernel_string_key(key), item)
     
     return obj
 
@@ -238,15 +266,18 @@ def loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(s
 def loadAsciiToUnicodeStringMap(stream: DbStream) -> list[dict[str, str | None]]:
     """Read a u16-counted map of ASCII keys to Unicode values, in stream order."""
     obj = []
+    positions = {}
     
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         item['value'] = stream.loadUnicodeString()[0]
         
-        obj.append(item)
+        put_map_entry(obj, positions, kernel_string_key(key), item)
     
     return obj
 
@@ -255,16 +286,19 @@ def loadAsciiToUnicodeStringMap(stream: DbStream) -> list[dict[str, str | None]]
 def loadServiceProtocolParametersMap(stream: DbStream) -> list[dict[str, object]]:
     """Read a u16-counted map of ASCII keys to optional request parameters objects, in stream order."""
     obj = []
+    positions = {}
     
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         # kernel: fails when an entry has no parameters object; kept readable for VW projects
         item['service_protocol_parameters'] = DbObject.load_object_from_stream_if_exists(stream)
         
-        obj.append(item)
+        put_map_entry(obj, positions, kernel_string_key(key), item)
     
     return obj
 
