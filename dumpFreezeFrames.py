@@ -77,7 +77,7 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
             
             # Search for the Freeze Frame Multiplexer
             freeze_frame_dop = None
-            for dop_ref_entry in ecu_variant_layer_data['dop_refs_map']:
+            for dop_ref_entry in ecu_variant_layer_data['dop_references']:
                 if dop_ref_entry['map_key'] == 'MUX_DTCExtenDataRecor':
                     freeze_frame_dop = object_loader.load_object_by_reference(project_folder_path, dop_ref_entry['reference'])
                     break

@@ -38,7 +38,7 @@ def get_protocol_layer_data_list(object_loader, project_folder_path):
                     
     # The UDS protocol's layer data may reference "parent layers" which will have layer data objects too
     protocol_layer_data_list = []
-    for protocol_parent_layer_PoolID in uds_protocol_layer_data['parent_layers_vector']:
+    for protocol_parent_layer_PoolID in uds_protocol_layer_data['parent_layers']:
         protocol_layer_data_list.append(object_loader.load_object_by_id(project_folder_path, protocol_parent_layer_PoolID, '#RtGen_DB_LAYER_DATA'))
     
     # Add the main protocols layer data at the end of the list, since they will be parsed in this order and these are the least important layers
@@ -1479,7 +1479,7 @@ def get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_r
 def get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
     # Search for the DIAG-COMM reference with name 'DiagnServi_ReadDataByIdentMeasuValue' (might not exist)
     diag_com_ref_RDBI = None
-    for diag_com_ref in ecu_variant_layer_data['diag_com_refs']:
+    for diag_com_ref in ecu_variant_layer_data['diag_com_primitive_references']:
         if diag_com_ref['map_key'] == 'DiagnServi_ReadDataByIdentMeasuValue':
             diag_com_ref_RDBI = diag_com_ref
             break

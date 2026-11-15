@@ -22,7 +22,7 @@ pbl_record_manager = PblRecordManager(pbl_dll_path)
 def get_adaptation_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
     # Search for the DIAG-COMM reference with name 'DiagnServi_WriteDataByIdentCalibData' (might not exist)
     diag_com_ref_WDBI = None
-    for diag_com_ref in ecu_variant_layer_data['diag_com_refs']:
+    for diag_com_ref in ecu_variant_layer_data['diag_com_primitive_references']:
         if diag_com_ref['map_key'] == 'DiagnServi_WriteDataByIdentCalibData':
             diag_com_ref_WDBI = diag_com_ref
             break

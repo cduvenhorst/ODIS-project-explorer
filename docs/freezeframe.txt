@@ -4,7 +4,7 @@ RSP_PR_UDSOnCAN_Resp_ReadDTCInforReporDTCExtenDataRecorByDTCNumbe
 [ALL] DOP_PR_UDSOnCAN_ENVDAT_DTCExtenDataRecor
 DOP_PR_UDSOnCAN_EOPDUF_DTCExtenDataRecor
 [EOPF] DOP_PR_UDSOnCAN_STRUC_DTCExtenDataRecor
-MUX_DTCExtenDataRecor -> LD['dop_refs_map']
+MUX_DTCExtenDataRecor -> LD['dop_references']
 
 
 

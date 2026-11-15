@@ -14,12 +14,13 @@ The vehicle information data loader follows the kernel: the second counter intro
 collection base_var_prot_id_to_link_info_map instead of having to be 0.  The access key
 loader accepts an empty or short last string (stored as layer_data_object_id) instead of
 indexing into it.
-The layer data loader follows the kernel: unk_string, unk_map1 and unk_map2 are named
-unknown_1, not_inherited_tables_map and not_inherited_diag_comms_map, and the state chart,
-sub component, additional audience, special data group and multiple ECU job references are
-read as the keys ecu_state_chart_refs_map, sub_component_refs_map,
-additional_audience_refs_map, special_data_group_refs (empty without presence byte) and
-multiple_ecu_job_refs_map instead of having to be empty.
+The layer data loader follows the kernel: the layer name, the two not inherited maps (tables
+and diagnostic communication primitives), and the state chart, sub component, additional
+audience, special data group and multiple ECU job references are read as the keys
+layer_name, not_inherited_tables, not_inherited_diag_com_primitives,
+ecu_state_chart_references, sub_component_references, additional_audience_references,
+special_data_group_references (empty without presence byte) and multiple_ecu_job_references
+instead of having to be empty.
 """
 import importlib
 import unittest
@@ -509,42 +510,42 @@ def diag_com_map():
 
 def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=False):
     n = 2 if full else 0
-    fields = {'layer_id': 'Layer', 'unknown_1': 'Unknown', 'protocol_type': 'ProtoType',
+    fields = {'layer_id': 'Layer', 'layer_name': 'Unknown', 'protocol_type': 'ProtoType',
               'protocol_stack_short_name': 'Stack', 'com_param_spec_pool_id': 'ComParamPool',
-              'mcd_location_type': location,
-              'diag_com_refs': diag_com_map() if full else [],
-              'dtc_dops': strings('Dtc', n), 'dop_refs_map': ref_map('Dop', n),
-              'table_refs_map': ref_map('Table', n, vector=True),
-              'request_refs_map': ref_map('Request', n),
-              'global_negative_response_refs_map': ref_map('Negative', n),
-              'functional_class_refs_map': ref_map('Class', n),
-              'funct_class_data_primitives_map': [
+              'location_type': location,
+              'diag_com_primitive_references': diag_com_map() if full else [],
+              'dtc_dop_names': strings('Dtc', n), 'dop_references': ref_map('Dop', n),
+              'table_references': ref_map('Table', n, vector=True),
+              'request_references': ref_map('Request', n),
+              'global_negative_response_references': ref_map('Negative', n),
+              'functional_class_references': ref_map('Class', n),
+              'functional_class_data_primitives_map': [
                   {'map_key': 'Primitive%d' % i,
                    'data_primitives_map': diag_com_map()} for i in range(1, n + 1)],
-              'env_data_descs_map': [{'map_key': 'Env1', 'env_data_desc': audience()},
+              'env_data_descs': [{'map_key': 'Env1', 'env_data_desc': audience()},
                                      {'map_key': 'Env2', 'env_data_desc': None}] if full else [],
-              'parent_layers_vector': strings('Parent', n),
-              'shared_data_parent_layers_vector': strings('Shared', n),
-              'not_inherited_dops_map': vector_map('NotInherited', n),
-              'not_inherited_tables_map': vector_map('Unknown1', n),
-              'not_inherited_diag_comms_map': vector_map('Unknown2', n),
-              'not_inherited_glob_neg_responses_map': vector_map('NotNegative', n),
-              'unit_group_refs_map': ref_map('UnitGroup', n),
-              'unit_refs_map': ref_map('Unit', n),
-              'protocol_parameters': [audience(), None] if full else [],
-              'ecu_state_chart_refs_map': [], 'sub_component_refs_map': [],
+              'parent_layers': strings('Parent', n),
+              'shared_data_parent_layers': strings('Shared', n),
+              'not_inherited_dops': vector_map('NotInherited', n),
+              'not_inherited_tables': vector_map('Unknown1', n),
+              'not_inherited_diag_com_primitives': vector_map('Unknown2', n),
+              'not_inherited_global_negative_responses': vector_map('NotNegative', n),
+              'unit_group_references': ref_map('UnitGroup', n),
+              'unit_references': ref_map('Unit', n),
+              'layer_com_params': [audience(), None] if full else [],
+              'ecu_state_chart_references': [], 'sub_component_references': [],
               # kernel: an absent collection reads as an empty one
-              'additional_audience_refs_map': [], 'special_data_group_refs': [],
-              'multiple_ecu_job_refs_map': []}
+              'additional_audience_references': [], 'special_data_group_refs': [],
+              'multiple_ecu_job_references': []}
     if kernel_collections:
-        fields['ecu_state_chart_refs_map'] = [
+        fields['ecu_state_chart_references'] = [
             {'map_key': 'SC1', 'reference': attributed_ref(('A1',))}]
-        fields['sub_component_refs_map'] = [
+        fields['sub_component_references'] = [
             {'map_key': 'SUB1', 'reference': attributed_ref()}]
-        fields['additional_audience_refs_map'] = [
+        fields['additional_audience_references'] = [
             {'map_key': 'AA1', 'reference': {'object_id': 'AUD1', 'pool_id': 'POOL'}}]
         fields['special_data_group_refs'] = [{'object_id': 7}, {'object_id': 9}]
-        fields['multiple_ecu_job_refs_map'] = [{'map_key': 'J1', 'reference': diag_com_ref(True)}]
+        fields['multiple_ecu_job_references'] = [{'map_key': 'J1', 'reference': diag_com_ref(True)}]
     return typed('DB_LAYER_DATA', fields)
 
 

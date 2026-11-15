@@ -69,7 +69,7 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
             ecu_variant_layer_data = get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_map[ecu_variant_name])
         
         # Get all DTC DOP names
-        dtc_dops = ecu_variant_layer_data['dtc_dops']
+        dtc_dops = ecu_variant_layer_data['dtc_dop_names']
         
         # If there are none, there is nothing left to do
         if len(dtc_dops) == 0:

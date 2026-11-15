@@ -207,7 +207,7 @@ class ObjectLoader:
             # Search for the item in the map which has the needed ObjectID as the key
             dop_reference = None
             for layer_data_object in layer_data_objects:
-                for dop_reference_map_item in layer_data_object['dop_refs_map']:
+                for dop_reference_map_item in layer_data_object['dop_references']:
                     if dop_reference_map_item['map_key'] == ObjectID:
                         dop_reference = dop_reference_map_item['reference']
                         break
