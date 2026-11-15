@@ -219,12 +219,21 @@ class UnknownNamedStreamTests(unittest.TestCase):
         body = support.ObjectBytes().raw(b'#>\x00D\x01#>\x01')
         self.assertEqual(self.load(body), {})
 
-    def test_truncated_unknown_named_stream_is_rejected(self):
+    def test_truncated_unknown_named_stream_ends_reading(self):
         # after the name of the unknown stream fewer bytes remain than an end marker needs
         body = support.ObjectBytes().raw(b'#>\x00D\x01#>\x01#<\x00#>\x00')
         stream = open_stream(body)
-        with self.assertRaisesRegex(RuntimeError, 'runs past the object end'):
-            common_loaders.loadNamedStreams(stream, self.READERS)
+        self.assertEqual(common_loaders.loadNamedStreams(stream, self.READERS), {})
+
+    def test_named_stream_rest_is_ignored(self):
+        # kernel: bytes a reader leaves in a named stream are ignored
+        body = (support.ObjectBytes().raw(b'#>\x00A').ascii('X').ascii('REST').raw(b'#>\x01#<\x00')
+                .raw(b'B').ascii('Y').raw(b'#>\x01'))
+        self.assertEqual(self.load(body), {'A': 'X', 'B': 'Y'})
+
+    def test_last_named_stream_rest_is_ignored(self):
+        body = support.ObjectBytes().raw(b'#>\x00A').ascii('X').ascii('REST').raw(b'#>\x01')
+        self.assertEqual(self.load(body), {'A': 'X'})
 
 
 if __name__ == '__main__':

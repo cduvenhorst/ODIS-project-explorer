@@ -288,15 +288,19 @@ class StateChartDataTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Cannot read'):
             load('DB_STATE_CHART_DATA', body)
 
-    def test_db_state_chart_data_too_many_references(self):
+    def test_db_state_chart_data_ignores_extra_references(self):
+        # kernel: bytes a reader leaves in a named stream are ignored
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(PRECONDITION, precondition_body(diag_com=False))])])
         body.raw(b'#>\x00C')
         table_ref_body(body, 1)
         table_ref_body(body, 2)
         body.raw(b'#>\x01')
-        with self.assertRaisesRegex(RuntimeError, 'Unexpected marker'):
-            load('DB_STATE_CHART_DATA', body)
+        result = load('DB_STATE_CHART_DATA', body)
+        expected = precondition(diag_com=False)
+        expected['table_parameter'] = table_ref(1)
+        self.assertEqual(result['state_precondition_definitions_map'],
+                         [{'map_key': 'S1', 'items': [expected]}])
 
     def test_db_state_chart_data_old_layout(self):
         body = map_body(ObjectBytes(), [])

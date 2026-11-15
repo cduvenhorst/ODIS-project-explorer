@@ -279,7 +279,6 @@ def loadAdditionalAudiencesFromObjectStream(stream: DbStream) -> list[dict[str, 
 
 
 STREAM_BEGIN = bytes.fromhex('233E00')  # '#>' 0
-STREAM_END = bytes.fromhex('233E01')  # '#>' 1
 STREAM_SEPARATOR = bytes.fromhex('233C00')  # '#<' 0
 MARKER_LENGTH = 3
 
@@ -288,6 +287,24 @@ def _expect_marker(stream: DbStream, marker: bytes) -> None:
     data = stream.read(MARKER_LENGTH)
     if data != marker:
         raise RuntimeError('Unexpected marker in named streams: {}'.format(DbStream.bytearray_to_string(data)))
+
+
+def _skip_to_next_named_stream(stream: DbStream) -> bool:
+    """Skip the rest of the current named stream; False means no further named stream follows.
+
+    Reads up to and including the next separator and returns True. Without a following separator
+    (or when the next separator is the object end marker) it reads up to the object end marker
+    and returns False.
+    """
+    if stream.get_length() < MARKER_LENGTH:
+        return False
+    end = stream.find(STREAM_SEPARATOR)
+    if end < 0 or end == stream.get_length() - MARKER_LENGTH:
+        stream.read(stream.get_length() - MARKER_LENGTH)
+        return False
+    stream.read(end)
+    _expect_marker(stream, STREAM_SEPARATOR)
+    return True
 
 
 def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], object]]) -> dict[str, object]:
@@ -300,24 +317,14 @@ def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], o
     streams: dict[str, object] = {}
     if stream.get_length() == MARKER_LENGTH:
         return streams
+    # kernel: an object without the start marker has no named streams; kept as an error for VW projects
     _expect_marker(stream, STREAM_BEGIN)
     while True:
         name = chr(stream.read(1)[0])
         if name in readers:
+            # kernel: does not register a named stream without a following separator; kept readable for VW projects
             streams[name] = readers[name](stream)
-            _expect_marker(stream, STREAM_END)
-        else:
-            # kernel: unknown named streams are ignored; skip up to and including the next separator,
-            # or up to the object end marker when no separator follows
-            if stream.get_length() < MARKER_LENGTH:
-                raise RuntimeError('Named stream {} runs past the object end'.format(name))
-            end = stream.find(STREAM_SEPARATOR)
-            if end < 0 or end == stream.get_length() - MARKER_LENGTH:
-                stream.read(stream.get_length() - MARKER_LENGTH)
-                return streams
-            stream.read(end)
-            _expect_marker(stream, STREAM_SEPARATOR)
-            continue
-        if stream.get_length() == MARKER_LENGTH:
+        # kernel: unknown named streams are ignored, and so are bytes a reader leaves in a named stream
+        # kernel: a part without a following separator ends the split without error
+        if not _skip_to_next_named_stream(stream):
             return streams
-        _expect_marker(stream, STREAM_SEPARATOR)
