@@ -24,9 +24,9 @@ def load(stream):
     obj['coding_data'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbCodingDataImpl
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['key'] = stream.loadAsciiString()[0]
     obj['rule'] = stream.loadAsciiString()[0]

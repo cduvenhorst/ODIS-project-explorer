@@ -278,7 +278,7 @@ class CompuBaseTests(unittest.TestCase):
             'code_information': {'#OBJECT_TYPE': 'MCD_DB_CODE_INFORMATION',
                                  'code_file': 'code.bin', 'encryption': None,
                                  'syntax': 'syntax', 'revision': None,
-                                 'entry_point': 'entry', 'library_refs': []},
+                                 'entry_point': 'entry', 'library_references': []},
             'compu_inverse_value': uint(2)})
 
 
@@ -408,9 +408,9 @@ class ComParamSpecTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_COM_PARAM_SPEC',
             'prot_stack_map': [
                 # kernel: the key is the short name of the protocol stack
-                {'map_key': 'STACK1', 'request_parameters_refs': [
+                {'map_key': 'STACK1', 'request_parameters_references': [
                     {'object_id': 'R1', 'pool_id': 'P1'}, {'object_id': 'R2', 'pool_id': 'P2'}]},
-                {'map_key': 'STACK2', 'request_parameters_refs': []}]})
+                {'map_key': 'STACK2', 'request_parameters_references': []}]})
 
 
 class DiagCodedTypeTests(unittest.TestCase):
@@ -437,10 +437,10 @@ class DiagCodedTypeTests(unittest.TestCase):
                 # kernel: cached MCDDataType, None when not set
                 'parameter_type': None, 'diag_coded_type': None,
                 # kernel: DbObjectReference<DbDopBase>
-                'dop_base_ref': None, 'dop_base': None,
+                'dop_base_reference': None, 'dop_base': None,
                 'is_byte_pos_available': False, 'is_protocol_parameter': False,
                 # kernel: an absent collection reads as an empty one
-                'special_data_group_refs': [], 'nrc_const_values': None}})
+                'special_data_group_references': [], 'nrc_const_values': None}})
 
     def test_db_diag_coded_type_emin_max_length_type(self):
         body = ObjectBytes().u8(1).u32(10).u32(2).u8(1).u8(0).u8(3).flag(True).flag(False)
@@ -636,8 +636,8 @@ class DopSimpleBaseTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_DOP_SIMPLE_BASE', 'short_name': 'DOP', 'compu_method': None,
             'diag_coded_type': None, 'physical_type': None, 'phys_to_coded_index_map': [],
             # kernel: the unit reference is set with setDbUnit
-            'coded_to_phys_index_map': [], 'unit_ref': None, 'internal_constraint_ref': None,
-            'physical_constraint_ref': None})
+            'coded_to_phys_index_map': [], 'unit_reference': None, 'internal_constraint_reference': None,
+            'physical_constraint_reference': None})
 
     def test_db_dop_simple_base_all_branches(self):
         body = ObjectBytes().ascii('DOP')
@@ -656,9 +656,9 @@ class DopSimpleBaseTests(unittest.TestCase):
             'phys_to_coded_index_map': [{'map_key': 1, 'item': 10}, {'map_key': 2, 'item': 20}],
             'coded_to_phys_index_map': [{'map_key': 3, 'item': 30}, {'map_key': 4, 'item': 40}],
             # kernel: the unit reference is set with setDbUnit
-            'unit_ref': {'object_id': 'UNIT', 'pool_id': 'POOL'},
-            'internal_constraint_ref': {'object_id': 'INT', 'pool_id': 'POOL'},
-            'physical_constraint_ref': {'object_id': 'PHYS', 'pool_id': 'POOL'}})
+            'unit_reference': {'object_id': 'UNIT', 'pool_id': 'POOL'},
+            'internal_constraint_reference': {'object_id': 'INT', 'pool_id': 'POOL'},
+            'physical_constraint_reference': {'object_id': 'PHYS', 'pool_id': 'POOL'}})
 
 
 class KeyVectorTests(unittest.TestCase):
@@ -677,13 +677,13 @@ class SwitchKeyTests(unittest.TestCase):
         body = ObjectBytes().u8(0).u32(0).ascii('DOP').ascii('POOL')
         self.assertEqual(load('DB_SWITCH_KEY', body), {
             '#OBJECT_TYPE': 'DB_SWITCH_KEY', 'bit_position': 0, 'byte_position': 0,
-            'is_byte_pos_available': True, 'dop_base_ref': {'object_id': 'DOP', 'pool_id': 'POOL'}})
+            'is_byte_pos_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': 'POOL'}})
 
     def test_db_switch_key_all_branches(self):
         body = ObjectBytes().u8(7).u32(300).ascii('DOP').ascii(None)
         self.assertEqual(load('DB_SWITCH_KEY', body), {
             '#OBJECT_TYPE': 'DB_SWITCH_KEY', 'bit_position': 7, 'byte_position': 300,
-            'is_byte_pos_available': True, 'dop_base_ref': {'object_id': 'DOP', 'pool_id': None}})
+            'is_byte_pos_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': None}})
 
 
 class IntervalTests(unittest.TestCase):
@@ -784,7 +784,7 @@ class UnitTests(unittest.TestCase):
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
             'description_id': None, 'display_name': None, 'factor_si_to_unit': 1000.0, 'offset_si_to_unit': 0.0,
             # kernel: an absent collection reads as an empty one
-            'physical_dimension': None, 'unit_group_refs': []})
+            'physical_dimension': None, 'unit_group_references': []})
 
     def test_mcd_db_unit_all_branches(self):
         body = self.head().unicode('km').double(0.001).double(-273.15)
@@ -796,7 +796,7 @@ class UnitTests(unittest.TestCase):
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
             'description_id': None, 'display_name': 'km', 'factor_si_to_unit': 0.001, 'offset_si_to_unit': -273.15,
             'physical_dimension': dimension(),
-            'unit_group_refs': [
+            'unit_group_references': [
                 {'name': 'G1', 'reference': {'object_id': 'GRP1', 'pool_id': 'POOL'}},
                 {'name': 'G2', 'reference': {'object_id': 'GRP2', 'pool_id': 'POOL'}}]})
 
@@ -806,7 +806,7 @@ class UnitTests(unittest.TestCase):
             '#OBJECT_TYPE': 'MCD_DB_UNIT', 'short_name': 'U_km', 'long_name': 'Kilometer',
             'description': None, 'unique_object_id': 'UID', 'long_name_id': None,
             'description_id': None, 'display_name': None, 'factor_si_to_unit': 1.0, 'offset_si_to_unit': 0.0,
-            'physical_dimension': None, 'unit_group_refs': []})
+            'physical_dimension': None, 'unit_group_references': []})
 
     def test_mcd_db_unit_identifiers(self):
         body = (ObjectBytes().ascii('U_km').unicode('Kilometer').unicode(None)
@@ -817,7 +817,7 @@ class UnitTests(unittest.TestCase):
             'description': None, 'unique_object_id': 'UOI', 'long_name_id': 'LNID',
             'description_id': 'DID', 'display_name': None, 'factor_si_to_unit': 1000.0,
             # kernel: an absent collection reads as an empty one
-            'offset_si_to_unit': 0.0, 'physical_dimension': None, 'unit_group_refs': []})
+            'offset_si_to_unit': 0.0, 'physical_dimension': None, 'unit_group_references': []})
 
 
 class UnitGroupTests(unittest.TestCase):
@@ -832,7 +832,7 @@ class UnitGroupTests(unittest.TestCase):
         return {'#OBJECT_TYPE': 'MCD_DB_UNIT_GROUP', 'short_name': 'Group',
                 'long_name': 'Group long', 'description': None, 'unique_object_id': None,
                 'long_name_id': None, 'description_id': None, 'category': category,
-                'unit_refs': refs}
+                'unit_references': refs}
 
     def test_mcd_db_unit_group_minimal(self):
         body = self.head().u16(0x0F00).u16(0)

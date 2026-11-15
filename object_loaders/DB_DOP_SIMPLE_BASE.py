@@ -28,16 +28,16 @@ def load(stream):
         obj['coded_to_phys_index_map'].append(item)
     
     # kernel: the unit reference is set with setDbUnit
-    obj['unit_ref'] = None
+    obj['unit_reference'] = None
     if stream.loadOneByteType():
-        obj['unit_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbUnitImpl
+        obj['unit_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbUnitImpl
     
-    obj['internal_constraint_ref'] = None
+    obj['internal_constraint_reference'] = None
     if stream.loadOneByteType():
-        obj['internal_constraint_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
+        obj['internal_constraint_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
     
-    obj['physical_constraint_ref'] = None
+    obj['physical_constraint_reference'] = None
     if stream.loadOneByteType():
-        obj['physical_constraint_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
+        obj['physical_constraint_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDConstraintImpl
     
     return obj

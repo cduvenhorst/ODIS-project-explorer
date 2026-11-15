@@ -12,12 +12,12 @@ def load(stream):
     for i in range(counter):
         obj['location_map'].append(MCD_DB_LOCATION_REFERENCES.load(stream))
     
-    obj['functional_group_ref'] = common_loaders.load_reference(stream)
+    obj['functional_group_reference'] = common_loaders.load_reference(stream)
     # kernel: setBaseVariantRef
-    obj['base_variant_ref'] = common_loaders.load_reference(stream)
+    obj['base_variant_reference'] = common_loaders.load_reference(stream)
     # kernel: setEcuVariantRefs
-    obj['ecu_variant_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    obj['ecu_variant_ref'] = common_loaders.load_reference(stream)
+    obj['ecu_variant_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['ecu_variant_reference'] = common_loaders.load_reference(stream)
     
     # kernel: setContainerShortName, setLayerShortName and setLayerID
     obj['container_short_name'] = stream.loadAsciiString()[0]

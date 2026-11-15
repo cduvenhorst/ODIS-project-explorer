@@ -291,7 +291,7 @@ class FlashDataTests(unittest.TestCase):
             **name_block(), 'address_offset': 0, 'data_block_type': None, 'flash_data': None,
             'flash_filters': None, 'flash_segments': None, 'own_idents': None, 'securities': None,
             # kernel: an absent collection reads as an empty one
-            'special_data_group_refs': [], 'has_logical_block_index': False,
+            'special_data_group_references': [], 'has_logical_block_index': False,
             'logical_block_index': None, 'audience_state': None,
             'disabled_additional_audiences': [], 'enabled_additional_audiences': []}))
 
@@ -315,7 +315,7 @@ class FlashDataTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
             **name_block(True), 'address_offset': 2**33, 'data_block_type': 'APPLICATION',
             'flash_data': flash_data, 'flash_filters': [], 'flash_segments': [], 'own_idents': [],
-            'securities': [], 'special_data_group_refs': [{'object_id': 7}],
+            'securities': [], 'special_data_group_references': [{'object_id': 7}],
             'has_logical_block_index': True, 'logical_block_index': 3,
             'audience_state': support.audience(),
             'disabled_additional_audiences': support.named_refs(support.NAMED_REFS),
@@ -326,7 +326,7 @@ SESSION_KEYS = ('short_name', 'odx_session_short_name', 'long_name', 'descriptio
                 'long_name_id', 'description_id', 'flash_pool_id', 'checksums', 'data_blocks',
                 'expected_idents', 'flash_job_name', 'has_flash_session_classes',
                 'flash_session_classes', 'securities', 'flash_key', 'priority', 'is_download',
-                'special_data_group_refs')
+                'special_data_group_references')
 
 
 class FlashTopLevelTests(unittest.TestCase):
@@ -337,7 +337,7 @@ class FlashTopLevelTests(unittest.TestCase):
         expected = {key: None for key in SESSION_KEYS}
         # kernel: an absent collection reads as an empty one
         expected.update({'has_flash_session_classes': False, 'flash_session_classes': [],
-                         'priority': 0, 'is_download': False, 'special_data_group_refs': []})
+                         'priority': 0, 'is_download': False, 'special_data_group_references': []})
         self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', expected))
 
     def test_mcd_db_flash_session_all_branches(self):
@@ -357,7 +357,7 @@ class FlashTopLevelTests(unittest.TestCase):
             'expected_idents': [], 'flash_job_name': 'JOB', 'has_flash_session_classes': True,
             'flash_session_classes': support.named_refs(support.NAMED_REFS), 'securities': [],
             'flash_key': 'K', 'priority': 5, 'is_download': True,
-            'special_data_group_refs': [{'object_id': 7}]}))
+            'special_data_group_references': [{'object_id': 7}]}))
 
     def test_mcd_db_ecu_mem_minimal(self):
         body = name_block_body(ObjectBytes()).u8(0).u16(0).u16(0).u16(0).u8(0).u8(0).u8(0).u8(0)
@@ -366,8 +366,8 @@ class FlashTopLevelTests(unittest.TestCase):
             'layers': None, 'all_variant_layers': None, 'flash_sessions': [],
             # kernel: an absent collection reads as an empty one
             'additional_audiences': [], 'has_flash_session_classes': False,
-            'flash_session_class_refs': [], 'has_physical_memory': False,
-            'physical_memory_ref': None, 'special_data_group_refs': []}))
+            'flash_session_class_references': [], 'has_physical_memory': False,
+            'physical_memory_reference': None, 'special_data_group_references': []}))
 
     def test_mcd_db_ecu_mem_all_branches(self):
         body = name_block_body(ObjectBytes(), True).u8(1)
@@ -383,13 +383,13 @@ class FlashTopLevelTests(unittest.TestCase):
             'flash_sessions': support.named_attributed_refs(support.NAMED_ATTRIBUTED_REFS),
             'additional_audiences': support.named_refs(support.NAMED_REFS),
             'has_flash_session_classes': True,
-            'flash_session_class_refs': support.named_refs(support.NAMED_REFS),
-            'has_physical_memory': True, 'physical_memory_ref': support.attributed_ref(('X',)),
-            'special_data_group_refs': [{'object_id': 7}]}))
+            'flash_session_class_references': support.named_refs(support.NAMED_REFS),
+            'has_physical_memory': True, 'physical_memory_reference': support.attributed_ref(('X',)),
+            'special_data_group_references': [{'object_id': 7}]}))
 
     def test_db_flash_data_minimal(self):
         self.assertEqual(load('DB_FLASH_DATA', ObjectBytes().u16(0)),
-                         {'#OBJECT_TYPE': 'DB_FLASH_DATA', 'ecu_mem_refs': []})
+                         {'#OBJECT_TYPE': 'DB_FLASH_DATA', 'ecu_mem_references': []})
 
     def test_db_flash_data_all_branches(self):
         body = ObjectBytes().u16(2)
@@ -397,7 +397,7 @@ class FlashTopLevelTests(unittest.TestCase):
         body.embedded_ascii('EMB').ascii('OBJ').ascii('POOL')
         self.assertEqual(load('DB_FLASH_DATA', body), {
             '#OBJECT_TYPE': 'DB_FLASH_DATA',
-            'ecu_mem_refs': [{'map_key': 'MEM', 'reference': support.ref()},
+            'ecu_mem_references': [{'map_key': 'MEM', 'reference': support.ref()},
                              {'map_key': 'EMB', 'reference': support.ref()}]})
 
 

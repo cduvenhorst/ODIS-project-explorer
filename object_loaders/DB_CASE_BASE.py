@@ -13,6 +13,6 @@ def load(stream):
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['description_id'] = stream.loadAsciiString()[0]
     
-    obj['structure_dop_ref'] = None if not stream.loadOneByteType() else common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
+    obj['structure_dop_reference'] = None if not stream.loadOneByteType() else common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
     
     return obj

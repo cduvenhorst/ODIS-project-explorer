@@ -302,7 +302,7 @@ def case_base(structure_ref=None, ids=None):
     unique_object_id, long_name_id, description_id = ids or (None, None, None)
     return {'short_name': 'Case', 'long_name': 'Case long', 'description': None,
             'unique_object_id': unique_object_id, 'long_name_id': long_name_id,
-            'description_id': description_id, 'structure_dop_ref': structure_ref}
+            'description_id': description_id, 'structure_dop_reference': structure_ref}
 
 
 def case_body():

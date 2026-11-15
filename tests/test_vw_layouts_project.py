@@ -180,7 +180,7 @@ def ecu_body(body, locations=(), unique_object_id=None):
 def ecu_fields(locations=(), unique_object_id=None):
     return {'short_name': 'Ecu', 'long_name': 'Ecu long', 'description': 'Ecu description',
             'unique_object_id': unique_object_id, 'long_name_id': 'LongId', 'description_id': 'DescId',
-            'location_refs': [{'name': name,
+            'location_references': [{'name': name,
                                'reference': {'object_id': object_id, 'pool_id': pool_id,
                                              'access_key': access_key(True) if with_key else None}}
                               for name, object_id, pool_id, with_key in locations]}
@@ -234,7 +234,7 @@ class EcuTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_ECU', body), {
             '#OBJECT_TYPE': 'MCD_DB_ECU', 'short_name': 'Ecu', 'long_name': 'Ecu long',
             'description': 'Ecu description', 'unique_object_id': 'UOI',
-            'long_name_id': 'LNID', 'description_id': 'DID', 'location_refs': []})
+            'long_name_id': 'LNID', 'description_id': 'DID', 'location_references': []})
 
     def test_mcd_db_ecu_location_without_name(self):
         # kernel: a location without name aborts loading
@@ -268,14 +268,14 @@ class EcuBaseVariantTests(unittest.TestCase):
         matching_patterns_body(body, False)
         ecu_body(body)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
-            'ecu_variant_refs': [], 'ecu_variant_patterns_map': [], 'ecu': ecu_part()}))
+            'ecu_variant_references': [], 'ecu_variant_patterns_map': [], 'ecu': ecu_part()}))
 
     def test_mcd_db_ecu_base_variant_all_branches(self):
         body = named_refs_body(ObjectBytes(), NAMED_REFS)
         matching_patterns_body(body, True)
         ecu_body(body, ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
-            'ecu_variant_refs': named_refs(NAMED_REFS),
+            'ecu_variant_references': named_refs(NAMED_REFS),
             'ecu_variant_patterns_map': matching_patterns(True), 'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
@@ -300,12 +300,12 @@ class FunctionalGroupTests(unittest.TestCase):
     def test_mcd_db_functional_group_minimal(self):
         body = ecu_body(named_refs_body(ObjectBytes()))
         self.assertEqual(load('MCD_DB_FUNCTIONAL_GROUP', body), typed('MCD_DB_FUNCTIONAL_GROUP', {
-            'group_member_refs': [], 'ecu': ecu_part()}))
+            'group_member_references': [], 'ecu': ecu_part()}))
 
     def test_mcd_db_functional_group_all_branches(self):
         body = ecu_body(named_refs_body(ObjectBytes(), NAMED_REFS), ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_GROUP', body), typed('MCD_DB_FUNCTIONAL_GROUP', {
-            'group_member_refs': named_refs(NAMED_REFS),
+            'group_member_references': named_refs(NAMED_REFS),
             'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
@@ -316,14 +316,14 @@ class FunctionalClassTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed('MCD_DB_FUNCTIONAL_CLASS', {
             'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None,
-            'data_primitive_refs': []}))
+            'data_primitive_references': []}))
 
     def test_mcd_db_functional_class_all_branches(self):
         body = ObjectBytes().ascii(None).ascii(None).ascii(None)
         body.unicode('Description').unicode('Long name').ascii('Name')
         diag_com_refs_body(body)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed('MCD_DB_FUNCTIONAL_CLASS', {
-            **described_ids(), 'data_primitive_refs': diag_com_refs()}))
+            **described_ids(), 'data_primitive_references': diag_com_refs()}))
 
 
 IDS = {'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI'}
@@ -342,7 +342,7 @@ class ReversedNameBlockIdentifierTests(unittest.TestCase):
     def test_mcd_db_functional_class_identifiers(self):
         body = reversed_names_body(ObjectBytes()).u16(0)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_CLASS', body), typed(
-            'MCD_DB_FUNCTIONAL_CLASS', {**IDS, **EMPTY_NAMES, 'data_primitive_refs': []}))
+            'MCD_DB_FUNCTIONAL_CLASS', {**IDS, **EMPTY_NAMES, 'data_primitive_references': []}))
 
     def test_mcd_db_physical_vehicle_link_or_interface_identifiers(self):
         pin_part = reversed_names_body(ObjectBytes()).u16(1).u16(0x7400)
@@ -411,7 +411,7 @@ def logical_link(full=False, gateway='eNO_GATEWAY', gateway_links=()):
         # kernel: reads the logical links of gateways as a named collection
         'logical_links_of_gateways': [{'name': name, 'reference': attributed_ref(strings)}
                                       for name, strings in gateway_links],
-        'physical_vehicle_link_or_interface_ref': ref3('PVL'), 'gateway_mode': gateway,
+        'physical_vehicle_link_or_interface_reference': ref3('PVL'), 'gateway_mode': gateway,
         'accessed_via_gateway': full, 'link_com_params_map': object_map('Param', full),
         'link_complex_com_params_map': object_map('Complex', full)})
 
@@ -444,8 +444,8 @@ class LogicalLinkTests(unittest.TestCase):
                 self.assertEqual(load('MCD_DB_LOGICAL_LINK', body), logical_link(gateway=name))
 
 
-LAYER_LOCATION_REFS = {0x0101: 'ecu_base_variant_ref', 0x0102: 'ecu_variant_ref',
-                       0x0103: 'functional_group_ref'}
+LAYER_LOCATION_REFS = {0x0101: 'ecu_base_variant_ref', 0x0102: 'ecu_variant_reference',
+                       0x0103: 'functional_group_reference'}
 
 
 def layer_data_body(full=False, location=0x0104, kernel_collections=False, byte=True):
@@ -535,7 +535,7 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=Fals
               'layer_com_params': [audience(), None] if full else [],
               'ecu_state_chart_references': [], 'sub_component_references': [],
               # kernel: an absent collection reads as an empty one
-              'additional_audience_references': [], 'special_data_group_refs': [],
+              'additional_audience_references': [], 'special_data_group_references': [],
               'multiple_ecu_job_references': []}
     if kernel_collections:
         fields['ecu_state_chart_references'] = [
@@ -544,7 +544,7 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=Fals
             {'map_key': 'SUB1', 'reference': attributed_ref()}]
         fields['additional_audience_references'] = [
             {'map_key': 'AA1', 'reference': {'object_id': 'AUD1', 'pool_id': 'POOL'}}]
-        fields['special_data_group_refs'] = [{'object_id': 7}, {'object_id': 9}]
+        fields['special_data_group_references'] = [{'object_id': 7}, {'object_id': 9}]
         fields['multiple_ecu_job_references'] = [{'map_key': 'J1', 'reference': diag_com_ref(True)}]
     return typed('DB_LAYER_DATA', fields)
 
@@ -629,10 +629,10 @@ def project_data(full=False):
     # setEcuVariantRefs, setContainerShortName, setLayerShortName, setLayerID,
     # setFuncGroupParentPoolIds and setEcuVarProjects
     return typed('DB_PROJECT_DATA', {
-        'location_map': location_refs(full), 'functional_group_ref': ref3('FG'),
-        'base_variant_ref': ref3('BV'),
-        'ecu_variant_refs': named_refs(NAMED_REFS if full else ()),
-        'ecu_variant_ref': ref3('EV'), 'container_short_name': 'String1',
+        'location_map': location_refs(full), 'functional_group_reference': ref3('FG'),
+        'base_variant_reference': ref3('BV'),
+        'ecu_variant_references': named_refs(NAMED_REFS if full else ()),
+        'ecu_variant_reference': ref3('EV'), 'container_short_name': 'String1',
         'layer_short_name': 'String2', 'layer_id': 'String3',
         'func_group_parent_pool_ids': strings('Group', 2 if full else 0),
         # kernel: the elements are the project data of the variants
@@ -875,7 +875,7 @@ def code_information(count=0):
         'code_file': 'code.bin', 'encryption': 'Encryption', 'syntax': 'Syntax',
         'revision': 'Revision', 'entry_point': 'EntryPoint',
         # kernel: map key, then a named object reference (object id, pool id, third word)
-        'library_refs': [{'map_key': 'Lib%dKey' % i,
+        'library_references': [{'map_key': 'Lib%dKey' % i,
                           'reference': {'object_id': 'Lib%dR' % i,
                                         'pool_id': 'Lib%dP' % i,
                                         'object_id2': 'Lib%dThird' % i}}
@@ -896,7 +896,7 @@ class CodeInformationTests(unittest.TestCase):
         body.unicode('Revision').unicode('EntryPoint').u16(1)
         body.ascii('LibKey').ascii('LibR').ascii('LibP').u32(7)
         loaded = load('MCD_DB_CODE_INFORMATION', body, database_version='0011')
-        self.assertEqual(loaded['library_refs'],
+        self.assertEqual(loaded['library_references'],
                          [{'map_key': 'LibKey',
                            'reference': {'object_id': 'LibR', 'pool_id': 'LibP', 'object_id2': 7}}])
 
@@ -933,11 +933,11 @@ def trouble_code(groups=None, level=3):
               # kernel: the unicode string is the DTC text (getDTCText)
               'dtc_text': 'Description', 'level': level, 'trouble_code': 0x123456,
               # kernel: an absent collection reads as an empty one
-              'special_data_group_refs': [],
+              'special_data_group_references': [],
               # kernel: the last string is the text ID of the trouble code (getDiagTroubleCodeTextID)
               'diag_trouble_code_text_id': 'Text'}
     if groups is not None:
-        fields['special_data_group_refs'] = [{'object_id': number} for number in groups]
+        fields['special_data_group_references'] = [{'object_id': number} for number in groups]
     return typed('MCD_DB_DIAG_TROUBLE_CODE', fields)
 
 

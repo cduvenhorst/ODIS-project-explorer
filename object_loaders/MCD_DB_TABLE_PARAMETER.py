@@ -34,6 +34,6 @@ def load(stream):
     
     streams = common_loaders.loadNamedStreams(stream, NAMED_STREAM_READERS)
     obj['is_api_executable'] = streams.get('A', True)
-    obj['pre_condition_state_refs'] = streams.get('B')
+    obj['pre_condition_state_references'] = streams.get('B')
     
     return obj

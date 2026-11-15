@@ -8,9 +8,9 @@ def load(stream):
     obj['audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['description'] = stream.loadUnicodeString()[0]
     obj['description_id'] = stream.loadAsciiString()[0]

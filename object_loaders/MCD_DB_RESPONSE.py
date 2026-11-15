@@ -18,8 +18,8 @@ def load(stream):
     obj['response_type'] = enum_converters.get_MCDResponseType(stream.loadEnumMediumRange())
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     return obj

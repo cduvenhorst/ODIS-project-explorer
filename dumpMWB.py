@@ -131,11 +131,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
                     try:
-                        parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
+                        parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_reference'])
                     
                     # If not found (error in project), mimic the MCD error that is thrown on projects with this sort of problem
                     except:
-                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(dop['dop_base_ref']['object_id'])}
+                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(dop['dop_base_reference']['object_id'])}
                     
                     # The DOP is usually found
                     else:
@@ -162,7 +162,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['default_value']['value'] = dop['default_mcd_value']['value']
                     
                     # A parameter of type RESERVED shouldn't reference any DOP
-                    if dop['dop_base_ref'] is not None:
+                    if dop['dop_base_reference'] is not None:
                         raise RuntimeError('CODED-CONST references DOP')
                     
                     # Instead, the DIAG-CODED-TYPE is included in the RESERVED PARAM's definition
@@ -191,7 +191,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['constant']['value'] = dop['default_mcd_value']['value']
                     
                     # A parameter of type CODED-CONST shouldn't reference any DOP
-                    if dop['dop_base_ref'] is not None:
+                    if dop['dop_base_reference'] is not None:
                         raise RuntimeError('CODED-CONST references DOP')
                     
                     # Instead, the DIAG-CODED-TYPE is included in the CODED-CONST PARAM's definition
@@ -223,7 +223,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
-                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
+                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_reference'])
                     
                     # Add the referenced DOP to the object
                     output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, parameter_dop)
@@ -241,7 +241,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         raise RuntimeError('SYSTEM parameter has default')
                     
                     # The value received by the D-server is a physical value and shall be coded using the referenced DOP
-                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_ref'])
+                    parameter_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, dop['dop_base_reference'])
                     
                     # Add the referenced DOP to the object
                     output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, parameter_dop)
@@ -452,11 +452,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # The calculated physical value can be directly displayed on the tester
             # Usually, units are used to augment this displayed value with additional information
             # The declaration of the unit to be used is given via the reference UNIT-REF
-            if 'unit_ref' in dop:
+            if 'unit_reference' in dop:
                 output_object['units'] = None
-                if dop['unit_ref'] is not None:
+                if dop['unit_reference'] is not None:
                     # Get the UNIT
-                    units_dop = object_loader.load_object_by_reference(project_folder_path, dop['unit_ref']) # MCD_DB_UNIT
+                    units_dop = object_loader.load_object_by_reference(project_folder_path, dop['unit_reference']) # MCD_DB_UNIT
                     
                     # Store the UNIT's fields
                     output_object['units'] = {}
@@ -480,11 +480,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         output_object['units']['si_unit']['luminous_intensity_exponent'] = units_dop['physical_dimension']['luminous_intensity_exponent']
             
             # The validity of the internal value can be restricted to a given interval via the INTERNAL-CONSTR and its members LOWER-LIMIT and UPPER-LIMIT
-            if 'internal_constraint_ref' in dop:
+            if 'internal_constraint_reference' in dop:
                 output_object['internal_constraint'] = None
-                if dop['internal_constraint_ref'] is not None:
+                if dop['internal_constraint_reference'] is not None:
                     # Get the INTERNAL-CONSTR
-                    internal_constraint = object_loader.load_object_by_reference(project_folder_path, dop['internal_constraint_ref']) # MCD_CONSTRAINT
+                    internal_constraint = object_loader.load_object_by_reference(project_folder_path, dop['internal_constraint_reference']) # MCD_CONSTRAINT
                     
                     # Sanity check...
                     if internal_constraint['is_computed']:
@@ -544,14 +544,14 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # If the DATA-OBJECT-PROP is used for calculation of physical value from the internal one, the internal value is matched against the valid range directly
             
             # In a similar way, it is possible to specify constraints for the physical value inside PHYS-CONSTR, if the physical type of the DATA-OBJECT-PROP is a numerical type
-            if 'physical_constraint_ref' in dop:
+            if 'physical_constraint_reference' in dop:
                 output_object['physical_constraint'] = None
-                if dop['physical_constraint_ref'] is not None:
+                if dop['physical_constraint_reference'] is not None:
                     if output_object['physical_base_data_type'] not in ['A_INT32', 'A_UINT32', 'A_FLOAT32', 'A_FLOAT64', 'A_BYTEFIELD']:
                         raise RuntimeError('PC only allowed for numerical physical types, not {}'.format(output_object['physical_base_data_type']))
                     
                     # Get the PHYS-CONSTR
-                    physical_constraint = object_loader.load_object_by_reference(project_folder_path, dop['physical_constraint_ref']) # MCD_CONSTRAINT
+                    physical_constraint = object_loader.load_object_by_reference(project_folder_path, dop['physical_constraint_reference']) # MCD_CONSTRAINT
                     
                     # Sanity check...
                     if not physical_constraint['is_computed']:
@@ -1113,7 +1113,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['item_byte_size'] = dop['item_byte_size']
             
             # The reference to the BASIC-STRUCTURE defines the complex DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_reference']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1125,7 +1125,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # The determination of the number of repetitions is described by DETERMINE-NUMBER-OF-ITEMS
             # The DATA-OBJECT-PROP referenced to is used to calculate the repetition number
-            determine_number_of_items_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_base_ref']) # DB_DOP_SIMPLE_BASE
+            determine_number_of_items_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_base_reference']) # DB_DOP_SIMPLE_BASE
             output_object['determine_number_of_items'] = parse_dop(object_loader, layer_data_objects, project_folder_path, determine_number_of_items_dop)
             
             # The repetition number is contained in its physical value of type A_UINT32
@@ -1144,7 +1144,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # Each further item starts at the byte edge following the item before
             
             # The reference to the BASIC-STRUCTURE defines the COMPLEX-DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_reference']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1158,7 +1158,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # Before each iteration step, the end of PDU condition is tested
             # If the end of PDU is reached, then the processing of the iteration stops immediately
             # Otherwise, the referenced DATA-OBJECT-PROP is used to calculate a physical value of the parameter at the current position in the PDU
-            determine_termination_parameter_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_base_ref']) # DB_DOP_SIMPLE_BASE
+            determine_termination_parameter_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_base_reference']) # DB_DOP_SIMPLE_BASE
             output_object['determine_termination_parameter'] = parse_dop(object_loader, layer_data_objects, project_folder_path, determine_termination_parameter_dop)
             
             # If the resulting physical value matches the TERMINATION-VALUE (inside DATA-OBJECT-PROP-REF), the field ends without any additional item
@@ -1173,7 +1173,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # If the interpretation of the ENDMARKER bytes is not desired, they can be skipped with a RESERVED parameter
             
             # The reference to the BASIC-STRUCTURE defines the complex DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_reference']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1187,7 +1187,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # Each further item starts at the byte edge following the item before
             
             # The reference to the BASIC-STRUCTURE defines the COMPLEX-DOP to be repeatedly applied
-            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_ref']) # MCD_DB_PARAMETER_STRUCTURE
+            struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['dop_structure_reference']) # MCD_DB_PARAMETER_STRUCTURE
             if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                 raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
             output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1202,7 +1202,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # The determination of the actual switch-key is described inside SWITCH-KEY
             # The DATA-OBJECT-PROP referenced to is used to calculate the switch-key, which is contained in its physical value
-            switch_key_dop = object_loader.load_object_by_reference(project_folder_path, dop['switch_key']['dop_base_ref']) # DB_DOP_SIMPLE_BASE
+            switch_key_dop = object_loader.load_object_by_reference(project_folder_path, dop['switch_key']['dop_base_reference']) # DB_DOP_SIMPLE_BASE
             output_object['switch_key'] = parse_dop(object_loader, layer_data_objects, project_folder_path, switch_key_dop)
             
             # Its BYTE-POSITION is relative to the that of the MUX
@@ -1242,7 +1242,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 # If a matching CASE is found, the referenced STRUCTURE is analyzed at the BYTE-POSITION (child element of MUX), relatively to the byte position of the MUX
                 
                 # Add the referenced STRUCTURE's fields to the CASE object
-                struct_dop = object_loader.load_object_by_reference(project_folder_path, case['structure_dop_ref']) # MCD_DB_PARAMETER_STRUCTURE
+                struct_dop = object_loader.load_object_by_reference(project_folder_path, case['structure_dop_reference']) # MCD_DB_PARAMETER_STRUCTURE
                 if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                     raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
                 case_output_object['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1253,7 +1253,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # If a MUX object has no CASES sub-object then it shall have a DEFAULT-CASE sub-object
             # If a matching CASE cannot be found and the optional DEFAULT-CASE is specified, then the STRUCTURE referenced by this DEFAULT-CASE is analyzed in the same way
             output_object['default_case'] = None
-            if dop['default_case'] is not None and dop['default_case']['structure_dop_ref'] is not None:
+            if dop['default_case'] is not None and dop['default_case']['structure_dop_reference'] is not None:
                 # Get the DEFAULT-CASE's LONG-NAME
                 output_object['default_case'] = {}
                 output_object['default_case']['long_name'] = dop['default_case']['long_name']
@@ -1263,7 +1263,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     raise RuntimeError('DEFAULT-CASE has DESCRIPTION: {}'.format(dop['default_case']['description']))
                 
                 # Add the referenced STRUCTURE's fields to the DEFAULT-CASE object
-                struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['default_case']['structure_dop_ref']) # MCD_DB_PARAMETER_STRUCTURE
+                struct_dop = object_loader.load_object_by_reference(project_folder_path, dop['default_case']['structure_dop_reference']) # MCD_DB_PARAMETER_STRUCTURE
                 if struct_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_STRUCTURE':
                     raise RuntimeError('Object is not BASIC-STRUCTURE: {}'.format(struct_dop['#OBJECT_TYPE']))
                 output_object['default_case']['structure'] = parse_dop(object_loader, layer_data_objects, project_folder_path, struct_dop)
@@ -1350,12 +1350,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['bit_position'] = dop['bit_position']
             
             # Load the TABLE by its reference
-            table = object_loader.load_object_by_reference(project_folder_path, dop['table_ref'])
+            table = object_loader.load_object_by_reference(project_folder_path, dop['table_reference'])
             if table['#OBJECT_TYPE'] != 'MCD_DB_TABLE':
                 raise RuntimeError('Expected TABLE, not {}'.format(table['#OBJECT_TYPE']))
             
             # Load and parse the DOP that extracts the TABLE-KEY's value
-            table_key_dop = object_loader.load_object_by_reference(project_folder_path, table['dop_simple_ref'])
+            table_key_dop = object_loader.load_object_by_reference(project_folder_path, table['dop_simple_reference'])
             table_key_parsed_dop = parse_dop(object_loader, layer_data_objects, project_folder_path, table_key_dop)
             
             # I expect a table key to always convert a simple unsigned integer to a unicode string
@@ -1409,7 +1409,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['bit_position'] = dop['bit_position']
             
             # Load the TABLE by its reference
-            table = object_loader.load_object_by_reference(project_folder_path, dop['table_ref'])
+            table = object_loader.load_object_by_reference(project_folder_path, dop['table_reference'])
             if table['#OBJECT_TYPE'] != 'MCD_DB_TABLE':
                 raise RuntimeError('Expected TABLE, not {}'.format(table['#OBJECT_TYPE']))
             
@@ -1450,12 +1450,12 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
 # Get a dictionary containing all ECU-VARIANTs included in the BASE-VARIANT (where its name maps to its reference)
 def get_ecu_variant_map(base_variant_project_data):
     # Return None for BASE-VARIANTs which do not have ECU-VARIANTs defined
-    if len(base_variant_project_data['ecu_variant_refs']) == 0:
+    if len(base_variant_project_data['ecu_variant_references']) == 0:
         return None
     
     # Get each ECU-VARIANT referenced by the BASE-VARIANT
     ecu_variant_map = {}
-    for ecu_variant_ref in base_variant_project_data['ecu_variant_refs']:
+    for ecu_variant_ref in base_variant_project_data['ecu_variant_references']:
         ecu_variant_map[ecu_variant_ref['name']] = ecu_variant_ref['reference']
     return ecu_variant_map
 
@@ -1469,7 +1469,7 @@ def get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_r
     ecu_variant = object_loader.load_object_by_reference(project_folder_path, ecu_variant_reference)
     
     # Get the ObjectID of the Layer Data object
-    ecu_variant_layer_data_ObjectID = ecu_variant['ecu']['location_refs'][0]['reference']['access_key']['layer_data_object_id']
+    ecu_variant_layer_data_ObjectID = ecu_variant['ecu']['location_references'][0]['reference']['access_key']['layer_data_object_id']
     
     # Load the Layer Data object from the same pool as the ECU-VARIANT object
     return object_loader.load_object_by_id(project_folder_path, ecu_variant_PoolID, ecu_variant_layer_data_ObjectID)
@@ -1492,11 +1492,11 @@ def get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_pat
     rdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_RDBI['reference']['attrib_obj_ref'])
     
     # The service should only have one positve response referenced
-    if len(rdbi_service['data_primitive']['diag_com_primitive']['positive_response_refs']) != 1:
+    if len(rdbi_service['data_primitive']['diag_com_primitive']['positive_response_references']) != 1:
         raise RuntimeError('RDBI service has multiple positive responses')
     
     # Load the positive response from its reference in the service
-    response = object_loader.load_object_by_reference(project_folder_path, rdbi_service['data_primitive']['diag_com_primitive']['positive_response_refs'][0]['reference'])
+    response = object_loader.load_object_by_reference(project_folder_path, rdbi_service['data_primitive']['diag_com_primitive']['positive_response_references'][0]['reference'])
     
     # One parameter will be the table key (MWB-DID) and the other one will be the table structure (MWB)
     data_record_table_key_parameter = None
@@ -1594,7 +1594,7 @@ def dump_mwbs_for_base_variant(object_loader, protocol_layer_data_list, project_
         object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
     
     # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_reference']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)

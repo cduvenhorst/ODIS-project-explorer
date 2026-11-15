@@ -8,6 +8,6 @@ def load(stream):
     obj['byte_position'] = stream.loadNumericType(4)
     obj['is_byte_pos_available'] = True
     
-    obj['dop_base_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
+    obj['dop_base_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
     
     return obj

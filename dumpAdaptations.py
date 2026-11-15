@@ -35,7 +35,7 @@ def get_adaptation_keys_and_table(object_loader, layer_data_objects, project_fol
     wdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_WDBI['reference']['attrib_obj_ref'])
     
     # Load the request from its reference in the service
-    request = object_loader.load_object_by_reference(project_folder_path, wdbi_service['data_primitive']['diag_com_primitive']['request_ref'])
+    request = object_loader.load_object_by_reference(project_folder_path, wdbi_service['data_primitive']['diag_com_primitive']['request_reference'])
     
     # One parameter will be the table key (DID) and the other one will be the table structure (Adaptation data)
     data_record_table_key_parameter = None
@@ -120,7 +120,7 @@ def dump_adaptations_for_base_variant(object_loader, protocol_layer_data_list, p
         object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
     
     # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_reference']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)

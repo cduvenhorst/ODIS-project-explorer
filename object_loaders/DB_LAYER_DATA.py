@@ -18,9 +18,9 @@ def load(stream):
         case 'eECU_BASE_VARIANT':
             obj['ecu_base_variant_ref'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
         case 'eECU_VARIANT':
-            obj['ecu_variant_ref'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuVariantImpl
+            obj['ecu_variant_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuVariantImpl
         case 'eFUNCTIONAL_GROUP':
-            obj['functional_group_ref'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbFunctionalGroupImpl
+            obj['functional_group_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbFunctionalGroupImpl
     
     obj['diag_com_primitive_references'] = common_loaders.loadStringToReferenceMap(stream, False, True)
     
@@ -84,9 +84,9 @@ def load(stream):
         stream.loadOneByteType()
     
     # SpecialDataGroupRefs; kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     # MultipleEcuJobRefs
     obj['multiple_ecu_job_references'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)

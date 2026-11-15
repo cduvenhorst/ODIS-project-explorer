@@ -1442,7 +1442,7 @@ def app_parseMWB(object_loader, long_name_translation, project_folder_path, base
     db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
     
     # Get the BASE-VARIANT's name
-    base_variant_name = db_project_data['base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_reference']['object_id']
     
     # Load the layer data for the BASE-VARIANT, which is contained in the current file
     base_variant_layer_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_LAYER_DATA')

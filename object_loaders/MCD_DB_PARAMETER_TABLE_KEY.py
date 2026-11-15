@@ -9,7 +9,7 @@ def load(stream):
     obj['table'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbTableImpl
     
     if obj['table'] is None:
-        obj['table_ref'] = common_loaders.loadDbAttributedObjectReference(stream) # DbAttributedObjectReference : MCDDbTableImpl
+        obj['table_reference'] = common_loaders.loadDbAttributedObjectReference(stream) # DbAttributedObjectReference : MCDDbTableImpl
     
     obj['is_table_row_reference'] = bool(stream.loadOneByteType())
     

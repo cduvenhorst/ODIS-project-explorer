@@ -14,12 +14,12 @@ def load(stream):
     obj['short_name'] = stream.loadAsciiString()[0]
     
     if stream.loadOneByteType():
-        obj['request_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestImpl
+        obj['request_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestImpl
     
     # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses
-    obj['positive_response_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    obj['negative_response_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
-    obj['functional_class_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['positive_response_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['negative_response_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['functional_class_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
     obj['semantic'] = stream.loadAsciiString()[0]
     
@@ -34,13 +34,13 @@ def load(stream):
     
     # kernel: setDbEcuStateTransitions
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateTransitionImpl
-    obj['ecu_state_transition_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+    obj['ecu_state_transition_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
         stream, common_loaders.loadDbAttributedObjectReference)
     # Elements are DbSemanticAttributedObjectReference
     
     # kernel: setDbEcuStates
     # DbNamedObjectReferences - DbSemanticAttributedObjectReference - MCDDbEcuStateImpl
-    obj['ecu_state_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
+    obj['ecu_state_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(
         stream, common_loaders.loadDbAttributedObjectReference)
     # Elements are DbSemanticAttributedObjectReference
     

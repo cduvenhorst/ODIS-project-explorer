@@ -14,9 +14,9 @@ def load(stream):
     obj['securities'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_SECURITIES
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     # No setter; name chosen for the flag, not taken from the kernel
     obj['has_logical_block_index'] = bool(stream.loadOneByteType())

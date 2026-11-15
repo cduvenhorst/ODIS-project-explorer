@@ -14,7 +14,7 @@ The identifiers follow the kernel names: the communication primitive reads descr
 (formerly some_id); the parameter also always has dop_base (None without flag 1 << 4).
 The table parameter reads its additional audience collections and its named streams A and B
 like the kernel.  Deviation from the former behaviour: a present but empty named stream B
-gives pre_condition_state_refs == [] instead of None (None only when B is absent).
+gives pre_condition_state_references == [] instead of None (None only when B is absent).
 """
 import unittest
 
@@ -96,19 +96,19 @@ def parameter(**changes):
               # kernel: cached MCDDataType of the parameter, None when not set
               'parameter_type': None, 'diag_coded_type': None,
               # kernel: DbObjectReference<DbDopBase>
-              'dop_base_ref': None, 'dop_base': None, 'is_byte_pos_available': False,
+              'dop_base_reference': None, 'dop_base': None, 'is_byte_pos_available': False,
               'is_protocol_parameter': False,
               # kernel: an absent collection reads as an empty one
-              'special_data_group_refs': [], 'nrc_const_values': None}
+              'special_data_group_references': [], 'nrc_const_values': None}
     fields.update(changes)
     return fields
 
 
 def parameter_all():
     return parameter(default_mcd_value=uint(7), semantic='SEM', parameter_type='eA_FLOAT64',
-                     diag_coded_type=diag_coded_type(), dop_base_ref=ref('REF'),
+                     diag_coded_type=diag_coded_type(), dop_base_reference=ref('REF'),
                      is_byte_pos_available=True, is_protocol_parameter=True,
-                     special_data_group_refs=[{'object_id': 11}, {'object_id': 22}])
+                     special_data_group_references=[{'object_id': 11}, {'object_id': 22}])
 
 
 def two_parameters_body():
@@ -153,7 +153,7 @@ class ParameterTests(unittest.TestCase):
     def test_mcd_db_parameter_dop_base(self):
         self.assertEqual(
             load('MCD_DB_PARAMETER', parameter_body(reference=True, dop_base=audience_body())),
-            typed('MCD_DB_PARAMETER', parameter(dop_base_ref=ref('REF'), dop_base=audience())))
+            typed('MCD_DB_PARAMETER', parameter(dop_base_reference=ref('REF'), dop_base=audience())))
 
     def test_mcd_db_parameter_dop_base_flag_without_object(self):
         body = parameter_body(dop_base='absent')
@@ -184,7 +184,7 @@ class ParameterTests(unittest.TestCase):
                               parameter_body(sdgs=[11], type_code=0x13, nrc_values=[1])),
                          typed('MCD_DB_PARAMETER', parameter(
                              mcd_parameter_type='eNRC_CONST',
-                             special_data_group_refs=[{'object_id': 11}],
+                             special_data_group_references=[{'object_id': 11}],
                              nrc_const_values=[uint(1)])))
 
     def test_mcd_db_parameter_types(self):
@@ -261,9 +261,9 @@ def dop_field_body(environment=False):
 def dop_field(environment=False):
     if environment:
         # kernel: getDopEnvDataDescRef
-        return {'dop_env_data_desc_ref': ref('ENV')}
+        return {'dop_env_data_desc_reference': ref('ENV')}
     # kernel: getDopStructure
-    return {'dop_structure_ref': ref('STRUCT')}
+    return {'dop_structure_reference': ref('STRUCT')}
 
 
 class StaticFieldTests(unittest.TestCase):
@@ -303,7 +303,7 @@ class DynamicLengthFieldTests(unittest.TestCase):
     def fields():
         # kernel: getOffset, DbObjectReference<DbDopBase>, getSimpleBytePosition,
         # setSimpleBitPosition
-        return {'offset': 6, 'dop_base_ref': ref('DOP'),
+        return {'offset': 6, 'dop_base_reference': ref('DOP'),
                 'simple_byte_position': 20, 'simple_bit_position': 5}
 
     def test_mcd_db_parameter_dynamic_length_field_minimal(self):
@@ -328,14 +328,14 @@ class DynamicEndmarkerFieldTests(unittest.TestCase):
             load('MCD_DB_PARAMETER_DYNAMIC_ENDMARKER_FIELD',
                  concat(dop_field_body(), self.tail())),
             typed('MCD_DB_PARAMETER_DYNAMIC_ENDMARKER_FIELD',
-                  {**dop_field(), 'termination_value': 'FF', 'dop_base_ref': ref('DOP')}))
+                  {**dop_field(), 'termination_value': 'FF', 'dop_base_reference': ref('DOP')}))
 
     def test_mcd_db_parameter_dynamic_endmarker_field_all_branches(self):
         self.assertEqual(
             load('MCD_DB_PARAMETER_DYNAMIC_ENDMARKER_FIELD',
                  concat(dop_field_body(True), self.tail())),
             typed('MCD_DB_PARAMETER_DYNAMIC_ENDMARKER_FIELD',
-                  {**dop_field(True), 'termination_value': 'FF', 'dop_base_ref': ref('DOP')}))
+                  {**dop_field(True), 'termination_value': 'FF', 'dop_base_reference': ref('DOP')}))
 
 
 class ParameterEnvDataTests(unittest.TestCase):
@@ -455,7 +455,7 @@ class MultiplexerTests(unittest.TestCase):
                 'offset': 7,
                 'switch_key': typed('DB_SWITCH_KEY', {
                     'bit_position': 2, 'byte_position': 3, 'is_byte_pos_available': True,
-                    'dop_base_ref': ref('DOP')}),
+                    'dop_base_reference': ref('DOP')}),
                 'cases': [case()],
                 'default_case': case(type_name='DB_DEFAULT_CASE')}))
 
@@ -548,7 +548,7 @@ class TableStructTests(unittest.TestCase):
         body = concat(parameter_body(), attributed_ref_body(ObjectBytes().ascii('KEY')))
         self.assertEqual(load('MCD_DB_PARAMETER_TABLESTRUCT', body), typed(
             'MCD_DB_PARAMETER_TABLESTRUCT',
-            {**parameter(), 'key_param_short_name': 'KEY', 'table_ref': attributed_ref()}))
+            {**parameter(), 'key_param_short_name': 'KEY', 'table_reference': attributed_ref()}))
 
     def test_mcd_db_parameter_tablestruct_all_branches(self):
         body = concat(parameter_body(**PARAMETER_ALL),
@@ -556,7 +556,7 @@ class TableStructTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLESTRUCT', body), typed(
             'MCD_DB_PARAMETER_TABLESTRUCT',
             {**parameter_all(), 'key_param_short_name': 'KEY',
-             'table_ref': attributed_ref(['S1', 'S2'])}))
+             'table_reference': attributed_ref(['S1', 'S2'])}))
 
 
 # ---------------------------------------------------------------------------
@@ -585,9 +585,9 @@ def table(full=False):
     fields = {'description_id': None, 'long_name_id': 'SomeId', 'unique_object_id': 'OBJ',
               'description': 'Description',
               'long_name': 'Long name', 'short_name': 'Table', 'table_key_map': [],
-              'semantic': None, 'diag_com_primitive_refs': [],
+              'semantic': None, 'diag_com_primitive_references': [],
               # kernel: an absent collection reads as an empty one
-              'special_data_group_refs': []}
+              'special_data_group_references': []}
     if full:
         fields['table_key_map'] = [
             {'map_key': 'K1', 'reference': {'object_id': 'O1', 'pool_id': 'P1',
@@ -595,8 +595,8 @@ def table(full=False):
             {'map_key': 'K2', 'reference': {'object_id': 'O2', 'pool_id': None,
                                             'object_id2': 'Short2'}}]
         fields['semantic'] = 'SEM'
-        fields['diag_com_primitive_refs'] = diag_com_refs()
-        fields['dop_simple_ref'] = ref('DOP')
+        fields['diag_com_primitive_references'] = diag_com_refs()
+        fields['dop_simple_reference'] = ref('DOP')
     return fields
 
 
@@ -610,14 +610,14 @@ class TableTests(unittest.TestCase):
 
     def test_mcd_db_table_without_sdgs_has_empty_list(self):
         # kernel: an absent collection reads as an empty one
-        self.assertEqual(load('MCD_DB_TABLE', table_body())['special_data_group_refs'], [])
+        self.assertEqual(load('MCD_DB_TABLE', table_body())['special_data_group_references'], [])
 
     def test_mcd_db_table_reads_sdgs(self):
         body = ObjectBytes().ascii(None).ascii('SomeId').ascii('OBJ').unicode('Description')
         body.unicode('Long name').ascii('Table').u32(0).ascii(None).u16(0).u8(0)
         body.u8(1).u16(2).u32(11).u32(22)
         obj = load('MCD_DB_TABLE', body)
-        self.assertEqual(obj['special_data_group_refs'], [{'object_id': 11}, {'object_id': 22}])
+        self.assertEqual(obj['special_data_group_references'], [{'object_id': 11}, {'object_id': 22}])
 
     def test_mcd_db_table_reads_description_id(self):
         body = ObjectBytes().ascii('DESC').ascii('SomeId').ascii('OBJ').unicode('Description')
@@ -654,7 +654,7 @@ class TableKeyTests(unittest.TestCase):
         body.u8(0).ascii(None)
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
-                **parameter(), 'table': None, 'table_ref': attributed_ref(),
+                **parameter(), 'table': None, 'table_reference': attributed_ref(),
                 'is_table_row_reference': False, 'table_row_short_name': None}))
 
     def test_mcd_db_parameter_table_key_all_branches(self):
@@ -663,7 +663,7 @@ class TableKeyTests(unittest.TestCase):
         body.u8(1).ascii('Text')
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
-                **parameter_all(), 'table': None, 'table_ref': attributed_ref(['S1', 'S2']),
+                **parameter_all(), 'table': None, 'table_reference': attributed_ref(['S1', 'S2']),
                 'is_table_row_reference': True, 'table_row_short_name': 'Text'}))
 
     def test_mcd_db_parameter_table_key_with_table(self):
@@ -705,7 +705,7 @@ def table_parameter(audience_state=None):
     return {'key': 'Key', 'audience_state': audience_state,
             'disabled_additional_audiences': [], 'enabled_additional_audiences': [],
             'parameter': typed('MCD_DB_PARAMETER', parameter()),
-            'is_api_executable': True, 'pre_condition_state_refs': None}
+            'is_api_executable': True, 'pre_condition_state_references': None}
 
 
 class TableParameterTests(unittest.TestCase):
@@ -714,7 +714,7 @@ class TableParameterTests(unittest.TestCase):
                          typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
 
     def test_mcd_db_table_parameter_all_branches(self):
-        expected = {**table_parameter(audience()), 'pre_condition_state_refs': []}
+        expected = {**table_parameter(audience()), 'pre_condition_state_references': []}
         self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(True, True)),
                          typed('MCD_DB_TABLE_PARAMETER', expected))
 
@@ -723,7 +723,7 @@ class TableParameterTests(unittest.TestCase):
                          named_attributed_refs_body(ObjectBytes(), NAMED_ATTRIBUTED_REFS))
         streams.raw(bytes.fromhex('233E01'))
         expected = table_parameter()
-        expected['pre_condition_state_refs'] = named_attributed_refs(NAMED_ATTRIBUTED_REFS)
+        expected['pre_condition_state_references'] = named_attributed_refs(NAMED_ATTRIBUTED_REFS)
         self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body(streams=streams)),
                          typed('MCD_DB_TABLE_PARAMETER', expected))
 
@@ -793,7 +793,7 @@ def request(parameters=None, description_id=None, sdgs=None):
             'description': 'Request description', 'unique_object_id': 'ID', 'long_name_id': 'LongId',
             'description_id': description_id, 'request_parameters': parameters,
             # kernel: an absent collection reads as an empty one
-            'special_data_group_refs':
+            'special_data_group_references':
                 [] if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
@@ -829,7 +829,7 @@ def response(parameters=None, response_type='ePOSITIVE_RESPONSE', description_id
             'long_name_id': 'LongId', 'description_id': description_id,
             'response_parameters': parameters, 'response_type': response_type,
             # kernel: an absent collection reads as an empty one
-            'special_data_group_refs':
+            'special_data_group_references':
                 [] if sdgs is None else [{'object_id': i} for i in sdgs]}
 
 
@@ -899,16 +899,16 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
     fields = {'description_id': 'ID', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
               'description': 'Description', 'long_name': 'Long name', 'short_name': 'Primitive'}
     if full:
-        fields['request_ref'] = ref('REQ')
+        fields['request_reference'] = ref('REQ')
     # kernel: setDbPositiveResponses, setDbNegativeResponses, setDbFunctionalClasses,
     # setIsNoOperation (fixed: upstream misspelt the key), setDbEcuStateTransitions and
     # setDbEcuStates
     fields.update({
-        'positive_response_refs': refs, 'negative_response_refs': refs,
-        'functional_class_refs': refs, 'semantic': None,
+        'positive_response_references': refs, 'negative_response_references': refs,
+        'functional_class_references': refs, 'semantic': None,
         'transmission_mode': transmission_mode, 'is_api_executable': True,
         'is_no_operation': False, 'diagnostic_class': 2,
-        'ecu_state_transition_refs': state_refs, 'ecu_state_refs': state_refs,
+        'ecu_state_transition_references': state_refs, 'ecu_state_references': state_refs,
         'has_suppress_positive_response_capability': suppression is not None})
     if suppression is not None:
         by_path = suppression != 'name'
@@ -952,7 +952,7 @@ def data_primitive(full=False, repetition_mode=None, access_level=None):
               # kernel: an absent collection reads as an empty one
               'disabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
               'enabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
-              'special_data_group_refs': [{'object_id': 11}, {'object_id': 22}] if full else []}
+              'special_data_group_references': [{'object_id': 11}, {'object_id': 22}] if full else []}
     fields['diag_com_primitive'] = typed('MCD_DB_DIAG_COM_PRIMITIVE', primitive(full))
     return typed('MCD_DB_DATA_PRIMITIVE', fields)
 
@@ -1150,7 +1150,7 @@ def matching_parameter_body(by_path=False):
 
 
 def matching_parameter(by_path=False):
-    fields = {'diag_com_primitive_ref': diag_com_ref(by_path)}
+    fields = {'diag_com_primitive_reference': diag_com_ref(by_path)}
     # kernel: both response parameter names are present, the one not read is None, and the
     # path flag is always present (dbResponseParameterIsShortNamePath)
     fields['response_parameter_name'] = None if by_path else 'RESP'

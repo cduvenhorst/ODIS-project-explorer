@@ -14,7 +14,7 @@ def load(stream):
     obj['short_name'] = stream.loadAsciiString()[0]
     
     # Named value-attributed references; no presence byte
-    obj['configuration_record_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbValueAttributedObjectReference, 0)
+    obj['configuration_record_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbValueAttributedObjectReference, 0)
     
     # kernel: below database version 0012 the key and the values are numbers, from 0012 ASCII strings
     is_numeric = not stream.is_database_version_at_least(12)
@@ -31,9 +31,9 @@ def load(stream):
         obj['base_var_to_case_map'].append(entry)
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['major'] = stream.loadNumericType(4)
     obj['minor'] = stream.loadNumericType(4)

@@ -37,7 +37,7 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
         object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
     
     # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['base_variant_ref']['object_id']
+    base_variant_name = db_project_data['base_variant_reference']['object_id']
     
     # The output folder will be named like the BASE-VARIANT
     base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)
@@ -103,7 +103,7 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
                 raise RuntimeError('Expected BYTE- and BIT-POSITION of Freeze Frame MUX SWITCH-KEY to be 0, not {} and {}'.format(freeze_frame_dop['switch_key']['bit_position'], freeze_frame_dop['switch_key']['byte_position']))
             
             # The SWITCH-KEY should take 8 bits
-            mux_switch_key_dop = object_loader.load_object_by_reference(project_folder_path, freeze_frame_dop['switch_key']['dop_base_ref'])
+            mux_switch_key_dop = object_loader.load_object_by_reference(project_folder_path, freeze_frame_dop['switch_key']['dop_base_reference'])
             if mux_switch_key_dop['diag_coded_type']['bit_length'] != 8:
                 raise RuntimeError('Expected Freeze Frame MUX SWITCH-KEY to take 8 bytes, not {}'.format(mux_switch_key_dop['diag_coded_type']['bit_length']))
             
@@ -116,7 +116,7 @@ def dump_freezeframes_for_base_variant(object_loader, protocol_layer_data_list, 
                         raise RuntimeError('Expected Freeze Frame MUX CASE LOWER- and UPPER-LIMIT types to be closed, not {} and {}'.format(case['lower_limit']['limit_type'] != 'eLIMIT_CLOSED', case['upper_limit']['limit_type'] != 'eLIMIT_CLOSED'))
                     
                     # Load the structure referenced by the CASE
-                    mux_case_structure = object_loader.load_object_by_reference(project_folder_path, case['structure_dop_ref'])
+                    mux_case_structure = object_loader.load_object_by_reference(project_folder_path, case['structure_dop_reference'])
                     
                     # Parse the MUX CASE structure
                     parsed_freeze_frame_mux_case_struct = parse_dop(object_loader, layer_data_objects, project_folder_path, mux_case_structure)

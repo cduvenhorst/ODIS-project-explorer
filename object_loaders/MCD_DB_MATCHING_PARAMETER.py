@@ -4,7 +4,7 @@ from common_utils import common_loaders
 def load(stream):
     obj = {}
     
-    obj['diag_com_primitive_ref'] = common_loaders.load_DbDiagComObjectReference(stream)
+    obj['diag_com_primitive_reference'] = common_loaders.load_DbDiagComObjectReference(stream)
     
     # kernel: both response parameter names are present, the one not read is None, and the
     # path flag (dbResponseParameterIsShortNamePath) is always present

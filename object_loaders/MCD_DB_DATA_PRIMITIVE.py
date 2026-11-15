@@ -28,9 +28,9 @@ def load(stream):
         obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if status_byte & 4:
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['diag_com_primitive'] = {'#OBJECT_TYPE': 'MCD_DB_DIAG_COM_PRIMITIVE'}
     obj['diag_com_primitive'].update(MCD_DB_DIAG_COM_PRIMITIVE.load(stream))

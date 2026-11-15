@@ -38,7 +38,7 @@ def load(stream):
     # kernel: reads the logical links of gateways as a named collection
     obj['logical_links_of_gateways'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     
-    obj['physical_vehicle_link_or_interface_ref'] = common_loaders.load_reference(stream)
+    obj['physical_vehicle_link_or_interface_reference'] = common_loaders.load_reference(stream)
     
     # kernel: an unknown gateway mode is kept as its number instead of aborting the load
     obj['gateway_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDGatewayMode, stream.loadEnumMediumRange())

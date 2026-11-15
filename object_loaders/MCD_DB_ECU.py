@@ -12,7 +12,7 @@ def load(stream):
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['description_id'] = stream.loadAsciiString()[0]
     
-    obj['location_refs'] = []
+    obj['location_references'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
@@ -28,6 +28,6 @@ def load(stream):
         if name_word == 0:
             raise RuntimeError('Named reference without name')
         
-        obj['location_refs'].append(item)
+        obj['location_references'].append(item)
     
     return obj

@@ -6,7 +6,7 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['ecu_variant_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
+    obj['ecu_variant_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream)
     
     # kernel: two parallel vectors are filled in stream order, the variant name and its pattern
     # collection; the key is the short name of a variant

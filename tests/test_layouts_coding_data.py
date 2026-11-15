@@ -27,14 +27,14 @@ def odx_link_body(id_ref='ID1', doc_ref='DOC1', layer=False):
 
 
 def odx_link(id_ref='ID1', doc_ref='DOC1', layer=False):
-    return {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_ref': id_ref, 'doc_ref': doc_ref,
+    return {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': id_ref, 'doc_ref': doc_ref,
             'is_layer_doc_type': layer}
 
 
 class OdxLinkTests(unittest.TestCase):
     def test_db_odx_link_minimal(self):
         self.assertEqual(load('DB_ODX_LINK', ObjectBytes().ascii(None).ascii(None).flag(False)),
-                         {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_ref': None, 'doc_ref': None,
+                         {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': None, 'doc_ref': None,
                           'is_layer_doc_type': False})
 
     def test_db_odx_link_all_branches(self):
@@ -72,7 +72,7 @@ def item_base(sdgs=None, parameter=False, complex_=False):
     return {'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
             'description': 'Description', 'long_name': 'Long name', 'short_name': 'Item',
             # kernel: an absent collection reads as an empty one
-            'special_data_group_refs': [] if sdgs is None else [{'object_id': n} for n in sdgs],
+            'special_data_group_references': [] if sdgs is None else [{'object_id': n} for n in sdgs],
             'parameter': audience() if parameter else None, 'is_complex': complex_}
 
 
@@ -131,12 +131,12 @@ def item_value(full=False):
     if not full:
         return typed('MCD_DB_ITEM_VALUE', {
             # kernel: an absent collection reads as an empty one
-            'audience_state': None, 'special_data_group_refs': [], 'description': None,
+            'audience_state': None, 'special_data_group_references': [], 'description': None,
             'description_id': None, 'key': None, 'meaning': None, 'meaning_id': None,
             'physical_constant_value': None, 'rule': None,
             'disabled_additional_audiences': [], 'enabled_additional_audiences': []})
     return typed('MCD_DB_ITEM_VALUE', {
-        'audience_state': audience(), 'special_data_group_refs': [{'object_id': 3}],
+        'audience_state': audience(), 'special_data_group_references': [{'object_id': 3}],
         'description': 'Desc', 'description_id': 'DescId', 'key': 'KEY', 'meaning': 'Meaning',
         'meaning_id': 'MeaningId', 'physical_constant_value': 'Value', 'rule': 'Rule',
         'disabled_additional_audiences': named_refs(NAMED_REFS),
@@ -329,7 +329,7 @@ def data_record(full=False, **changes):
             'description': None, 'long_name': None, 'short_name': None, 'audience_state': None,
             'binary_data': bytearray(), 'data_format': 0, 'data_id': None,
             # kernel: an absent collection reads as an empty one
-            'has_coding_data': False, 'coding_data': None, 'special_data_group_refs': [],
+            'has_coding_data': False, 'coding_data': None, 'special_data_group_references': [],
             'key': None, 'rule': None, 'configuration_record_value_size': 0,
             'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
             'enabled_additional_audiences': []})
@@ -338,7 +338,7 @@ def data_record(full=False, **changes):
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
         'audience_state': audience(), 'binary_data': b'\x01\x02', 'data_format': 0x6B01,
         'data_id': uint(42), 'has_coding_data': True, 'coding_data': coding_data(True),
-        'special_data_group_refs': [{'object_id': 5}], 'key': 'KEY', 'rule': 'RULE',
+        'special_data_group_references': [{'object_id': 5}], 'key': 'KEY', 'rule': 'RULE',
         'configuration_record_value_size': 16, 'parent_config_data_short_name': 'PARENT',
         'disabled_additional_audiences': named_refs(NAMED_REFS),
         'enabled_additional_audiences': [], **changes})
@@ -408,13 +408,13 @@ def configuration_record(full=False):
             'description': None, 'long_name': None, 'short_name': None, 'audience_state': None,
             'configuration_id': None, 'has_configuration_id_item': False,
             'configuration_id_item': None, 'has_data_id_item': False, 'data_id_item': None,
-            'data_record_refs': [], 'default_data_record_ref': None, 'option_items': None,
+            'data_record_references': [], 'default_data_record_reference': None, 'option_items': None,
             'system_items': None, 'read_diag_com_primitives': None,
             'write_diag_com_primitives': None, 'diag_com_data_connectors': None,
             'configuration_record_value_size': 0, 'ecu_config_file_sub_dir_name': None,
             # kernel: an absent collection reads as an empty one
             'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
-            'enabled_additional_audiences': [], 'special_data_group_refs': []})
+            'enabled_additional_audiences': [], 'special_data_group_references': []})
     return typed('MCD_DB_CONFIGURATION_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Rec',
@@ -422,15 +422,15 @@ def configuration_record(full=False):
         'has_configuration_id_item': True,
         'configuration_id_item': typed('MCD_DB_CONFIGURATION_ID_ITEM', item_base()),
         'has_data_id_item': True, 'data_id_item': typed('MCD_DB_DATA_ID_ITEM', item_base()),
-        'data_record_refs': [{'name': 'D1', 'reference': value_attributed_ref(('A1',), 3)},
+        'data_record_references': [{'name': 'D1', 'reference': value_attributed_ref(('A1',), 3)},
                              {'name': 'D2', 'reference': value_attributed_ref()}],
-        'default_data_record_ref': value_attributed_ref(), 'option_items': [option_item()],
+        'default_data_record_reference': value_attributed_ref(), 'option_items': [option_item()],
         'system_items': [], 'read_diag_com_primitives': [odx_link()],
         'write_diag_com_primitives': [], 'diag_com_data_connectors': [connector()],
         'configuration_record_value_size': 32, 'ecu_config_file_sub_dir_name': 'SUBDIR',
         'parent_config_data_short_name': 'PARENT', 'disabled_additional_audiences': [],
         'enabled_additional_audiences': named_refs(NAMED_REFS),
-        'special_data_group_refs': [{'object_id': 11}]})
+        'special_data_group_references': [{'object_id': 11}]})
 
 
 class ConfigurationRecordTests(unittest.TestCase):
@@ -464,17 +464,17 @@ def configuration_data(full=False):
         return typed('MCD_DB_CONFIGURATION_DATA', {
             'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None,
-            'configuration_record_refs': [], 'base_var_to_case_map': [],
+            'configuration_record_references': [], 'base_var_to_case_map': [],
             # kernel: an absent collection reads as an empty one
-            'special_data_group_refs': [], 'major': 0, 'minor': 0, 'revision': 0,
+            'special_data_group_references': [], 'major': 0, 'minor': 0, 'revision': 0,
             'is_revision_label_available': False, 'additional_audience_refs': []})
     return typed('MCD_DB_CONFIGURATION_DATA', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Data',
-        'configuration_record_refs': [{'name': 'R1', 'reference': value_attributed_ref(('A1',), 3)}],
+        'configuration_record_references': [{'name': 'R1', 'reference': value_attributed_ref(('A1',), 3)}],
         'base_var_to_case_map': [{'map_key': 'BV1', 'unknown_1': 2, 'values': ['C1', 'C2']},
                                  {'map_key': 'BV2', 'unknown_1': 4, 'values': []}],
-        'special_data_group_refs': [{'object_id': 1}], 'major': 1, 'minor': 2, 'revision': 3,
+        'special_data_group_references': [{'object_id': 1}], 'major': 1, 'minor': 2, 'revision': 3,
         'is_revision_label_available': True,
         'additional_audience_refs': named_refs(NAMED_REFS)})
 

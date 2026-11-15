@@ -18,11 +18,11 @@ def load(stream):
         
         item['map_key'] = stream.loadAsciiString()[0]
         
-        item['request_parameters_refs'] = []
+        item['request_parameters_references'] = []
         counter = stream.loadNumericType(2)
         for i in range(counter):
             ref = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbRequestParametersImpl
-            item['request_parameters_refs'].append(ref)
+            item['request_parameters_references'].append(ref)
         
         obj['prot_stack_map'].append(item)
         

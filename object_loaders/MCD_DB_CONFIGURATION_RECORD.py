@@ -22,12 +22,12 @@ def load(stream):
     obj['data_id_item'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbDataIdItemImpl
     
     # Named value-attributed references; no presence byte
-    obj['data_record_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbValueAttributedObjectReference, 0)
+    obj['data_record_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbValueAttributedObjectReference, 0)
     
     # Presence byte, then one value-attributed reference without a name
-    obj['default_data_record_ref'] = None
+    obj['default_data_record_reference'] = None
     if stream.loadOneByteType():
-        obj['default_data_record_ref'] = common_loaders.loadDbValueAttributedObjectReference(stream)
+        obj['default_data_record_reference'] = common_loaders.loadDbValueAttributedObjectReference(stream)
     
     obj['option_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbOptionItemsImpl
     obj['system_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbSystemItemsImpl
@@ -41,8 +41,8 @@ def load(stream):
     obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     return obj

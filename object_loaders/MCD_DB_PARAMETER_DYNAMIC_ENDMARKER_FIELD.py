@@ -7,6 +7,6 @@ def load(stream):
     
     obj['termination_value'] = stream.loadAsciiString()[0]
     
-    obj['dop_base_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
+    obj['dop_base_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopBase
     
     return obj

@@ -33,14 +33,14 @@ def load(stream):
     
     # kernel: setDbDiagComPrimitives
     # MCDDbDiagComObjectReferences : DbDiagComObjectReference, MCDDbDiagComPrimitives, MCDDbDiagComPrimitive, MCDDbDiagComPrimitiveImpl
-    obj['diag_com_primitive_refs'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
+    obj['diag_com_primitive_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_DbDiagComObjectReference)
     
     if stream.loadOneByteType():
-        obj['dop_simple_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopSimple
+        obj['dop_simple_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : DbDopSimple
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if stream.loadOneByteType():
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     return obj

@@ -44,9 +44,9 @@ def load(stream):
         obj['diag_coded_type'] = DbObject.load_object_from_stream_if_exists(stream) # DbDiagCodedType
     
     # kernel: DbObjectReference<DbDopBase>
-    obj['dop_base_ref'] = None
+    obj['dop_base_reference'] = None
     if flags & (1 << 3):
-        obj['dop_base_ref'] = common_loaders.load_reference(stream, False)
+        obj['dop_base_reference'] = common_loaders.load_reference(stream, False)
     
     obj['dop_base'] = None
     if flags & (1 << 4):
@@ -55,9 +55,9 @@ def load(stream):
     obj['is_byte_pos_available'] = bool(flags & (1 << 5))
     
     # kernel: an absent collection reads as an empty one
-    obj['special_data_group_refs'] = []
+    obj['special_data_group_references'] = []
     if flags & (1 << 6):
-        obj['special_data_group_refs'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
+        obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
     obj['is_protocol_parameter'] = bool(flags & (1 << 7))
     

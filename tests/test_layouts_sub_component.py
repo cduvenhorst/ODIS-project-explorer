@@ -39,7 +39,7 @@ def dtc_connector_body(odx_link=False):
 def dtc_connector(odx_link=False):
     return typed('MCD_DB_DIAG_TROUBLE_CODE_CONNECTOR', {
         'dtc_dop_is_odx_link': odx_link,
-        'dtc_dop_ref': None if odx_link else ref('DOP1', 'POOL1'),
+        'dtc_dop_reference': None if odx_link else ref('DOP1', 'POOL1'),
         'dtc_dop_odx_link': odx_link_expected() if odx_link else None,
         'diag_trouble_code': 'DTC1', **name_block('C1')})
 
@@ -57,7 +57,7 @@ def env_connector_body(odx_link=False):
 def env_connector(odx_link=False):
     return typed('MCD_DB_ENV_DATA_CONNECTOR', {
         'env_data_desc_dop_is_odx_link': odx_link,
-        'env_data_desc_dop_ref': None if odx_link else ref('DOP1', 'POOL1'),
+        'env_data_desc_dop_reference': None if odx_link else ref('DOP1', 'POOL1'),
         'env_data_desc_dop_odx_link': odx_link_expected() if odx_link else None,
         'env_data': 'ENV1', **name_block('E1')})
 
@@ -75,7 +75,7 @@ def table_row_connector_body(odx_link=False, strings=()):
 def table_row_connector(odx_link=False, strings=()):
     return typed('MCD_DB_TABLE_ROW_CONNECTOR', {
         'table_is_odx_link': odx_link,
-        'table_ref': None if odx_link else attributed_ref(strings),
+        'table_reference': None if odx_link else attributed_ref(strings),
         'table_odx_link': odx_link_expected() if odx_link else None,
         'table_row': 'TAB1', **name_block('T1')})
 
@@ -143,8 +143,8 @@ class ConnectorTests(unittest.TestCase):
         body = ObjectBytes().u8(0).ascii('OBJ').u32(0x12345678).u8(0).ascii('TAB1')
         name_block_body(body, 'T1')
         result = load('MCD_DB_TABLE_ROW_CONNECTOR', body)
-        self.assertEqual(result['table_ref']['object_id'], 'OBJ')
-        self.assertIsNone(result['table_ref']['pool_id'])
+        self.assertEqual(result['table_reference']['object_id'], 'OBJ')
+        self.assertIsNone(result['table_reference']['pool_id'])
         self.assertEqual(result['table_row'], 'TAB1')
 
     def test_mcd_db_sub_component_param_connector_minimal(self):
