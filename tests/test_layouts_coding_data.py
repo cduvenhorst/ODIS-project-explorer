@@ -559,6 +559,24 @@ class ConfigurationDataTests(unittest.TestCase):
         loaded = support.load('MCD_DB_CONFIGURATION_DATA', body)
         self.assertEqual(loaded['base_variant_to_case_map'][0]['values'], ['V', 'W'])
 
+    def test_mcd_db_configuration_data_duplicate_numeric_keys_below_0012(self):
+        # kernel: std::map and std::set keyed by numbers below version 0012
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(3)
+        body.u32(5).u8(1).u32(3).u32(7).u32(8).u32(7)
+        body.u32(6).u8(2).u32(0)
+        body.u32(5).u8(4).u32(1).u32(9)
+        body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
+        loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version='0011')
+        self.assertEqual(loaded['base_variant_to_case_map'],
+                         [{'map_key': 5, 'unknown_1': 4, 'values': [9]},
+                          {'map_key': 6, 'unknown_1': 2, 'values': []}])
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(1).u32(5).u8(1).u32(3).u32(7).u32(8).u32(7)
+        body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
+        loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version='0011')
+        self.assertEqual(loaded['base_variant_to_case_map'][0]['values'], [7, 8])
+
     def test_db_ecu_config_info_minimal(self):
         self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body()), config_info())
 

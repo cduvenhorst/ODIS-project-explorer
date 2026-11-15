@@ -626,6 +626,26 @@ class TableTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_TABLE', body),
                          typed('MCD_DB_TABLE', {**table(), 'description_id': 'DESC'}))
 
+    @staticmethod
+    def rows_body(rows):
+        body = ObjectBytes().ascii(None).ascii('SomeId').ascii('OBJ').unicode('Description')
+        body.unicode('Long name').ascii('Table').u32(len(rows))
+        for key, object_id in rows:
+            body.unicode(key).ascii(object_id).ascii('P').ascii('Short')
+        return body.ascii(None).u16(0).u8(0).u8(0)
+
+    def test_mcd_db_table_duplicate_row_key_replaces_earlier_entry(self):
+        # kernel: std::map ordered by the key text; a later duplicate key replaces the earlier entry in its place
+        loaded = load('MCD_DB_TABLE', self.rows_body([('K1', 'O1'), ('K2', 'O2'), ('K1', 'O3')]))
+        self.assertEqual([(row['map_key'], row['reference']['object_id']) for row in loaded['table_key_map']],
+                         [('K1', 'O3'), ('K2', 'O2')])
+
+    def test_mcd_db_table_unresolvable_row_keys_are_all_kept(self):
+        # kernel: fails when a row key cannot be resolved; kept readable for VW projects
+        loaded = load('MCD_DB_TABLE', self.rows_body([(None, 'O1'), (None, 'O2')]))
+        self.assertEqual([(row['map_key'], row['reference']['object_id']) for row in loaded['table_key_map']],
+                         [(None, 'O1'), (None, 'O2')])
+
 
 class TableKeyThirdWordTests(unittest.TestCase):
     @staticmethod

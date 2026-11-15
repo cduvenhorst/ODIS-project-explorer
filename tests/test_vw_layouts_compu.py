@@ -660,6 +660,18 @@ class DopSimpleBaseTests(unittest.TestCase):
             'internal_constraint_reference': {'object_id': 'INT', 'pool_id': 'POOL'},
             'physical_constraint_reference': {'object_id': 'PHYS', 'pool_id': 'POOL'}})
 
+    def test_db_dop_simple_base_duplicate_index_key_replaces_earlier_entry(self):
+        # kernel: std::map; a later duplicate key replaces the earlier entry in its place
+        body = ObjectBytes().ascii('DOP').absent().absent().absent()
+        body.u16(3).u32(1).u16(10).u32(2).u16(20).u32(1).u16(30)
+        body.u16(3).u32(5).u16(40).u32(6).u16(50).u32(5).u16(60)
+        body.flag(False).flag(False).flag(False)
+        loaded = load('DB_DOP_SIMPLE_BASE', body)
+        self.assertEqual(loaded['physical_to_coded_index_map'],
+                         [{'map_key': 1, 'item': 30}, {'map_key': 2, 'item': 20}])
+        self.assertEqual(loaded['coded_to_physical_index_map'],
+                         [{'map_key': 5, 'item': 60}, {'map_key': 6, 'item': 50}])
+
 
 class KeyVectorTests(unittest.TestCase):
     def test_db_key_vector_minimal(self):

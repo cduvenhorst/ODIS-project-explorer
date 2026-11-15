@@ -72,7 +72,7 @@ def loadNamedObjectReferenceCollectionFromObjectStream(stream, reference_loader 
     return obj
 
 
-# ASCII string vector
+# Kernel map and set helpers
 def put_map_entry(entries: list[dict], positions: dict[object, int], kernel_key: object, entry: dict) -> None:
     """Add an entry to a map kept as a list in read order; a later entry with a known key replaces the earlier one in its place."""
     if kernel_key in positions:
@@ -95,6 +95,7 @@ def kernel_string_key(loaded: tuple[str | None, int | None]) -> object:
     return text if word is None else word
 
 
+# ASCII string vector
 def loadAsciiStringVectorFromObjectStream(stream):
     obj = []
     

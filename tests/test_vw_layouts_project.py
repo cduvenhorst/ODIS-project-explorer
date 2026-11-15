@@ -585,6 +585,38 @@ class LayerDataTests(unittest.TestCase):
                 self.assertEqual(load('DB_LAYER_DATA', layer_data_body(),
                                       database_version=version), layer_data())
 
+    @staticmethod
+    def duplicate_key_body(primitive_keys=(), env_keys=()):
+        body = ObjectBytes().ascii('Layer').ascii('Unknown').ascii('ProtoType').ascii('Stack')
+        body.ascii('ComParamPool').u16(0x0104)
+        body.u16(0).u16(0)
+        for _ in range(5):
+            body.u16(0)
+        body.u16(len(primitive_keys))
+        for key in primitive_keys:
+            body.ascii(key).u16(0)
+        body.u16(0).u16(0).u16(0)
+        body.u16(len(env_keys))
+        for key in env_keys:
+            body.ascii(key).absent()
+        for _ in range(2 + 4 + 2):
+            body.u16(0)
+        body.u16(0)
+        return body.u8(0).u8(0).u16(0)
+
+    def test_layer_data_duplicate_functional_class_key_replaces_earlier_entry(self):
+        # kernel: std::map; a later duplicate key replaces the earlier entry in its place
+        body = self.duplicate_key_body(primitive_keys=('A', 'B', 'A'))
+        loaded = load('DB_LAYER_DATA', body)
+        self.assertEqual([entry['map_key'] for entry in loaded['functional_class_data_primitives_map']],
+                         ['A', 'B'])
+
+    def test_layer_data_duplicate_env_data_desc_key_replaces_earlier_entry(self):
+        body = self.duplicate_key_body(env_keys=('A', 'B', 'A'))
+        loaded = load('DB_LAYER_DATA', body)
+        self.assertEqual(loaded['env_data_descs'],
+                         [{'map_key': 'A', 'env_data_desc': None}, {'map_key': 'B', 'env_data_desc': None}])
+
 
 def location_refs_body(body, full):
     """MCD_DB_LOCATION_REFERENCES entries; the access key is optional, any non-zero byte is present."""

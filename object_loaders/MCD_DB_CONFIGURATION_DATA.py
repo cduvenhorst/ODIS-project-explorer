@@ -25,17 +25,26 @@ def load(stream):
     map_items = stream.loadNumericType(4)
     for i in range(map_items):
         entry = {}
-        key = stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()
-        entry['map_key'] = key if is_numeric else key[0]
+        if is_numeric:
+            entry['map_key'] = kernel_key = stream.loadNumericType(4)
+        else:
+            key = stream.loadAsciiString()
+            entry['map_key'] = key[0]
+            kernel_key = common_loaders.kernel_string_key(key)
         entry['unknown_1'] = stream.loadEnumSmallRange()
         # kernel: std::set ordered by the value; a later duplicate value is dropped; kept in read order
         entry['values'] = []
         seen = set()
         collection_items = stream.loadNumericType(4)
         for j in range(collection_items):
-            value = stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()
-            common_loaders.add_set_value(entry['values'], seen, value if is_numeric else common_loaders.kernel_string_key(value), value if is_numeric else value[0])
-        common_loaders.put_map_entry(obj['base_variant_to_case_map'], positions, key if is_numeric else common_loaders.kernel_string_key(key), entry)
+            if is_numeric:
+                value = value_key = stream.loadNumericType(4)
+            else:
+                loaded = stream.loadAsciiString()
+                value = loaded[0]
+                value_key = common_loaders.kernel_string_key(loaded)
+            common_loaders.add_set_value(entry['values'], seen, value_key, value)
+        common_loaders.put_map_entry(obj['base_variant_to_case_map'], positions, kernel_key, entry)
     
     # kernel: an absent collection reads as an empty one
     obj['special_data_group_references'] = []

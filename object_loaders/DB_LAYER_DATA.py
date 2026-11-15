@@ -42,15 +42,17 @@ def load(stream):
     # kernel: setFunctClassDataPrimitivesMap; the entry's own map is the data primitives map
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['functional_class_data_primitives_map'] = []
+    positions = {}
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
         item['data_primitives_map'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)
         
-        obj['functional_class_data_primitives_map'].append(item)
+        common_loaders.put_map_entry(obj['functional_class_data_primitives_map'], positions, common_loaders.kernel_string_key(key), item)
     
     # kernel: DbSemanticAttributedObjectReference, read as an attributed reference
     # EcuStateChartRefs
@@ -65,15 +67,17 @@ def load(stream):
     
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['env_data_descs'] = []
+    positions = {}
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         
         item['env_data_desc'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbEnvDataDescImpl
         
-        obj['env_data_descs'].append(item)
+        common_loaders.put_map_entry(obj['env_data_descs'], positions, common_loaders.kernel_string_key(key), item)
     
     obj['parent_layers'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)
     obj['shared_data_parent_layers'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)

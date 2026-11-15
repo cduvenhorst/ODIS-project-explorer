@@ -29,7 +29,11 @@ def load(stream):
         # kernel: the third word of the reference is object_id2
         item['reference'] = common_loaders.load_reference(stream, True)
         
-        common_loaders.put_map_entry(obj['table_key_map'], positions, item['map_key'], item)
+        # kernel: fails when a row key cannot be resolved; kept readable for VW projects
+        if item['map_key'] is None:
+            obj['table_key_map'].append(item)
+        else:
+            common_loaders.put_map_entry(obj['table_key_map'], positions, item['map_key'], item)
     
     obj['semantic'] = stream.loadAsciiString()[0]
     
