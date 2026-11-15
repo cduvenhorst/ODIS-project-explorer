@@ -324,20 +324,38 @@ def _expect_marker(stream: DbStream, marker: bytes) -> None:
         raise RuntimeError('Unexpected marker in named streams: {}'.format(DbStream.bytearray_to_string(data)))
 
 
-def _skip_to_next_named_stream(stream: DbStream) -> bool:
+def _next_stream_boundary(stream: DbStream) -> int | None:
+    """Bytes that remain at the next stream separator, searched from the current position.
+
+    None means no further named stream follows: fewer than 3 bytes are left, there is no separator,
+    or the next separator is the object end marker.
+    """
+    length = stream.get_length()
+    if length < MARKER_LENGTH:
+        return None
+    end = stream.find(STREAM_SEPARATOR)
+    if end < 0 or end == length - MARKER_LENGTH:
+        return None
+    return length - end
+
+
+def _skip_to_next_named_stream(stream: DbStream, boundary: int | None) -> bool:
     """Skip the rest of the current named stream; False means no further named stream follows.
 
-    Reads up to and including the next separator and returns True. Without a following separator
-    (or when the next separator is the object end marker) it reads up to the object end marker
+    With a boundary, reader leftovers up to the separator are skipped, the separator is consumed and
+    True is returned; a reader that read past the boundary fails. Without a boundary (fewer than 3 bytes
+    left, no following separator, or the object end marker next) it reads up to the object end marker
     and returns False.
     """
-    if stream.get_length() < MARKER_LENGTH:
+    if boundary is None:
+        # kernel: does not register a named stream without a following separator; kept readable for VW projects
+        if stream.get_length() >= MARKER_LENGTH:
+            stream.read(stream.get_length() - MARKER_LENGTH)
         return False
-    end = stream.find(STREAM_SEPARATOR)
-    if end < 0 or end == stream.get_length() - MARKER_LENGTH:
-        stream.read(stream.get_length() - MARKER_LENGTH)
-        return False
-    stream.read(end)
+    remaining = stream.get_length()
+    if remaining < boundary:
+        raise RuntimeError('Named stream reader read past the next stream separator')
+    stream.read(remaining - boundary)
     _expect_marker(stream, STREAM_SEPARATOR)
     return True
 
@@ -347,7 +365,9 @@ def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], o
 
     Each stream is a one-character name followed by the data of its reader.
     The length check assumes the object is standalone: only the object end marker
-    (3 bytes, not consumed here) may remain after the last stream.
+    (3 bytes, not consumed here) may remain after the last stream. A truncated rest (fewer than
+    3 bytes) ends the split. Reader leftovers up to the next separator are skipped; a reader that
+    reads past that separator fails.
     """
     streams: dict[str, object] = {}
     if stream.get_length() == MARKER_LENGTH:
@@ -356,10 +376,11 @@ def loadNamedStreams(stream: DbStream, readers: dict[str, Callable[[DbStream], o
     _expect_marker(stream, STREAM_BEGIN)
     while True:
         name = chr(stream.read(1)[0])
+        # kernel: a named stream spans the bytes up to the next separator; a reader cannot read past it
+        boundary = _next_stream_boundary(stream)
         if name in readers:
-            # kernel: does not register a named stream without a following separator; kept readable for VW projects
             streams[name] = readers[name](stream)
         # kernel: unknown named streams are ignored, and so are bytes a reader leaves in a named stream
         # kernel: a part without a following separator ends the split without error
-        if not _skip_to_next_named_stream(stream):
+        if not _skip_to_next_named_stream(stream, boundary):
             return streams

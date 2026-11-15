@@ -251,6 +251,20 @@ class UnknownNamedStreamTests(unittest.TestCase):
         body = support.ObjectBytes().raw(b'#>\x00A').ascii('X').ascii('REST').raw(b'#>\x01')
         self.assertEqual(self.load(body), {'A': 'X'})
 
+    def test_reader_reading_exactly_its_stream_is_accepted(self):
+        body = (support.ObjectBytes().raw(b'#>\x00A').ascii('X').raw(b'#<\x00')
+                .raw(b'B').ascii('Y').raw(b'#>\x01'))
+        self.assertEqual(self.load(body), {'A': 'X', 'B': 'Y'})
+
+    def test_reader_reading_past_next_separator_fails(self):
+        # kernel: a named stream ends at the next separator; a reader reading into the next stream fails
+        readers = {'A': lambda s: (s.loadAsciiString()[0], s.loadAsciiString()[0]), 'B': self.READERS['B']}
+        body = (support.ObjectBytes().raw(b'#>\x00A').ascii('X').raw(b'#<\x00')
+                .raw(b'B').ascii('Y').raw(b'#>\x01'))
+        stream = open_stream(body, self.END_MARKER)
+        with self.assertRaises(RuntimeError):
+            common_loaders.loadNamedStreams(stream, readers)
+
 
 if __name__ == '__main__':
     unittest.main()
