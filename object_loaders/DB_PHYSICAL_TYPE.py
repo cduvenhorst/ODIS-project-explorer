@@ -14,6 +14,8 @@ def load(stream):
         obj['base_data_type_as_mcd_data_type'] = None
     
     obj['is_precision_available'] = bool(stream.loadNumericType(1))
+    # kernel: getPrecision returns the field without a check
+    obj['precision'] = None
     if obj['is_precision_available']:
         obj['precision'] = stream.loadNumericType(2)
     

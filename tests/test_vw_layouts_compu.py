@@ -87,7 +87,7 @@ def physical_type_body():
 def physical_type():
     return {'#OBJECT_TYPE': 'DB_PHYSICAL_TYPE', 'base_data_type': 'eDB_PHYS_INT32',
             'base_data_type_as_mcd_data_type': 'eA_INT32', 'is_precision_available': False,
-            'display_radix': 10}
+            'precision': None, 'display_radix': 10}
 
 
 def interval_body(lower=None, upper=None, flags=0):
@@ -553,7 +553,10 @@ class DiagCodedTypeTests(unittest.TestCase):
 
 class PhysicalTypeTests(unittest.TestCase):
     def test_db_physical_type_minimal(self):
-        self.assertEqual(load('DB_PHYSICAL_TYPE', physical_type_body()), physical_type())
+        result = load('DB_PHYSICAL_TYPE', physical_type_body())
+        self.assertEqual(result, physical_type())
+        self.assertIn('precision', result)
+        self.assertIsNone(result['precision'])
 
     def test_db_physical_type_all_branches(self):
         body = ObjectBytes().u8(3).flag(True).u16(2).u8(16)
