@@ -35,8 +35,8 @@ def load(stream):
     obj['write_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLinks
     obj['diag_com_data_connectors'] = DbObject.load_object_from_stream_if_exists(stream) # DbDiagComDataConnectors
     obj['configuration_record_value_size'] = stream.loadNumericType(4)
-    obj['ecu_config_file_sub_dir_name'] = stream.loadAsciiString()[0]
-    obj['parent_config_data_short_name'] = stream.loadAsciiString()[0]
+    obj['ecu_configuration_file_sub_directory_name'] = stream.loadAsciiString()[0]
+    obj['parent_configuration_data_short_name'] = stream.loadAsciiString()[0]
     obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     

@@ -99,7 +99,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['description'] = dop['description']
             
             # BYTE-POSITION and BIT-POSITION specify the start position of the parameter in the PDU, where the counting starts with 0
-            output_object['byte_position'] = dop['byte_position'] if dop['is_byte_pos_available'] else None
+            output_object['byte_position'] = dop['byte_position'] if dop['is_byte_position_available'] else None
             output_object['bit_position'] = dop['bit_position']
             
             # BIT-POSITION shall not have a value greater than 7
@@ -118,15 +118,15 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # In this case, the received coded value shall be converted into the physical representation
                     # After that, the specified and the received values can be compared
                     output_object['default_value'] = None
-                    if dop['default_mcd_value'] is not None:
+                    if dop['default_value'] is not None:
                         # Ensure the default value's data type is valid
-                        if not dop['default_mcd_value']['data_type'].startswith('eA_'):
-                            raise RuntimeError('Strange PHYSICAL-DEFAULT-VALUE type: {}'.format(dop['default_mcd_value']['data_type']))
+                        if not dop['default_value']['data_type'].startswith('eA_'):
+                            raise RuntimeError('Strange PHYSICAL-DEFAULT-VALUE type: {}'.format(dop['default_value']['data_type']))
                         
                         # Store the default value
                         output_object['default_value'] = {}
-                        output_object['default_value']['data_type'] = dop['default_mcd_value']['data_type'][1:]
-                        output_object['default_value']['value'] = dop['default_mcd_value']['value']
+                        output_object['default_value']['data_type'] = dop['default_value']['data_type'][1:]
+                        output_object['default_value']['value'] = dop['default_value']['value']
                     
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
@@ -149,17 +149,17 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['parameter_type'] = 'RESERVED'
                     
                     # RESERVED parameters must have a default value
-                    if dop['default_mcd_value'] is None:
+                    if dop['default_value'] is None:
                         raise RuntimeError('RESERVED has no default')
                     
                     # Ensure the default value's data type is valid
-                    if not dop['default_mcd_value']['data_type'].startswith('eA_'):
-                        raise RuntimeError('Strange DEFAULT-VALUE type: {}'.format(dop['default_mcd_value']['data_type']))
+                    if not dop['default_value']['data_type'].startswith('eA_'):
+                        raise RuntimeError('Strange DEFAULT-VALUE type: {}'.format(dop['default_value']['data_type']))
                     
                     # Store the default value
                     output_object['default_value'] = {}
-                    output_object['default_value']['data_type'] = dop['default_mcd_value']['data_type'][1:]
-                    output_object['default_value']['value'] = dop['default_mcd_value']['value']
+                    output_object['default_value']['data_type'] = dop['default_value']['data_type'][1:]
+                    output_object['default_value']['value'] = dop['default_value']['value']
                     
                     # A parameter of type RESERVED shouldn't reference any DOP
                     if dop['dop_base_reference'] is not None:
@@ -178,17 +178,17 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['parameter_type'] = 'CODED-CONST'
                     
                     # CODED-CONST parameters must have a default value
-                    if dop['default_mcd_value'] is None:
+                    if dop['default_value'] is None:
                         raise RuntimeError('CODED-CONST has no default')
                     
                     # Ensure the default value's data type is valid
-                    if not dop['default_mcd_value']['data_type'].startswith('eA_'):
-                        raise RuntimeError('Strange CODED-DEFAULT-VALUE type: {}'.format(dop['default_mcd_value']['data_type']))
+                    if not dop['default_value']['data_type'].startswith('eA_'):
+                        raise RuntimeError('Strange CODED-DEFAULT-VALUE type: {}'.format(dop['default_value']['data_type']))
                     
                     # Store the constant value
                     output_object['constant'] = {}
-                    output_object['constant']['data_type'] = dop['default_mcd_value']['data_type'][1:]
-                    output_object['constant']['value'] = dop['default_mcd_value']['value']
+                    output_object['constant']['data_type'] = dop['default_value']['data_type'][1:]
+                    output_object['constant']['value'] = dop['default_value']['value']
                     
                     # A parameter of type CODED-CONST shouldn't reference any DOP
                     if dop['dop_base_reference'] is not None:
@@ -209,17 +209,17 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # After that, the specified and the calculated values can be compared
                     
                     # PHYS-CONST parameters must have a default value
-                    if dop['default_mcd_value'] is None:
+                    if dop['default_value'] is None:
                         raise RuntimeError('PHYS-CONST has no default')
                     
                     # Ensure the default value's data type is valid
-                    if not dop['default_mcd_value']['data_type'].startswith('eA_'):
-                        raise RuntimeError('Strange PHYSICAL-DEFAULT-VALUE type: {}'.format(dop['default_mcd_value']['data_type']))
+                    if not dop['default_value']['data_type'].startswith('eA_'):
+                        raise RuntimeError('Strange PHYSICAL-DEFAULT-VALUE type: {}'.format(dop['default_value']['data_type']))
                     
                     # Store the constant value
                     output_object['constant'] = {}
-                    output_object['constant']['data_type'] = dop['default_mcd_value']['data_type'][1:]
-                    output_object['constant']['value'] = dop['default_mcd_value']['value']
+                    output_object['constant']['data_type'] = dop['default_value']['data_type'][1:]
+                    output_object['constant']['value'] = dop['default_value']['value']
                     
                     # The referenced DOP might be missing the PoolID
                     # The following function will try to find it using the DOP reference maps found in the database's LayerData
@@ -234,10 +234,10 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['parameter_type'] = 'SYSTEM'
                     
                     # The member `SYSPARAM` defines this value type
-                    output_object['sysparam'] = dop['sys_param']
+                    output_object['sysparam'] = dop['system_parameter']
                     
                     output_object['default_value'] = None
-                    if dop['default_mcd_value'] is not None:
+                    if dop['default_value'] is not None:
                         raise RuntimeError('SYSTEM parameter has default')
                     
                     # The value received by the D-server is a physical value and shall be coded using the referenced DOP
@@ -477,7 +477,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         output_object['units']['si_unit']['current_exponent']            = units_dop['physical_dimension']['current_exponent']
                         output_object['units']['si_unit']['temperature_exponent']        = units_dop['physical_dimension']['temperature_exponent']
                         output_object['units']['si_unit']['molar_amount_exponent']       = units_dop['physical_dimension']['molar_amount_exponent']
-                        output_object['units']['si_unit']['luminous_intensity_exponent'] = units_dop['physical_dimension']['luminous_intensity_exponent']
+                        output_object['units']['si_unit']['luminous_intensity'] = units_dop['physical_dimension']['luminous_intensity']
             
             # The validity of the internal value can be restricted to a given interval via the INTERNAL-CONSTR and its members LOWER-LIMIT and UPPER-LIMIT
             if 'internal_constraint_reference' in dop:
@@ -497,10 +497,10 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     # Get the LIMITs
                     output_object['internal_constraint'] = {'lower_limit': {}, 'upper_limit': {}}
                     # LOWER-LIMIT
-                    output_object['internal_constraint']['lower_limit']['type'] = internal_constraint['interval']['lower_limit_type'].replace('eLIMIT_', '')
+                    output_object['internal_constraint']['lower_limit']['type'] = internal_constraint['interval']['lower_limit_interval_type'].replace('eLIMIT_', '')
                     output_object['internal_constraint']['lower_limit']['value'] = None if output_object['internal_constraint']['lower_limit']['type'] == 'INFINITE' else internal_constraint['interval']['lower_limit']['value']
                     # UPPER-LIMIT
-                    output_object['internal_constraint']['upper_limit']['type'] = internal_constraint['interval']['upper_limit_type'].replace('eLIMIT_', '')
+                    output_object['internal_constraint']['upper_limit']['type'] = internal_constraint['interval']['upper_limit_interval_type'].replace('eLIMIT_', '')
                     output_object['internal_constraint']['upper_limit']['value'] = None if output_object['internal_constraint']['upper_limit']['type'] == 'INFINITE' else internal_constraint['interval']['upper_limit']['value']
                     
                     # Additionally, SCALE-CONSTRS can be used to define valid, non-valid, non-defined or non-available sub-intervals within the interval spanned by INTERNAL-CONSTR
@@ -520,10 +520,10 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         # Get the LIMITs
                         scale_constraint_output_object = {'lower_limit': {}, 'upper_limit': {}}
                         # LOWER-LIMIT
-                        scale_constraint_output_object['lower_limit']['type'] = scale_constraint['interval']['lower_limit_type'].replace('eLIMIT_', '')
+                        scale_constraint_output_object['lower_limit']['type'] = scale_constraint['interval']['lower_limit_interval_type'].replace('eLIMIT_', '')
                         scale_constraint_output_object['lower_limit']['value'] = None if scale_constraint_output_object['lower_limit']['type'] == 'INFINITE' else scale_constraint['interval']['lower_limit']['value']
                         # UPPER-LIMIT
-                        scale_constraint_output_object['upper_limit']['type'] = scale_constraint['interval']['upper_limit_type'].replace('eLIMIT_', '')
+                        scale_constraint_output_object['upper_limit']['type'] = scale_constraint['interval']['upper_limit_interval_type'].replace('eLIMIT_', '')
                         scale_constraint_output_object['upper_limit']['value'] = None if scale_constraint_output_object['upper_limit']['type'] == 'INFINITE' else scale_constraint['interval']['upper_limit']['value']
                         
                         # The attribute VALIDITY of each SCALE-CONSTR can take the values VALID, NOT-VALID, NOT-DEFINED or NOT-AVAILABLE
@@ -570,7 +570,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         if physical_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
                             raise RuntimeError('PC LOWER-LIMIT data type does not match physical type: {} vs {}'.format(physical_constraint['interval']['lower_limit']['data_type'], output_object['physical_base_data_type']))
                         
-                        output_object['physical_constraint']['lower_limit']['type'] = physical_constraint['interval']['lower_limit_type'].replace('eLIMIT_', '')
+                        output_object['physical_constraint']['lower_limit']['type'] = physical_constraint['interval']['lower_limit_interval_type'].replace('eLIMIT_', '')
                         output_object['physical_constraint']['lower_limit']['value'] = None if output_object['physical_constraint']['lower_limit']['type'] == 'INFINITE' else physical_constraint['interval']['lower_limit']['value']
                     # UPPER-LIMIT
                     if physical_constraint['interval']['upper_limit'] is None:
@@ -581,7 +581,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         if physical_constraint['interval']['upper_limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
                             raise RuntimeError('PC UPPER-LIMIT data type does not match physical type: {} vs {}'.format(physical_constraint['interval']['upper_limit']['data_type'], output_object['physical_base_data_type']))
                         
-                        output_object['physical_constraint']['upper_limit']['type'] = physical_constraint['interval']['upper_limit_type'].replace('eLIMIT_', '')
+                        output_object['physical_constraint']['upper_limit']['type'] = physical_constraint['interval']['upper_limit_interval_type'].replace('eLIMIT_', '')
                         output_object['physical_constraint']['upper_limit']['value'] = None if output_object['physical_constraint']['upper_limit']['type'] == 'INFINITE' else physical_constraint['interval']['upper_limit']['value']
                     
                     # SCALE-CONSTRS can be defined for PHYS-CONSTRs too
@@ -598,7 +598,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if scale_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
                                 raise RuntimeError('IC SCALE-CONSTR LOWER-LIMIT data type does not match coded type: {} vs {}'.format(scale_constraint['interval']['lower_limit']['data_type'], output_object['physical_base_data_type']))
                             
-                            scale_constraint_output_object['lower_limit']['type'] = scale_constraint['interval']['lower_limit_type'].replace('eLIMIT_', '')
+                            scale_constraint_output_object['lower_limit']['type'] = scale_constraint['interval']['lower_limit_interval_type'].replace('eLIMIT_', '')
                             scale_constraint_output_object['lower_limit']['value'] = None if scale_constraint_output_object['lower_limit']['type'] == 'INFINITE' else scale_constraint['interval']['lower_limit']['value']
                         # UPPER-LIMIT
                         scale_constraint_output_object['upper_limit'] = {}
@@ -610,7 +610,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             if scale_constraint['interval']['upper_limit']['data_type'] != 'e'+output_object['physical_base_data_type']:
                                 raise RuntimeError('IC SCALE-CONSTR UPPER-LIMIT data type does not match coded type: {} vs {}'.format(scale_constraint['interval']['upper_limit']['data_type'], output_object['physical_base_data_type']))
                             
-                            scale_constraint_output_object['upper_limit']['type'] = scale_constraint['interval']['upper_limit_type'].replace('eLIMIT_', '')
+                            scale_constraint_output_object['upper_limit']['type'] = scale_constraint['interval']['upper_limit_interval_type'].replace('eLIMIT_', '')
                             scale_constraint_output_object['upper_limit']['value'] = None if scale_constraint_output_object['upper_limit']['type'] == 'INFINITE' else scale_constraint['interval']['upper_limit']['value']
                         
                         # The attribute VALIDITY of each SCALE-CONSTR can take the values VALID, NOT-VALID, NOT-DEFINED or NOT-AVAILABLE
@@ -1004,14 +1004,14 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                                     raise RuntimeError('UPPER-LIMIT does not match LOWER-LIMIT for TEXTTABLE with string coded data type: {} vs {}'.format(compu_scale_output_object['lower_limit'], compu_scale_output_object['upper_limit']))
                             
                             # COMPU-CONST defines the resulting text for the appropriate interval
-                            compu_scale_output_object['long_name'] = compu_scale['compu_const']['value']
+                            compu_scale_output_object['long_name'] = compu_scale['compu_constant']['value']
                             
                             # The LONG-NAME-ID of the COMPU-SCALE belongs to the text
                             compu_scale_output_object['long_name_id'] = compu_scale['long_name_id']
                             
                             # The COMPU-CONST's data type must match the physical data type
-                            if compu_scale['compu_const']['data_type'] != 'e'+output_object['physical_base_data_type']:
-                                raise RuntimeError('COMPU-CONST data type does not match physical type: {} vs {}'.format(compu_scale['compu_const']['data_type'], output_object['physical_base_data_type']))
+                            if compu_scale['compu_constant']['data_type'] != 'e'+output_object['physical_base_data_type']:
+                                raise RuntimeError('COMPU-CONST data type does not match physical type: {} vs {}'.format(compu_scale['compu_constant']['data_type'], output_object['physical_base_data_type']))
                             
                             # Add the COMPU-SCALE to the list
                             output_object['compu_scales'].append(compu_scale_output_object)
@@ -1059,11 +1059,11 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                             compu_scale_output_object['limit'] = compu_scale['lower_limit_as_coded_value']['limit']['value']
                             
                             # Like with MUX, the data type seems to be Unicode string, even though it contains a number...
-                            if compu_scale['compu_const']['data_type'] != 'eA_UNICODE2STRING':
-                                raise RuntimeError('COMPU-CONST is not string: {}'.format(compu_scale['compu_const']['data_type']))
+                            if compu_scale['compu_constant']['data_type'] != 'eA_UNICODE2STRING':
+                                raise RuntimeError('COMPU-CONST is not string: {}'.format(compu_scale['compu_constant']['data_type']))
                             
                             # Calculation of the physical value is done by linear interpolation for the interval specified by the values inside COMPU-CONST
-                            compu_scale_output_object['compu_const'] = compu_scale['compu_const']['value']
+                            compu_scale_output_object['compu_constant'] = compu_scale['compu_constant']['value']
                             
                             # Add the COMPU-SCALE to the list
                             output_object['compu_scales'].append(compu_scale_output_object)
@@ -1314,7 +1314,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             
             # The object contains 'diag_trouble_codes_map', which correlates the received code with the actual DTC
             output_object['dtc_list'] = []
-            for map_item in dop['diag_trouble_codes_ref_map']:
+            for map_item in dop['diag_trouble_code_references']:
                 dtc_output_object = {}
                 
                 # Load the reference to the DTC definition
@@ -1402,7 +1402,7 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             output_object['type'] = 'TABLE-STRUCT'
             
             # The TABLE-STRUCT references the TABLE-KEY by SHORT-NAME
-            output_object['key_parameter_name'] = dop['key_param_short_name']
+            output_object['key_parameter_name'] = dop['key_parameter_short_name']
             
             # Get the parameter's BYTE-POSITION and BIT-POSITION
             output_object['byte_position'] = dop['byte_position']

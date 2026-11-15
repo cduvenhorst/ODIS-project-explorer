@@ -579,7 +579,7 @@ def get_dop_value(dop, dop_response_bytes_slice, dop_bit_position):
                     if internal_value >= compu_scale_1['limit'] and internal_value <= compu_scale_2['limit']:
                         # The values used for interpolation (the COMPU-CONSTs) are given as strings
                         # Apply linear interpolation
-                        physical_value = linear_interpolation(compu_scale_1['limit'], compu_scale_2['limit'], int(compu_scale_1['compu_const']), int(compu_scale_2['compu_const']), internal_value)
+                        physical_value = linear_interpolation(compu_scale_1['limit'], compu_scale_2['limit'], int(compu_scale_1['compu_constant']), int(compu_scale_2['compu_constant']), internal_value)
                         break
                 
                 # An interval must have been found

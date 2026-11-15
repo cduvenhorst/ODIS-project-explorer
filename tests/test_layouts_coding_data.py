@@ -27,15 +27,15 @@ def odx_link_body(id_ref='ID1', doc_ref='DOC1', layer=False):
 
 
 def odx_link(id_ref='ID1', doc_ref='DOC1', layer=False):
-    return {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': id_ref, 'doc_ref': doc_ref,
-            'is_layer_doc_type': layer}
+    return {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': id_ref, 'document_reference': doc_ref,
+            'is_layer_document_type': layer}
 
 
 class OdxLinkTests(unittest.TestCase):
     def test_db_odx_link_minimal(self):
         self.assertEqual(load('DB_ODX_LINK', ObjectBytes().ascii(None).ascii(None).flag(False)),
-                         {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': None, 'doc_ref': None,
-                          'is_layer_doc_type': False})
+                         {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': None, 'document_reference': None,
+                          'is_layer_document_type': False})
 
     def test_db_odx_link_all_branches(self):
         self.assertEqual(load('DB_ODX_LINK', odx_link_body(layer=True)), odx_link(layer=True))
@@ -234,24 +234,24 @@ def connector_body(full=False):
 def connector(full=False):
     if not full:
         return typed('DB_DIAG_COM_DATA_CONNECTOR', {
-            'write_param_is_short_name_path': False, 'write_param_short_name': None,
-            'write_param_short_name_path': None, 'read_param_is_short_name_path': False,
-            'read_param_short_name': None, 'read_param_short_name_path': None,
+            'write_parameter_is_short_name_path': False, 'write_parameter_short_name': None,
+            'write_parameter_short_name_path': None, 'read_parameter_is_short_name_path': False,
+            'read_parameter_short_name': None, 'read_parameter_short_name_path': None,
             'read_diag_com_primitive': None, 'write_diag_com_primitive': None,
-            'uncompressed_size': 0, 'start_address': 0, 'write_param_value_map': [],
-            'write_param_value_sn_path_map': [], 'read_param_value_map': [],
-            'read_param_value_sn_path_map': []})
+            'uncompressed_size': 0, 'start_address': 0, 'write_parameter_value_map': [],
+            'write_parameter_value_short_name_path_map': [], 'read_parameter_value_map': [],
+            'read_parameter_value_short_name_path_map': []})
     return typed('DB_DIAG_COM_DATA_CONNECTOR', {
-        'write_param_is_short_name_path': True, 'write_param_short_name': None,
-        'write_param_short_name_path': 'W.PATH', 'read_param_is_short_name_path': False,
-        'read_param_short_name': 'R', 'read_param_short_name_path': None,
+        'write_parameter_is_short_name_path': True, 'write_parameter_short_name': None,
+        'write_parameter_short_name_path': 'W.PATH', 'read_parameter_is_short_name_path': False,
+        'read_parameter_short_name': 'R', 'read_parameter_short_name_path': None,
         'read_diag_com_primitive': odx_link(id_ref='R'),
         'write_diag_com_primitive': odx_link(id_ref='W'),
         'uncompressed_size': 0x1000, 'start_address': 0x8000,
-        'write_param_value_map': string_map([('K1', 'V1')]),
-        'write_param_value_sn_path_map': string_map([('K3', 'V4')]),
-        'read_param_value_map': string_map([('K2', 'V2'), ('K2', 'V3')]),
-        'read_param_value_sn_path_map': string_map([('K4', 'V5')])})
+        'write_parameter_value_map': string_map([('K1', 'V1')]),
+        'write_parameter_value_short_name_path_map': string_map([('K3', 'V4')]),
+        'read_parameter_value_map': string_map([('K2', 'V2'), ('K2', 'V3')]),
+        'read_parameter_value_short_name_path_map': string_map([('K4', 'V5')])})
 
 
 class DataConnectorTests(unittest.TestCase):
@@ -331,7 +331,7 @@ def data_record(full=False, **changes):
             # kernel: an absent collection reads as an empty one
             'has_coding_data': False, 'coding_data': None, 'special_data_group_references': [],
             'key': None, 'rule': None, 'configuration_record_value_size': 0,
-            'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
+            'parent_configuration_data_short_name': None, 'disabled_additional_audiences': [],
             'enabled_additional_audiences': []})
     return typed('MCD_DB_DATA_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
@@ -339,7 +339,7 @@ def data_record(full=False, **changes):
         'audience_state': audience(), 'binary_data': b'\x01\x02', 'data_format': 0x6B01,
         'data_id': uint(42), 'has_coding_data': True, 'coding_data': coding_data(True),
         'special_data_group_references': [{'object_id': 5}], 'key': 'KEY', 'rule': 'RULE',
-        'configuration_record_value_size': 16, 'parent_config_data_short_name': 'PARENT',
+        'configuration_record_value_size': 16, 'parent_configuration_data_short_name': 'PARENT',
         'disabled_additional_audiences': named_refs(NAMED_REFS),
         'enabled_additional_audiences': [], **changes})
 
@@ -411,9 +411,9 @@ def configuration_record(full=False):
             'data_record_references': [], 'default_data_record_reference': None, 'option_items': None,
             'system_items': None, 'read_diag_com_primitives': None,
             'write_diag_com_primitives': None, 'diag_com_data_connectors': None,
-            'configuration_record_value_size': 0, 'ecu_config_file_sub_dir_name': None,
+            'configuration_record_value_size': 0, 'ecu_configuration_file_sub_directory_name': None,
             # kernel: an absent collection reads as an empty one
-            'parent_config_data_short_name': None, 'disabled_additional_audiences': [],
+            'parent_configuration_data_short_name': None, 'disabled_additional_audiences': [],
             'enabled_additional_audiences': [], 'special_data_group_references': []})
     return typed('MCD_DB_CONFIGURATION_RECORD', {
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
@@ -427,8 +427,8 @@ def configuration_record(full=False):
         'default_data_record_reference': value_attributed_ref(), 'option_items': [option_item()],
         'system_items': [], 'read_diag_com_primitives': [odx_link()],
         'write_diag_com_primitives': [], 'diag_com_data_connectors': [connector()],
-        'configuration_record_value_size': 32, 'ecu_config_file_sub_dir_name': 'SUBDIR',
-        'parent_config_data_short_name': 'PARENT', 'disabled_additional_audiences': [],
+        'configuration_record_value_size': 32, 'ecu_configuration_file_sub_directory_name': 'SUBDIR',
+        'parent_configuration_data_short_name': 'PARENT', 'disabled_additional_audiences': [],
         'enabled_additional_audiences': named_refs(NAMED_REFS),
         'special_data_group_references': [{'object_id': 11}]})
 
@@ -464,7 +464,7 @@ def configuration_data(full=False):
         return typed('MCD_DB_CONFIGURATION_DATA', {
             'description_id': None, 'long_name_id': None, 'unique_object_id': None,
             'description': None, 'long_name': None, 'short_name': None,
-            'configuration_record_references': [], 'base_var_to_case_map': [],
+            'configuration_record_references': [], 'base_variant_to_case_map': [],
             # kernel: an absent collection reads as an empty one
             'special_data_group_references': [], 'major': 0, 'minor': 0, 'revision': 0,
             'is_revision_label_available': False, 'additional_audience_refs': []})
@@ -472,7 +472,7 @@ def configuration_data(full=False):
         'description_id': 'DescId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
         'description': 'Desc', 'long_name': 'Long', 'short_name': 'Data',
         'configuration_record_references': [{'name': 'R1', 'reference': value_attributed_ref(('A1',), 3)}],
-        'base_var_to_case_map': [{'map_key': 'BV1', 'unknown_1': 2, 'values': ['C1', 'C2']},
+        'base_variant_to_case_map': [{'map_key': 'BV1', 'unknown_1': 2, 'values': ['C1', 'C2']},
                                  {'map_key': 'BV2', 'unknown_1': 4, 'values': []}],
         'special_data_group_references': [{'object_id': 1}], 'major': 1, 'minor': 2, 'revision': 3,
         'is_revision_label_available': True,
@@ -539,7 +539,7 @@ class ConfigurationDataTests(unittest.TestCase):
         body.u16(0).u32(1).u32(5).u8(2).u32(2).u32(6).u32(7)
         body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
         loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version='0011')
-        self.assertEqual(loaded['base_var_to_case_map'],
+        self.assertEqual(loaded['base_variant_to_case_map'],
                          [{'map_key': 5, 'unknown_1': 2, 'values': [6, 7]}])
 
     def test_mcd_db_configuration_data_case_map_is_string_from_0012(self):
@@ -548,7 +548,7 @@ class ConfigurationDataTests(unittest.TestCase):
         body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
         for version in (None, '0012'):
             loaded = support.load('MCD_DB_CONFIGURATION_DATA', body, database_version=version)
-            self.assertEqual(loaded['base_var_to_case_map'],
+            self.assertEqual(loaded['base_variant_to_case_map'],
                              [{'map_key': 'K', 'unknown_1': 2, 'values': ['V']}])
 
     def test_db_ecu_config_info_minimal(self):

@@ -11,7 +11,7 @@ The functional class, vehicle information, physical vehicle link, vehicle connec
 connector pin loaders do the same for description_id, long_name_id and unique_object_id,
 which stand before the description in their name block.
 The vehicle information data loader follows the kernel: the second counter introduces the
-collection base_var_prot_id_to_link_info_map instead of having to be 0.  The access key
+collection base_variant_protocol_id_to_link_information_map instead of having to be 0.  The access key
 loader accepts an empty or short last string (stored as layer_data_object_id) instead of
 indexing into it.
 The layer data loader follows the kernel: the layer name, the two not inherited maps (tables
@@ -268,7 +268,7 @@ class EcuBaseVariantTests(unittest.TestCase):
         matching_patterns_body(body, False)
         ecu_body(body)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
-            'ecu_variant_references': [], 'ecu_variant_patterns_map': [], 'ecu': ecu_part()}))
+            'ecu_variant_references': [], 'ecu_variant_patterns': [], 'ecu': ecu_part()}))
 
     def test_mcd_db_ecu_base_variant_all_branches(self):
         body = named_refs_body(ObjectBytes(), NAMED_REFS)
@@ -276,7 +276,7 @@ class EcuBaseVariantTests(unittest.TestCase):
         ecu_body(body, ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
             'ecu_variant_references': named_refs(NAMED_REFS),
-            'ecu_variant_patterns_map': matching_patterns(True), 'ecu': ecu_part(ECU_LOCATIONS)}))
+            'ecu_variant_patterns': matching_patterns(True), 'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
 class EcuVariantTests(unittest.TestCase):
@@ -284,7 +284,7 @@ class EcuVariantTests(unittest.TestCase):
         body = ref_body(ObjectBytes(), 'BV', 'BVPOOL').absent()
         ecu_body(body)
         self.assertEqual(load('MCD_DB_ECU_VARIANT', body), typed('MCD_DB_ECU_VARIANT', {
-            'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
+            'ecu_base_variant_reference': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
             'variant_patterns': None, 'ecu': ecu_part()}))
 
     def test_mcd_db_ecu_variant_all_branches(self):
@@ -292,7 +292,7 @@ class EcuVariantTests(unittest.TestCase):
         body.nested('MCD_DB_MATCHING_PATTERNS', ObjectBytes().u32(0))
         ecu_body(body, ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU_VARIANT', body), typed('MCD_DB_ECU_VARIANT', {
-            'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
+            'ecu_base_variant_reference': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
             'variant_patterns': [], 'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
@@ -360,7 +360,7 @@ class ReversedNameBlockIdentifierTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_VEHICLE_INFORMATION', body), typed(
             'MCD_DB_VEHICLE_INFORMATION', {
                 **IDS, **EMPTY_NAMES, 'logical_links': [],
-                'physical_vehicle_links_or_interfaces': [], 'vehicle_connectors': None}))
+                'physical_vehicle_link_or_interfaces': [], 'vehicle_connectors': None}))
 
     def test_mcd_db_vehicle_connector_identifiers(self):
         body = reversed_names_body(ObjectBytes()).absent()
@@ -412,8 +412,8 @@ def logical_link(full=False, gateway='eNO_GATEWAY', gateway_links=()):
         'logical_links_of_gateways': [{'name': name, 'reference': attributed_ref(strings)}
                                       for name, strings in gateway_links],
         'physical_vehicle_link_or_interface_reference': ref3('PVL'), 'gateway_mode': gateway,
-        'accessed_via_gateway': full, 'link_com_params_map': object_map('Param', full),
-        'link_complex_com_params_map': object_map('Complex', full)})
+        'accessed_via_gateway': full, 'link_com_params': object_map('Param', full),
+        'link_complex_com_params': object_map('Complex', full)})
 
 
 class LogicalLinkTests(unittest.TestCase):
@@ -444,7 +444,7 @@ class LogicalLinkTests(unittest.TestCase):
                 self.assertEqual(load('MCD_DB_LOGICAL_LINK', body), logical_link(gateway=name))
 
 
-LAYER_LOCATION_REFS = {0x0101: 'ecu_base_variant_ref', 0x0102: 'ecu_variant_reference',
+LAYER_LOCATION_REFS = {0x0101: 'base_variant_reference', 0x0102: 'ecu_variant_reference',
                        0x0103: 'functional_group_reference'}
 
 
@@ -561,7 +561,7 @@ class LayerDataTests(unittest.TestCase):
     def test_db_layer_data_all_branches(self):
         body = layer_data_body(True, 0x0101)
         expected = layer_data(True, 'eECU_BASE_VARIANT')
-        expected['ecu_base_variant_ref'] = {'object_id': 'LOC', 'pool_id': 'LOCPOOL'}
+        expected['base_variant_reference'] = {'object_id': 'LOC', 'pool_id': 'LOCPOOL'}
         self.assertEqual(load('DB_LAYER_DATA', body), expected)
 
     def test_db_layer_data_location_types(self):
@@ -634,10 +634,10 @@ def project_data(full=False):
         'ecu_variant_references': named_refs(NAMED_REFS if full else ()),
         'ecu_variant_reference': ref3('EV'), 'container_short_name': 'String1',
         'layer_short_name': 'String2', 'layer_id': 'String3',
-        'func_group_parent_pool_ids': strings('Group', 2 if full else 0),
+        'functional_group_parent_pool_ids': strings('Group', 2 if full else 0),
         # kernel: the elements are the project data of the variants
-        'ecu_var_projects': [typed('MCD_DB_ECU_VARIANT', {
-            'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
+        'ecu_variant_projects': [typed('MCD_DB_ECU_VARIANT', {
+            'ecu_base_variant_reference': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
             'variant_patterns': None, 'ecu': ecu_part()}), None] if full else []})
 
 
@@ -654,19 +654,19 @@ class VehicleInfoDataTests(unittest.TestCase):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
             # kernel: the map is set with setDbVehicleInfoRefs
-            'vehicle_info_refs': [], 'base_var_prot_id_to_link_info_map': []}))
+            'vehicle_information_references': [], 'base_variant_protocol_id_to_link_information_map': []}))
 
     def test_db_vehicle_info_data_all_branches(self):
         body = ref_map_body(ObjectBytes(), 'Info', 2).u16(0)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_info_refs': ref_map('Info', 2),
-            'base_var_prot_id_to_link_info_map': []}))
+            'vehicle_information_references': ref_map('Info', 2),
+            'base_variant_protocol_id_to_link_information_map': []}))
 
     def test_db_vehicle_info_data_link_info_map(self):
         body = ref_map_body(ObjectBytes(), 'Info', 0).u16(2)
         body.ascii('K1').ascii('V1').ascii('K2').ascii(None)
         self.assertEqual(load('DB_VEHICLE_INFO_DATA', body), typed('DB_VEHICLE_INFO_DATA', {
-            'vehicle_info_refs': [], 'base_var_prot_id_to_link_info_map': [
+            'vehicle_information_references': [], 'base_variant_protocol_id_to_link_information_map': [
                 {'map_key': 'K1', 'value': 'V1'}, {'map_key': 'K2', 'value': None}]}))
 
 
@@ -811,7 +811,7 @@ def vehicle_information(full):
         **described_ids(),
         'logical_links': [{'name': 'Link1', 'reference': attributed_ref(['S1', 'S2'])},
                           {'name': 'Link2', 'reference': attributed_ref()}] if full else [],
-        'physical_vehicle_links_or_interfaces': [
+        'physical_vehicle_link_or_interfaces': [
             {'name': 'Phys%d' % i, 'reference': ref3('Phys%d' % i)} for i in (1, 2)
         ] if full else [],
         'vehicle_connectors': [connector(False)] if full else None})

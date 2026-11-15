@@ -26,7 +26,7 @@ def load(stream):
         else:
             upper_limit_type_enum = 0x6D01 # open
     
-    obj['lower_limit_type'] = enum_converters.get_MCDLimitType(lower_limit_type_enum)
-    obj['upper_limit_type'] = enum_converters.get_MCDLimitType(upper_limit_type_enum)
+    obj['lower_limit_interval_type'] = enum_converters.get_MCDLimitType(lower_limit_type_enum)
+    obj['upper_limit_interval_type'] = enum_converters.get_MCDLimitType(upper_limit_type_enum)
     
     return obj

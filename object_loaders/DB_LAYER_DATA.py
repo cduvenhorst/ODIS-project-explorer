@@ -16,7 +16,7 @@ def load(stream):
     
     match obj['location_type']:
         case 'eECU_BASE_VARIANT':
-            obj['ecu_base_variant_ref'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
+            obj['base_variant_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
         case 'eECU_VARIANT':
             obj['ecu_variant_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuVariantImpl
         case 'eFUNCTIONAL_GROUP':

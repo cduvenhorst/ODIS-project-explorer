@@ -49,8 +49,8 @@ def scale_body():
 def scale():
     return {'#OBJECT_TYPE': 'DB_COMPU_SCALE', 'long_name_id': None,
             'compu_rational_coeffs': None, 'compu_rational_coeffs_as_coded_values': None,
-            'lower_limit': None, 'upper_limit': None, 'compu_const': None,
-            'compu_inverse_value': None, 'compu_const_as_coded_value': None,
+            'lower_limit': None, 'upper_limit': None, 'compu_constant': None,
+            'compu_inverse_value': None, 'compu_constant_as_coded_value': None,
             'lower_limit_as_coded_value': None, 'upper_limit_as_coded_value': None}
 
 
@@ -77,7 +77,7 @@ def compu_method_body():
 def compu_method():
     return {'#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eIDENTICAL',
             'compu_phys_to_internal': None, 'compu_internal_to_phys': None,
-            'compu_inverse_val_id': None, 'compu_default_val_id': None}
+            'compu_inverse_value_id': None, 'compu_default_value_id': None}
 
 
 def physical_type_body():
@@ -101,7 +101,7 @@ def interval(lower=None, upper=None, lower_type='eLIMIT_OPEN', upper_type='eLIMI
     return {'#OBJECT_TYPE': 'MCD_INTERVAL',
             'lower_limit': None if lower is None else uint(lower),
             'upper_limit': None if upper is None else uint(upper),
-            'lower_limit_type': lower_type, 'upper_limit_type': upper_type}
+            'lower_limit_interval_type': lower_type, 'upper_limit_interval_type': upper_type}
 
 
 def scale_constraint_body(range_info=2):
@@ -126,7 +126,7 @@ def dimension():
             'long_name_id': None, 'description_id': None, 'length_exponent': 1,
             'mass_exponent': 0,
             'time_exponent': 0, 'current_exponent': 0, 'temperature_exponent': 0,
-            'molar_amount_exponent': 0, 'luminous_intensity_exponent': 0}
+            'molar_amount_exponent': 0, 'luminous_intensity': 0}
 
 
 class CompuRationalCoeffsTests(unittest.TestCase):
@@ -205,9 +205,9 @@ class CompuScaleTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_COMPU_SCALE', 'long_name_id': 'LN',
             'compu_rational_coeffs': coeffs(), 'compu_rational_coeffs_as_coded_values': coeffs(),
             'lower_limit': limit(1, CLOSED), 'upper_limit': limit(2, OPEN),
-            'compu_const': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
+            'compu_constant': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
             'compu_inverse_value': uint(7),
-            'compu_const_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
+            'compu_constant_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
             'lower_limit_as_coded_value': limit(3, OPEN),
             'upper_limit_as_coded_value': limit(4, CLOSED)})
 
@@ -239,9 +239,9 @@ class CompuScaleTests(unittest.TestCase):
             'compu_rational_coeffs': coeffs(), 'compu_rational_coeffs_as_coded_values': coeffs(),
             'lower_limit': {'#OBJECT_TYPE': 'DB_LIMIT', 'limit': uint(1), 'limit_type': 0x6D04},
             'upper_limit': limit(2, OPEN),
-            'compu_const': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
+            'compu_constant': {'data_type': 'eA_ASCIISTRING', 'value': 'const'},
             'compu_inverse_value': uint(7),
-            'compu_const_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
+            'compu_constant_as_coded_value': {'data_type': 'eA_FLOAT64', 'value': 0.5},
             'lower_limit_as_coded_value': limit(3, OPEN),
             'upper_limit_as_coded_value': limit(4, CLOSED)})
 
@@ -295,7 +295,7 @@ class CompuMethodTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': compu_base(inverse=5),
             'compu_internal_to_phys': compu_base(default=6),
-            'compu_inverse_val_id': 'INV', 'compu_default_val_id': 'DEF'})
+            'compu_inverse_value_id': 'INV', 'compu_default_value_id': 'DEF'})
 
     def test_db_compu_method_etexttab_without_values(self):
         body = ObjectBytes().u8(3)
@@ -303,7 +303,7 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': compu_base(), 'compu_internal_to_phys': compu_base(),
-            'compu_inverse_val_id': None, 'compu_default_val_id': None})
+            'compu_inverse_value_id': None, 'compu_default_value_id': None})
 
     def test_db_compu_method_etexttab_inverse_value_only(self):
         body = ObjectBytes().u8(3)
@@ -311,7 +311,7 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': compu_base(inverse=5), 'compu_internal_to_phys': None,
-            'compu_inverse_val_id': 'INV', 'compu_default_val_id': None})
+            'compu_inverse_value_id': 'INV', 'compu_default_value_id': None})
 
     def test_db_compu_method_etexttab_default_value_only(self):
         body = ObjectBytes().u8(3)
@@ -319,7 +319,7 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(load('DB_COMPU_METHOD', body), {
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 'eTEXTTAB',
             'compu_phys_to_internal': None, 'compu_internal_to_phys': compu_base(default=6),
-            'compu_inverse_val_id': None, 'compu_default_val_id': 'DEF'})
+            'compu_inverse_value_id': None, 'compu_default_value_id': 'DEF'})
 
     def test_db_compu_method_unknown_category(self):
         body = ObjectBytes().u8(8)
@@ -330,7 +330,7 @@ class CompuMethodTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': 8,
             'compu_phys_to_internal': compu_base(inverse=5),
             'compu_internal_to_phys': compu_base(default=6),
-            'compu_inverse_val_id': None, 'compu_default_val_id': None})
+            'compu_inverse_value_id': None, 'compu_default_value_id': None})
 
     def test_db_compu_method_categories(self):
         names = ['eIDENTICAL', 'eLINEAR', 'eSCALE_LINEAR', 'eTEXTTAB', 'eCOMPUCODE',
@@ -341,8 +341,8 @@ class CompuMethodTests(unittest.TestCase):
                 self.assertEqual(result, {'#OBJECT_TYPE': 'DB_COMPU_METHOD', 'compu_category': name,
                                           'compu_phys_to_internal': None,
                                           'compu_internal_to_phys': None,
-                                          'compu_inverse_val_id': None,
-                                          'compu_default_val_id': None})
+                                          'compu_inverse_value_id': None,
+                                          'compu_default_value_id': None})
 
 
 class CaseTests(unittest.TestCase):
@@ -398,7 +398,7 @@ class ComParamSpecTests(unittest.TestCase):
     def test_db_com_param_spec_minimal(self):
         self.assertEqual(load('DB_COM_PARAM_SPEC', ObjectBytes().u16(0)),
                          # kernel: the map is set with setProtStackMap
-                         {'#OBJECT_TYPE': 'DB_COM_PARAM_SPEC', 'prot_stack_map': []})
+                         {'#OBJECT_TYPE': 'DB_COM_PARAM_SPEC', 'protocol_stack_map': []})
 
     def test_db_com_param_spec_all_branches(self):
         body = ObjectBytes().u16(2)
@@ -406,7 +406,7 @@ class ComParamSpecTests(unittest.TestCase):
         body.ascii('STACK2').u16(0)
         self.assertEqual(load('DB_COM_PARAM_SPEC', body), {
             '#OBJECT_TYPE': 'DB_COM_PARAM_SPEC',
-            'prot_stack_map': [
+            'protocol_stack_map': [
                 # kernel: the key is the short name of the protocol stack
                 {'map_key': 'STACK1', 'request_parameters_references': [
                     {'object_id': 'R1', 'pool_id': 'P1'}, {'object_id': 'R2', 'pool_id': 'P2'}]},
@@ -432,15 +432,15 @@ class DiagCodedTypeTests(unittest.TestCase):
                 '#OBJECT_TYPE': 'MCD_DB_PARAMETER_SIMPLE', 'description': None,
                 'long_name': None, 'short_name': 'LEN', 'description_id': None,
                 'long_name_id': None, 'unique_object_id': None, 'bit_position': 0,
-                'byte_position': 0, 'default_mcd_value': None, 'display_level': 0,
-                'semantic': None, 'sys_param': None, 'mcd_parameter_type': 'eVALUE',
+                'byte_position': 0, 'default_value': None, 'display_level': 0,
+                'semantic': None, 'system_parameter': None, 'mcd_parameter_type': 'eVALUE',
                 # kernel: cached MCDDataType, None when not set
                 'parameter_type': None, 'diag_coded_type': None,
                 # kernel: DbObjectReference<DbDopBase>
                 'dop_base_reference': None, 'dop_base': None,
-                'is_byte_pos_available': False, 'is_protocol_parameter': False,
+                'is_byte_position_available': False, 'is_protocol_parameter': False,
                 # kernel: an absent collection reads as an empty one
-                'special_data_group_references': [], 'nrc_const_values': None}})
+                'special_data_group_references': [], 'nrc_constant_values': None}})
 
     def test_db_diag_coded_type_emin_max_length_type(self):
         body = ObjectBytes().u8(1).u32(10).u32(2).u8(1).u8(0).u8(3).flag(True).flag(False)
@@ -592,7 +592,7 @@ class DopDtcTests(unittest.TestCase):
 
     @staticmethod
     def expected(**changes):
-        result = {'#OBJECT_TYPE': 'DB_DOP_DTC', 'diag_trouble_codes_ref_map': [],
+        result = {'#OBJECT_TYPE': 'DB_DOP_DTC', 'diag_trouble_code_references': [],
                   'compu_method': None, 'diag_coded_type': None, 'physical_type': None,
                   'short_name': 'DTC_DOP', 'long_name': 'Long', 'description': None,
                   'unique_object_id': 'UID', 'long_name_id': None,
@@ -612,7 +612,7 @@ class DopDtcTests(unittest.TestCase):
         body.nested('DB_DIAG_CODED_TYPE', diag_coded_type_body())
         body.nested('DB_PHYSICAL_TYPE', physical_type_body())
         self.assertEqual(load('DB_DOP_DTC', self.strings(body)), self.expected(
-            diag_trouble_codes_ref_map=[
+            diag_trouble_code_references=[
                 {'map_key': 0x10, 'reference': {'object_id': 'DTC1', 'pool_id': 'POOL'}},
                 {'map_key': 0x20, 'reference': {'object_id': 'DTC2', 'pool_id': 'POOL'}}],
             compu_method=compu_method(), diag_coded_type=diag_coded_type(),
@@ -634,9 +634,9 @@ class DopSimpleBaseTests(unittest.TestCase):
         body.flag(False).flag(False).flag(False)
         self.assertEqual(load('DB_DOP_SIMPLE_BASE', body), {
             '#OBJECT_TYPE': 'DB_DOP_SIMPLE_BASE', 'short_name': 'DOP', 'compu_method': None,
-            'diag_coded_type': None, 'physical_type': None, 'phys_to_coded_index_map': [],
+            'diag_coded_type': None, 'physical_type': None, 'physical_to_coded_index_map': [],
             # kernel: the unit reference is set with setDbUnit
-            'coded_to_phys_index_map': [], 'unit_reference': None, 'internal_constraint_reference': None,
+            'coded_to_physical_index_map': [], 'unit_reference': None, 'internal_constraint_reference': None,
             'physical_constraint_reference': None})
 
     def test_db_dop_simple_base_all_branches(self):
@@ -653,8 +653,8 @@ class DopSimpleBaseTests(unittest.TestCase):
             '#OBJECT_TYPE': 'DB_DOP_SIMPLE_BASE', 'short_name': 'DOP',
             'compu_method': compu_method(), 'diag_coded_type': diag_coded_type(),
             'physical_type': physical_type(),
-            'phys_to_coded_index_map': [{'map_key': 1, 'item': 10}, {'map_key': 2, 'item': 20}],
-            'coded_to_phys_index_map': [{'map_key': 3, 'item': 30}, {'map_key': 4, 'item': 40}],
+            'physical_to_coded_index_map': [{'map_key': 1, 'item': 10}, {'map_key': 2, 'item': 20}],
+            'coded_to_physical_index_map': [{'map_key': 3, 'item': 30}, {'map_key': 4, 'item': 40}],
             # kernel: the unit reference is set with setDbUnit
             'unit_reference': {'object_id': 'UNIT', 'pool_id': 'POOL'},
             'internal_constraint_reference': {'object_id': 'INT', 'pool_id': 'POOL'},
@@ -677,13 +677,13 @@ class SwitchKeyTests(unittest.TestCase):
         body = ObjectBytes().u8(0).u32(0).ascii('DOP').ascii('POOL')
         self.assertEqual(load('DB_SWITCH_KEY', body), {
             '#OBJECT_TYPE': 'DB_SWITCH_KEY', 'bit_position': 0, 'byte_position': 0,
-            'is_byte_pos_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': 'POOL'}})
+            'is_byte_position_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': 'POOL'}})
 
     def test_db_switch_key_all_branches(self):
         body = ObjectBytes().u8(7).u32(300).ascii('DOP').ascii(None)
         self.assertEqual(load('DB_SWITCH_KEY', body), {
             '#OBJECT_TYPE': 'DB_SWITCH_KEY', 'bit_position': 7, 'byte_position': 300,
-            'is_byte_pos_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': None}})
+            'is_byte_position_available': True, 'dop_base_reference': {'object_id': 'DOP', 'pool_id': None}})
 
 
 class IntervalTests(unittest.TestCase):
@@ -878,7 +878,7 @@ class PhysicalDimensionTests(unittest.TestCase):
             'long_name_id': 'LID', 'description_id': None, 'length_exponent': 1,
             'mass_exponent': -1,
             'time_exponent': 2, 'current_exponent': -2, 'temperature_exponent': 3,
-            'molar_amount_exponent': -3, 'luminous_intensity_exponent': 2147483647})
+            'molar_amount_exponent': -3, 'luminous_intensity': 2147483647})
 
     def test_mcd_db_physical_dimension_identifiers(self):
         body = (ObjectBytes().ascii('Length').unicode(None).unicode(None)

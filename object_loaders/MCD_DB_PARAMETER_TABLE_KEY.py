@@ -13,7 +13,7 @@ def load(stream):
     
     obj['is_table_row_reference'] = bool(stream.loadOneByteType())
     
-    # kernel: short name of the referenced table row
-    obj['table_row_short_name'] = stream.loadAsciiString()[0]
+    # kernel: setRowRefShortName
+    obj['row_reference_short_name'] = stream.loadAsciiString()[0]
     
     return obj

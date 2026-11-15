@@ -15,6 +15,6 @@ def load(stream):
     obj['current_exponent'] = stream.loadNumericType(4, True)
     obj['temperature_exponent'] = stream.loadNumericType(4, True)
     obj['molar_amount_exponent'] = stream.loadNumericType(4, True)
-    obj['luminous_intensity_exponent'] = stream.loadNumericType(4, True)
+    obj['luminous_intensity'] = stream.loadNumericType(4, True)
     
     return obj

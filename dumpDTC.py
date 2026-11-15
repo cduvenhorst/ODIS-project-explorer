@@ -96,7 +96,7 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
                 
                 # Add each DTC definition to a list
                 dtcs_output_object = []
-                for dtc_ref in dtc_dop['diag_trouble_codes_ref_map']:
+                for dtc_ref in dtc_dop['diag_trouble_code_references']:
                     # Load the table row and ensure the key matches
                     trouble_code = dtc_ref['map_key']
                     dtc_object = object_loader.load_object_by_reference(project_folder_path, dtc_ref['reference'])

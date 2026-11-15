@@ -90,24 +90,24 @@ def parameter_body(value=False, semantic=False, parameter_type=None, coded_type=
 def parameter(**changes):
     fields = {'description': 'Description', 'long_name': 'Long name', 'short_name': 'Name',
               'description_id': 'SomeId', 'long_name_id': 'LongId', 'unique_object_id': 'UID',
-              'bit_position': 3, 'byte_position': 12, 'default_mcd_value': None,
-              'display_level': 2, 'semantic': None, 'sys_param': 'SYS',
+              'bit_position': 3, 'byte_position': 12, 'default_value': None,
+              'display_level': 2, 'semantic': None, 'system_parameter': 'SYS',
               'mcd_parameter_type': 'eVALUE',
               # kernel: cached MCDDataType of the parameter, None when not set
               'parameter_type': None, 'diag_coded_type': None,
               # kernel: DbObjectReference<DbDopBase>
-              'dop_base_reference': None, 'dop_base': None, 'is_byte_pos_available': False,
+              'dop_base_reference': None, 'dop_base': None, 'is_byte_position_available': False,
               'is_protocol_parameter': False,
               # kernel: an absent collection reads as an empty one
-              'special_data_group_references': [], 'nrc_const_values': None}
+              'special_data_group_references': [], 'nrc_constant_values': None}
     fields.update(changes)
     return fields
 
 
 def parameter_all():
-    return parameter(default_mcd_value=uint(7), semantic='SEM', parameter_type='eA_FLOAT64',
+    return parameter(default_value=uint(7), semantic='SEM', parameter_type='eA_FLOAT64',
                      diag_coded_type=diag_coded_type(), dop_base_reference=ref('REF'),
-                     is_byte_pos_available=True, is_protocol_parameter=True,
+                     is_byte_position_available=True, is_protocol_parameter=True,
                      special_data_group_references=[{'object_id': 11}, {'object_id': 22}])
 
 
@@ -172,7 +172,7 @@ class ParameterTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER', parameter_body(type_code=0x13, nrc_values=[1, 2])),
                          typed('MCD_DB_PARAMETER', parameter(
                              mcd_parameter_type='eNRC_CONST',
-                             nrc_const_values=[uint(1), uint(2)])))
+                             nrc_constant_values=[uint(1), uint(2)])))
 
     def test_mcd_db_parameter_nrc_const_without_values(self):
         self.assertEqual(load('MCD_DB_PARAMETER',
@@ -185,7 +185,7 @@ class ParameterTests(unittest.TestCase):
                          typed('MCD_DB_PARAMETER', parameter(
                              mcd_parameter_type='eNRC_CONST',
                              special_data_group_references=[{'object_id': 11}],
-                             nrc_const_values=[uint(1)])))
+                             nrc_constant_values=[uint(1)])))
 
     def test_mcd_db_parameter_types(self):
         names = {1: 'eVALUE', 2: 'eRESERVED', 3: 'eCODED_CONST', 4: 'ePHYS_CONST',
@@ -366,14 +366,14 @@ def env_data_desc_body(full=False):
 def env_data_desc(full=False):
     fields = {'description': None, 'long_name': 'Long', 'short_name': 'Desc',
               'description_id': None, 'long_name_id': None, 'unique_object_id': None,
-              'env_data_param_map': [], 'env_data_info_map': []}
+              'env_data_parameter_map': [], 'env_data_information_map': []}
     if full:
-        fields['env_data_param_map'] = [{'map_key': 1, 'value': 'S1'}, {'map_key': 2, 'value': None}]
-        fields['all_value_db_env_data_param'] = typed('MCD_DB_PARAMETER', parameter())
-        fields['env_data_info_map'] = [
-            {'map_key': 'E1', 'env_data_param': typed('MCD_DB_PARAMETER', parameter()),
+        fields['env_data_parameter_map'] = [{'map_key': 1, 'value': 'S1'}, {'map_key': 2, 'value': None}]
+        fields['all_value_env_data_parameter'] = typed('MCD_DB_PARAMETER', parameter())
+        fields['env_data_information_map'] = [
+            {'map_key': 'E1', 'env_data_parameter': typed('MCD_DB_PARAMETER', parameter()),
              'dtc_values': [10, 20]},
-            {'map_key': None, 'env_data_param': None, 'dtc_values': []}]
+            {'map_key': None, 'env_data_parameter': None, 'dtc_values': []}]
     return fields
 
 
@@ -390,7 +390,7 @@ class EnvDataDescTests(unittest.TestCase):
         body = (ObjectBytes().unicode(None).unicode('Long').ascii('Desc').ascii(None)
                 .ascii(None).ascii(None).u16(0).u8(1).absent().u16(0))
         self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed(
-            'MCD_DB_ENV_DATA_DESC', {**env_data_desc(), 'all_value_db_env_data_param': None}))
+            'MCD_DB_ENV_DATA_DESC', {**env_data_desc(), 'all_value_env_data_parameter': None}))
 
 
 class EnvDataDescIdentifierTests(unittest.TestCase):
@@ -400,7 +400,7 @@ class EnvDataDescIdentifierTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed('MCD_DB_ENV_DATA_DESC', {
             'description': 'Desc', 'long_name': 'Long', 'short_name': 'Name',
             'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI',
-            'env_data_param_map': [], 'env_data_info_map': []}))
+            'env_data_parameter_map': [], 'env_data_information_map': []}))
 
 
 class ParameterEnvDataDescTests(unittest.TestCase):
@@ -454,7 +454,7 @@ class MultiplexerTests(unittest.TestCase):
             'MCD_DB_PARAMETER_MULTIPLEXER', {
                 'offset': 7,
                 'switch_key': typed('DB_SWITCH_KEY', {
-                    'bit_position': 2, 'byte_position': 3, 'is_byte_pos_available': True,
+                    'bit_position': 2, 'byte_position': 3, 'is_byte_position_available': True,
                     'dop_base_reference': ref('DOP')}),
                 'cases': [case()],
                 'default_case': case(type_name='DB_DEFAULT_CASE')}))
@@ -548,14 +548,14 @@ class TableStructTests(unittest.TestCase):
         body = concat(parameter_body(), attributed_ref_body(ObjectBytes().ascii('KEY')))
         self.assertEqual(load('MCD_DB_PARAMETER_TABLESTRUCT', body), typed(
             'MCD_DB_PARAMETER_TABLESTRUCT',
-            {**parameter(), 'key_param_short_name': 'KEY', 'table_reference': attributed_ref()}))
+            {**parameter(), 'key_parameter_short_name': 'KEY', 'table_reference': attributed_ref()}))
 
     def test_mcd_db_parameter_tablestruct_all_branches(self):
         body = concat(parameter_body(**PARAMETER_ALL),
                       attributed_ref_body(ObjectBytes().ascii('KEY'), ['S1', 'S2']))
         self.assertEqual(load('MCD_DB_PARAMETER_TABLESTRUCT', body), typed(
             'MCD_DB_PARAMETER_TABLESTRUCT',
-            {**parameter_all(), 'key_param_short_name': 'KEY',
+            {**parameter_all(), 'key_parameter_short_name': 'KEY',
              'table_reference': attributed_ref(['S1', 'S2'])}))
 
 
@@ -655,7 +655,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter(), 'table': None, 'table_reference': attributed_ref(),
-                'is_table_row_reference': False, 'table_row_short_name': None}))
+                'is_table_row_reference': False, 'row_reference_short_name': None}))
 
     def test_mcd_db_parameter_table_key_all_branches(self):
         body = concat(parameter_body(**PARAMETER_ALL),
@@ -664,7 +664,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter_all(), 'table': None, 'table_reference': attributed_ref(['S1', 'S2']),
-                'is_table_row_reference': True, 'table_row_short_name': 'Text'}))
+                'is_table_row_reference': True, 'row_reference_short_name': 'Text'}))
 
     def test_mcd_db_parameter_table_key_with_table(self):
         body = concat(parameter_body(), ObjectBytes().nested('MCD_DB_TABLE', table_body(True)))
@@ -672,7 +672,7 @@ class TableKeyTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_PARAMETER_TABLE_KEY', body), typed(
             'MCD_DB_PARAMETER_TABLE_KEY', {
                 **parameter(), 'table': typed('MCD_DB_TABLE', table(True)),
-                'is_table_row_reference': False, 'table_row_short_name': None}))
+                'is_table_row_reference': False, 'row_reference_short_name': None}))
 
 
 NAMED_STREAMS_A = bytes.fromhex('233E00 4101 233E01')
@@ -914,10 +914,10 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
         by_path = suppression != 'name'
         # kernel: setPosRespSuppressBitMask, setPosRespSuppressParamSNPath and
         # setPosRespSuppressParamShortName; both names are present, the one not read is None
-        fields['pos_resp_suppress_bit_mask'] = b'' if suppression == 'empty' else b'\x12\x34'
-        fields['has_pos_resp_suppress_param_sn_path'] = by_path
-        fields['pos_resp_suppress_param_sn_path'] = 'PATH' if by_path else None
-        fields['pos_resp_suppress_param_short_name'] = None if by_path else 'NAME'
+        fields['positive_response_suppress_bit_mask'] = b'' if suppression == 'empty' else b'\x12\x34'
+        fields['has_positive_response_suppress_parameter_short_name_path'] = by_path
+        fields['positive_response_suppress_parameter_short_name_path'] = 'PATH' if by_path else None
+        fields['positive_response_suppress_parameter_short_name'] = None if by_path else 'NAME'
     return fields
 
 
@@ -966,20 +966,20 @@ class StartCommunicationTests(unittest.TestCase):
     def test_mcd_db_startcommunication_minimal(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
-            'MCD_DB_STARTCOMMUNICATION', {**primitive(), 'service_protocol_parameters_map': []}))
+            'MCD_DB_STARTCOMMUNICATION', {**primitive(), 'service_protocol_parameters': []}))
 
     def test_mcd_db_startcommunication_all_branches(self):
         body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').nested(
             'MCD_DB_REQUEST_PARAMETERS', two_parameters_body()).ascii('P2').absent())
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True), 'service_protocol_parameters_map': PROTOCOL_PARAMETERS_MAP}))
+            {**primitive(True), 'service_protocol_parameters': PROTOCOL_PARAMETERS_MAP}))
 
     def test_mcd_db_startcommunication_without_suppression_has_no_branch_keys(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         result = load('MCD_DB_STARTCOMMUNICATION', body)
-        for key in ('pos_resp_suppress_bit_mask', 'has_pos_resp_suppress_param_sn_path',
-                    'pos_resp_suppress_param_sn_path', 'pos_resp_suppress_param_short_name'):
+        for key in ('positive_response_suppress_bit_mask', 'has_positive_response_suppress_parameter_short_name_path',
+                    'positive_response_suppress_parameter_short_name_path', 'positive_response_suppress_parameter_short_name'):
             self.assertNotIn(key, result)
 
     def test_mcd_db_diag_com_primitive_unknown_transmission_mode(self):
@@ -987,19 +987,19 @@ class StartCommunicationTests(unittest.TestCase):
         body = concat(primitive_body(transmission=0x6A06), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(transmission_mode=0x6A06), 'service_protocol_parameters_map': []}))
+            {**primitive(transmission_mode=0x6A06), 'service_protocol_parameters': []}))
 
     def test_mcd_db_startcommunication_suppression_without_path(self):
         body = concat(primitive_body(True, suppression='name'), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True, suppression='name'), 'service_protocol_parameters_map': []}))
+            {**primitive(True, suppression='name'), 'service_protocol_parameters': []}))
 
     def test_mcd_db_startcommunication_empty_bytefield(self):
         body = concat(primitive_body(True, suppression='empty'), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
             'MCD_DB_STARTCOMMUNICATION',
-            {**primitive(True, suppression='empty'), 'service_protocol_parameters_map': []}))
+            {**primitive(True, suppression='empty'), 'service_protocol_parameters': []}))
 
     def test_mcd_db_startcommunication_transmission_modes(self):
         names = {0x6A01: 'eNO_TRANSMISSION', 0x6A02: 'eRECEIVE', 0x6A03: 'eSEND',
@@ -1009,21 +1009,21 @@ class StartCommunicationTests(unittest.TestCase):
                 body = concat(primitive_body(transmission=code), ObjectBytes().u16(0))
                 self.assertEqual(load('MCD_DB_STARTCOMMUNICATION', body), typed(
                     'MCD_DB_STARTCOMMUNICATION',
-                    {**primitive(transmission_mode=name), 'service_protocol_parameters_map': []}))
+                    {**primitive(transmission_mode=name), 'service_protocol_parameters': []}))
 
 
 class StopCommunicationTests(unittest.TestCase):
     def test_mcd_db_stopcommunication_minimal(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         self.assertEqual(load('MCD_DB_STOPCOMMUNICATION', body), typed(
-            'MCD_DB_STOPCOMMUNICATION', {**primitive(), 'service_protocol_parameters_map': []}))
+            'MCD_DB_STOPCOMMUNICATION', {**primitive(), 'service_protocol_parameters': []}))
 
     def test_mcd_db_stopcommunication_all_branches(self):
         body = concat(primitive_body(True), ObjectBytes().u16(2).ascii('P1').nested(
             'MCD_DB_REQUEST_PARAMETERS', two_parameters_body()).ascii('P2').absent())
         self.assertEqual(load('MCD_DB_STOPCOMMUNICATION', body), typed(
             'MCD_DB_STOPCOMMUNICATION',
-            {**primitive(True), 'service_protocol_parameters_map': PROTOCOL_PARAMETERS_MAP}))
+            {**primitive(True), 'service_protocol_parameters': PROTOCOL_PARAMETERS_MAP}))
 
 
 def service_body(full=False, addressing=2, runtime=0x6901):
@@ -1045,7 +1045,7 @@ def service(full=False, addressing='ePHYSICAL', runtime='eNONCYCLIC'):
         entries = [{'map_key': 'Item1', 'service_protocol_parameters': two_parameters()},
                    {'map_key': 'Item2', 'service_protocol_parameters': None}]
     # kernel: the first byte is the addressing mode; the second field is the protocol parameters map
-    return {'addressing_mode': addressing, 'service_protocol_parameters_map': entries,
+    return {'addressing_mode': addressing, 'service_protocol_parameters': entries,
             'runtime_mode': runtime,
             'is_multiple': full, 'data_primitive': data_primitive(full)}
 
@@ -1096,7 +1096,7 @@ def job_body(full=False):
 
 def job(full=False):
     return {'major': 1, 'minor': 2, 'revision': 3,
-            'db_code_informations': [] if full else None,
+            'code_informations': [] if full else None,
             'is_reduced_result_enabled': full, 'data_primitive': data_primitive(full)}
 
 

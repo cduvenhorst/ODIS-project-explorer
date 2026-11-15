@@ -45,7 +45,7 @@ def load(stream):
     
     obj['accessed_via_gateway'] = bool(stream.loadOneByteType())
     
-    obj['link_com_params_map'] = loadStringToObjectMap(stream)
-    obj['link_complex_com_params_map'] = loadStringToObjectMap(stream)
+    obj['link_com_params'] = loadStringToObjectMap(stream)
+    obj['link_complex_com_params'] = loadStringToObjectMap(stream)
     
     return obj

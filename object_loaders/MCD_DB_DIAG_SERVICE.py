@@ -6,7 +6,7 @@ from object_loaders import MCD_DB_DATA_PRIMITIVE
 def load(stream):
     obj = {}
     
-    obj['service_protocol_parameters_map'] = common_loaders.loadServiceProtocolParametersMap(stream)
+    obj['service_protocol_parameters'] = common_loaders.loadServiceProtocolParametersMap(stream)
     
     # kernel: an unknown runtime mode is kept as its number
     obj['runtime_mode'] = enum_converters.enum_name_or_number(enum_converters.get_MCDRuntimeMode, stream.loadEnumMediumRange())

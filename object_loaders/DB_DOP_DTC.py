@@ -5,13 +5,13 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['diag_trouble_codes_ref_map'] = []
+    obj['diag_trouble_code_references'] = []
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         item['map_key'] = stream.loadNumericType(4)
         item['reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbDiagTroubleCodeImpl
-        obj['diag_trouble_codes_ref_map'].append(item)
+        obj['diag_trouble_code_references'].append(item)
     
     # LinkedDtcDops
     obj['linked_dtc_dops'] = []

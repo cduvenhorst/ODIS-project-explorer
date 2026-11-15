@@ -31,7 +31,7 @@ def load(stream):
     obj['key'] = stream.loadAsciiString()[0]
     obj['rule'] = stream.loadAsciiString()[0]
     obj['configuration_record_value_size'] = stream.loadNumericType(4)
-    obj['parent_config_data_short_name'] = stream.loadAsciiString()[0]
+    obj['parent_configuration_data_short_name'] = stream.loadAsciiString()[0]
     obj['disabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     obj['enabled_additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     

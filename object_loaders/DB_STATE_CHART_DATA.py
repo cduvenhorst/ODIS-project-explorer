@@ -16,13 +16,13 @@ def load_map(stream):
 def load(stream):
     obj = {}
     
-    obj['state_trans_trans_actions_map'] = load_map(stream)
-    obj['state_precondition_defs_map'] = load_map(stream)
+    obj['state_transition_transition_actions_map'] = load_map(stream)
+    obj['state_precondition_definitions_map'] = load_map(stream)
     
     # Precondition definitions without a DiagCom reference take their table parameter from
     # named stream C, one reference each in reading order
     # kernel: fails when either map holds an object of another type; kept readable for VW projects
-    pending = [definition for entry in obj['state_precondition_defs_map'] for definition in entry['items']
+    pending = [definition for entry in obj['state_precondition_definitions_map'] for definition in entry['items']
                if isinstance(definition, dict)
                and definition.get('#OBJECT_TYPE') == 'MCD_DB_PRECONDITION_DEFINITION'
                and definition['diag_com_primitive'] is None]

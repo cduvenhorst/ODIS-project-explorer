@@ -18,7 +18,7 @@ def load(stream):
     
     # kernel: below database version 0012 the key and the values are numbers, from 0012 ASCII strings
     is_numeric = not stream.is_database_version_at_least(12)
-    obj['base_var_to_case_map'] = []
+    obj['base_variant_to_case_map'] = []
     map_items = stream.loadNumericType(4)
     for i in range(map_items):
         entry = {}
@@ -28,7 +28,7 @@ def load(stream):
         collection_items = stream.loadNumericType(4)
         for j in range(collection_items):
             entry['values'].append(stream.loadNumericType(4) if is_numeric else stream.loadAsciiString()[0])
-        obj['base_var_to_case_map'].append(entry)
+        obj['base_variant_to_case_map'].append(entry)
     
     # kernel: an absent collection reads as an empty one
     obj['special_data_group_references'] = []

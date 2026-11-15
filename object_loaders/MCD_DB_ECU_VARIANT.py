@@ -6,7 +6,7 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['ecu_base_variant_ref'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
+    obj['ecu_base_variant_reference'] = common_loaders.load_reference(stream, False, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
     
     # kernel: setDbVariantPatterns
     obj['variant_patterns'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbMatchingPatternsImpl

@@ -6,7 +6,7 @@ def load(stream):
     
     obj['diag_com_primitive_name'] = stream.loadAsciiString()[0]
     
-    for key in ('sub_component_in_param_names', 'sub_component_out_param_names'):
+    for key in ('sub_component_in_parameter_names', 'sub_component_out_parameter_names'):
         obj[key] = []
         param_count = stream.loadNumericType(2)
         for i in range(param_count):

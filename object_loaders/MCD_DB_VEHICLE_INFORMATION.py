@@ -16,7 +16,7 @@ def load(stream):
     
     obj['logical_links'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     
-    obj['physical_vehicle_links_or_interfaces'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, True)
+    obj['physical_vehicle_link_or_interfaces'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, True)
     
     # kernel: fails when the connectors are missing; kept readable for VW projects
     obj['vehicle_connectors'] = DbObject.load_object_from_stream_if_exists(stream)

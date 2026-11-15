@@ -238,8 +238,8 @@ class StateChartDataTests(unittest.TestCase):
     def test_db_state_chart_data_minimal(self):
         self.assertEqual(load('DB_STATE_CHART_DATA', ObjectBytes().u16(0).u16(0)),
                          typed('DB_STATE_CHART_DATA', {
-                             'state_trans_trans_actions_map': [],
-                             'state_precondition_defs_map': []}))
+                             'state_transition_transition_actions_map': [],
+                             'state_precondition_definitions_map': []}))
 
     def test_db_state_chart_data_all_branches(self):
         body = map_body(ObjectBytes(), [('T1', [(ACTION, action_body()), None])])
@@ -253,8 +253,8 @@ class StateChartDataTests(unittest.TestCase):
         body.raw(b'#>\x01')
         result = load('DB_STATE_CHART_DATA', body)
         self.assertEqual(result, typed('DB_STATE_CHART_DATA', {
-            'state_trans_trans_actions_map': [{'map_key': 'T1', 'items': [action(), None]}],
-            'state_precondition_defs_map': [
+            'state_transition_transition_actions_map': [{'map_key': 'T1', 'items': [action(), None]}],
+            'state_precondition_definitions_map': [
                 {'map_key': 'S1', 'items': [
                     {**precondition(diag_com=False), 'table_parameter': table_ref(1)},
                     precondition()]},
@@ -275,7 +275,7 @@ class StateChartDataTests(unittest.TestCase):
         table_ref_body(body, 1)
         body.raw(b'#>\x01')
         result = load('DB_STATE_CHART_DATA', body)
-        self.assertEqual(result['state_precondition_defs_map'],
+        self.assertEqual(result['state_precondition_definitions_map'],
                          [{'map_key': 'S1', 'items': [precondition()]}])
 
     def test_db_state_chart_data_too_few_references(self):
@@ -302,7 +302,7 @@ class StateChartDataTests(unittest.TestCase):
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(PRECONDITION, precondition_body(old_layout=True))])])
         result = load('DB_STATE_CHART_DATA', body, '0015')
-        self.assertEqual(result['state_precondition_defs_map'],
+        self.assertEqual(result['state_precondition_definitions_map'],
                          [{'map_key': 'S1', 'items': [precondition()]}])
 
     def test_db_state_chart_data_foreign_type_in_precondition_map(self):
@@ -310,7 +310,7 @@ class StateChartDataTests(unittest.TestCase):
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(FOREIGN, odx_link_body())])])
         result = load('DB_STATE_CHART_DATA', body)
-        item = result['state_precondition_defs_map'][0]['items'][0]
+        item = result['state_precondition_definitions_map'][0]['items'][0]
         self.assertEqual(item['#OBJECT_TYPE'], FOREIGN)
         self.assertNotIn('table_parameter', item)
 
@@ -322,7 +322,7 @@ class StateChartDataTests(unittest.TestCase):
         table_ref_body(body, 1)
         body.raw(b'#>\x01')
         result = load('DB_STATE_CHART_DATA', body)
-        items = result['state_precondition_defs_map'][0]['items']
+        items = result['state_precondition_definitions_map'][0]['items']
         self.assertNotIn('table_parameter', items[0])
         self.assertEqual(items[1]['table_parameter'], table_ref(1))
 
@@ -331,7 +331,7 @@ class StateChartDataTests(unittest.TestCase):
         body = map_body(ObjectBytes(), [])
         map_body(body, [('S1', [(ACTION, action_body())])])
         result = load('DB_STATE_CHART_DATA', body)
-        item = result['state_precondition_defs_map'][0]['items'][0]
+        item = result['state_precondition_definitions_map'][0]['items'][0]
         self.assertEqual(item['#OBJECT_TYPE'], ACTION)
         self.assertNotIn('table_parameter', item)
 
@@ -340,4 +340,4 @@ class StateChartDataTests(unittest.TestCase):
         body = map_body(ObjectBytes(), [('T1', [(PRECONDITION, precondition_body())])])
         map_body(body, [])
         result = load('DB_STATE_CHART_DATA', body)
-        self.assertEqual(result['state_trans_trans_actions_map'][0]['items'][0]['#OBJECT_TYPE'], PRECONDITION)
+        self.assertEqual(result['state_transition_transition_actions_map'][0]['items'][0]['#OBJECT_TYPE'], PRECONDITION)

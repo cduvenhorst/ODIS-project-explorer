@@ -12,13 +12,13 @@ def load(stream):
     obj['compu_internal_to_phys'] = DbObject.load_object_from_stream_if_exists(stream) # DbCompuBase
     
     # kernel: the identifiers are always listed; they stay empty when the branch is absent
-    obj['compu_inverse_val_id'] = None
-    obj['compu_default_val_id'] = None
+    obj['compu_inverse_value_id'] = None
+    obj['compu_default_value_id'] = None
     
     if obj['compu_category'] == 'eTEXTTAB':
         if obj['compu_phys_to_internal'] is not None and obj['compu_phys_to_internal']['compu_inverse_value'] is not None:
-            obj['compu_inverse_val_id'] = stream.loadAsciiString()[0]
+            obj['compu_inverse_value_id'] = stream.loadAsciiString()[0]
         if obj['compu_internal_to_phys'] is not None and obj['compu_internal_to_phys']['compu_default_value'] is not None:
-            obj['compu_default_val_id'] = stream.loadAsciiString()[0]
+            obj['compu_default_value_id'] = stream.loadAsciiString()[0]
     
     return obj

@@ -49,14 +49,14 @@ def load(stream):
     if obj['has_suppress_positive_response_capability']:
         # kernel: setPosRespSuppressBitMask, setPosRespSuppressParamSNPath and
         # setPosRespSuppressParamShortName; both names are always present, the one not read is None
-        obj['pos_resp_suppress_bit_mask'] = common_loaders.loadBytefieldFromObjectStream(stream)
+        obj['positive_response_suppress_bit_mask'] = common_loaders.loadBytefieldFromObjectStream(stream)
         
-        obj['has_pos_resp_suppress_param_sn_path'] = bool(stream.loadOneByteType())
-        obj['pos_resp_suppress_param_sn_path'] = None
-        obj['pos_resp_suppress_param_short_name'] = None
-        if obj['has_pos_resp_suppress_param_sn_path']:
-            obj['pos_resp_suppress_param_sn_path'] = stream.loadAsciiString()[0]
+        obj['has_positive_response_suppress_parameter_short_name_path'] = bool(stream.loadOneByteType())
+        obj['positive_response_suppress_parameter_short_name_path'] = None
+        obj['positive_response_suppress_parameter_short_name'] = None
+        if obj['has_positive_response_suppress_parameter_short_name_path']:
+            obj['positive_response_suppress_parameter_short_name_path'] = stream.loadAsciiString()[0]
         else:
-            obj['pos_resp_suppress_param_short_name'] = stream.loadAsciiString()[0]
+            obj['positive_response_suppress_parameter_short_name'] = stream.loadAsciiString()[0]
     
     return obj

@@ -25,13 +25,13 @@ def load(stream):
     obj['layer_id'] = stream.loadAsciiString()[0]
     
     # kernel: setFuncGroupParentPoolIds
-    obj['func_group_parent_pool_ids'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)
+    obj['functional_group_parent_pool_ids'] = common_loaders.loadAsciiStringVectorFromObjectStream(stream)
     
     # kernel: setEcuVarProjects; the elements are the project data of the variants
-    obj['ecu_var_projects'] = []
+    obj['ecu_variant_projects'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
         # kernel: fails when an element is not project data; kept readable for VW projects
-        obj['ecu_var_projects'].append(DbObject.load_object_from_stream_if_exists(stream))
+        obj['ecu_variant_projects'].append(DbObject.load_object_from_stream_if_exists(stream))
     
     return obj

@@ -18,9 +18,9 @@ def load(stream):
     
     flags = stream.loadNumericType(1)
     
-    obj['default_mcd_value'] = None
+    obj['default_value'] = None
     if flags & (1 << 0):
-        obj['default_mcd_value'] = common_loaders.loadMCDValueFromObjectStream(stream)
+        obj['default_value'] = common_loaders.loadMCDValueFromObjectStream(stream)
     
     obj['display_level'] = stream.loadNumericType(4)
     
@@ -28,7 +28,7 @@ def load(stream):
     if flags & (1 << 1):
         obj['semantic'] = stream.loadAsciiString()[0]
     
-    obj['sys_param'] = stream.loadAsciiString()[0]
+    obj['system_parameter'] = stream.loadAsciiString()[0]
     
     # kernel: keeps an unknown parameter type and reads on
     obj['mcd_parameter_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDParameterType, 0x7000 + stream.loadNumericType(1))
@@ -52,7 +52,7 @@ def load(stream):
     if flags & (1 << 4):
         obj['dop_base'] = DbObject.load_object_from_stream_if_exists(stream) # DopBase
     
-    obj['is_byte_pos_available'] = bool(flags & (1 << 5))
+    obj['is_byte_position_available'] = bool(flags & (1 << 5))
     
     # kernel: an absent collection reads as an empty one
     obj['special_data_group_references'] = []
@@ -61,8 +61,8 @@ def load(stream):
     
     obj['is_protocol_parameter'] = bool(flags & (1 << 7))
     
-    obj['nrc_const_values'] = None
+    obj['nrc_constant_values'] = None
     if obj['mcd_parameter_type'] == 'eNRC_CONST':
-        obj['nrc_const_values'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_VALUES
+        obj['nrc_constant_values'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_VALUES
     
     return obj

@@ -15,9 +15,9 @@ def load(stream):
     obj['lower_limit'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit
     obj['upper_limit'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit
     
-    obj['compu_const'] = common_loaders.loadMCDValueFromObjectStream(stream)
+    obj['compu_constant'] = common_loaders.loadMCDValueFromObjectStream(stream)
     obj['compu_inverse_value'] = common_loaders.loadMCDValueFromObjectStream(stream)
-    obj['compu_const_as_coded_value'] = common_loaders.loadMCDValueFromObjectStream(stream)
+    obj['compu_constant_as_coded_value'] = common_loaders.loadMCDValueFromObjectStream(stream)
     
     obj['lower_limit_as_coded_value'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit
     obj['upper_limit_as_coded_value'] = DbObject.load_object_from_stream_if_exists(stream) # DbLimit

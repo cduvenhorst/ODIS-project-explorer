@@ -10,7 +10,7 @@ def load(stream):
     
     # kernel: two parallel vectors are filled in stream order, the variant name and its pattern
     # collection; the key is the short name of a variant
-    obj['ecu_variant_patterns_map'] = []
+    obj['ecu_variant_patterns'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
@@ -18,7 +18,7 @@ def load(stream):
         item['map_key'] = stream.loadAsciiString()[0]
         item['ecu_variant_patterns'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbMatchingPatternsImpl
         
-        obj['ecu_variant_patterns_map'].append(item)
+        obj['ecu_variant_patterns'].append(item)
     
     obj['ecu'] = {'#OBJECT_TYPE': 'MCD_DB_ECU'}
     obj['ecu'].update(MCD_DB_ECU.load(stream))

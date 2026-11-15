@@ -93,8 +93,8 @@ def param_connector(in_params=(('IN1', False),), out_params=(('OUT1', True), ('O
     def entries(params):
         return [{'name': name, 'is_name': is_name} for name, is_name in params]
     return typed('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', {
-        'diag_com_primitive_name': 'DCP1', 'sub_component_in_param_names': entries(in_params),
-        'sub_component_out_param_names': entries(out_params), **name_block('P1')})
+        'diag_com_primitive_name': 'DCP1', 'sub_component_in_parameter_names': entries(in_params),
+        'sub_component_out_parameter_names': entries(out_params), **name_block('P1')})
 
 
 class ConnectorTests(unittest.TestCase):

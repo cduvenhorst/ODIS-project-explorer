@@ -23,9 +23,9 @@ def load(stream):
     
     # No setter; name chosen for the flag, not taken from the kernel
     obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
-    obj['flash_session_classes'] = []
+    obj['flash_sessions_classes'] = []
     if obj['has_flash_session_classes']:
-        obj['flash_session_classes'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
+        obj['flash_sessions_classes'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
     obj['securities'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_SECURITIES
     obj['flash_key'] = stream.loadAsciiString()[0]

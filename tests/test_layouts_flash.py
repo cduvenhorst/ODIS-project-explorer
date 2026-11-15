@@ -259,7 +259,7 @@ class FlashDataTests(unittest.TestCase):
             **name_block(), 'data_file_name_or_inline_flash_data': None,
             'data_reference': {'kind': 'external_file', 'file_name': None},
             'late_bound_or_is_inline': False, 'data_format': 0x6B01,
-            'encryption_compression_method': None, 'flash_file_sub_dir_name': None}))
+            'encryption_compression_method': None, 'flash_file_sub_directory_name': None}))
 
     def test_mcd_db_flash_data_all_branches(self):
         body = name_block_body(ObjectBytes(), True).ascii('DSA_INLINE_POOLDDDSSSBBBKEY').u8(1).u16(0x6B02)
@@ -270,7 +270,7 @@ class FlashDataTests(unittest.TestCase):
             'data_reference': {'kind': 'big_data_object', 'pool_id': 'POOL', 'object_id': 'KEY'},
             'late_bound_or_is_inline': True, 'data_format': 0x6B02,
             'encryption_compression_method': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
-            'flash_file_sub_dir_name': 'SUB'}))
+            'flash_file_sub_directory_name': 'SUB'}))
 
     def test_decode_data_reference(self):
         decode = MCD_DB_FLASH_DATA.decode_data_reference
@@ -311,7 +311,7 @@ class FlashDataTests(unittest.TestCase):
             **name_block(), 'data_file_name_or_inline_flash_data': None,
             'data_reference': {'kind': 'external_file', 'file_name': None},
             'late_bound_or_is_inline': False, 'data_format': 0x6B01,
-            'encryption_compression_method': None, 'flash_file_sub_dir_name': None})
+            'encryption_compression_method': None, 'flash_file_sub_directory_name': None})
         self.assertEqual(load('MCD_DB_FLASH_DATA_BLOCK', body), typed('MCD_DB_FLASH_DATA_BLOCK', {
             **name_block(True), 'address_offset': 2**33, 'data_block_type': 'APPLICATION',
             'flash_data': flash_data, 'flash_filters': [], 'flash_segments': [], 'own_idents': [],
@@ -325,7 +325,7 @@ class FlashDataTests(unittest.TestCase):
 SESSION_KEYS = ('short_name', 'odx_session_short_name', 'long_name', 'description', 'unique_object_id',
                 'long_name_id', 'description_id', 'flash_pool_id', 'checksums', 'data_blocks',
                 'expected_idents', 'flash_job_name', 'has_flash_session_classes',
-                'flash_session_classes', 'securities', 'flash_key', 'priority', 'is_download',
+                'flash_sessions_classes', 'securities', 'flash_key', 'priority', 'is_download',
                 'special_data_group_references')
 
 
@@ -336,7 +336,7 @@ class FlashTopLevelTests(unittest.TestCase):
         body.absent().absent().absent().ascii(None).u8(0).absent().ascii(None).u32(0).u8(0).u8(0)
         expected = {key: None for key in SESSION_KEYS}
         # kernel: an absent collection reads as an empty one
-        expected.update({'has_flash_session_classes': False, 'flash_session_classes': [],
+        expected.update({'has_flash_session_classes': False, 'flash_sessions_classes': [],
                          'priority': 0, 'is_download': False, 'special_data_group_references': []})
         self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', expected))
 
@@ -355,7 +355,7 @@ class FlashTopLevelTests(unittest.TestCase):
             'description': 'Desc', 'unique_object_id': 'UID', 'long_name_id': 'LongId',
             'description_id': 'DescId', 'flash_pool_id': 'POOL', 'checksums': [], 'data_blocks': [],
             'expected_idents': [], 'flash_job_name': 'JOB', 'has_flash_session_classes': True,
-            'flash_session_classes': support.named_refs(support.NAMED_REFS), 'securities': [],
+            'flash_sessions_classes': support.named_refs(support.NAMED_REFS), 'securities': [],
             'flash_key': 'K', 'priority': 5, 'is_download': True,
             'special_data_group_references': [{'object_id': 7}]}))
 
