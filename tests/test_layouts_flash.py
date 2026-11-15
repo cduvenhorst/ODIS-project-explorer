@@ -215,9 +215,9 @@ class EmbeddedFlashTests(unittest.TestCase):
         body.u8(255)
         self.assertEqual(load('MCD_DB_FLASH_SECURITY', body), typed('MCD_DB_FLASH_SECURITY', {
             **name_block(True),
-            'security_method': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
+            'flashware_checksum': {'data_type': 'eA_BYTEFIELD', 'value': bytearray(b'\x01')},
             'flashware_signature': {'data_type': 'eA_ASCIISTRING', 'value': 'SUM'},
-            'flashware_checksum': support.uint(9), 'validity': None}))
+            'security_method': support.uint(9), 'validity': None}))
 
     def test_mcd_db_ident_description_minimal(self):
         body = ObjectBytes().ascii(None).u8(0).ascii(None)
