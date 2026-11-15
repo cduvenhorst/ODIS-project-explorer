@@ -17,29 +17,31 @@ def load(stream):
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
-        item['key'] = stream.loadNumericType(4)
-        item['string'] = stream.loadAsciiString()[0]
+        item['map_key'] = stream.loadNumericType(4)
+        item['value'] = stream.loadAsciiString()[0]
         obj['env_data_param_map'].append(item)
     
     # Not a mistake, 1b is checked twice
     if stream.loadOneByteType():
         obj['all_value_db_env_data_param'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
     
-    obj['env_data_params'] = []
+    # kernel: each entry is added with addDbEnvDataParam(parameter, vector); the vector holds the
+    # DTC values the parameter applies to
+    obj['env_data_info_map'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         
-        item['string'] = stream.loadAsciiString()[0]
-        item['param'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
+        item['map_key'] = stream.loadAsciiString()[0]
+        item['env_data_param'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
         
         # loadVectorFromObjectStream
         
-        item['vector'] = []
+        item['dtc_values'] = []
         vector_items = stream.loadNumericType(4)
         for j in range(vector_items):
-            item['vector'].append(stream.loadNumericType(4))
+            item['dtc_values'].append(stream.loadNumericType(4))
         
-        obj['env_data_params'].append(item)
+        obj['env_data_info_map'].append(item)
     
     return obj

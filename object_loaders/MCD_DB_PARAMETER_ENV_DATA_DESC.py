@@ -4,7 +4,7 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    obj['is_parameter_short_name_path_available'] = stream.loadOneByteType()
+    obj['is_parameter_short_name_path_available'] = bool(stream.loadOneByteType())
     if obj['is_parameter_short_name_path_available']:
         obj['parameter_short_name_path'] = stream.loadAsciiString()[0]
     else:
@@ -12,6 +12,7 @@ def load(stream):
     
     obj['env_data_desc'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbEnvDataDescImpl
     
+    # kernel: a missing environment data description aborts loading
     if obj['env_data_desc'] is None:
         raise RuntimeError('db environment data not set')
     

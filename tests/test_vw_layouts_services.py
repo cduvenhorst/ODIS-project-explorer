@@ -366,14 +366,14 @@ def env_data_desc_body(full=False):
 def env_data_desc(full=False):
     fields = {'description': None, 'long_name': 'Long', 'short_name': 'Desc',
               'description_id': None, 'long_name_id': None, 'unique_object_id': None,
-              'env_data_param_map': [], 'env_data_params': []}
+              'env_data_param_map': [], 'env_data_info_map': []}
     if full:
-        fields['env_data_param_map'] = [{'key': 1, 'string': 'S1'}, {'key': 2, 'string': None}]
+        fields['env_data_param_map'] = [{'map_key': 1, 'value': 'S1'}, {'map_key': 2, 'value': None}]
         fields['all_value_db_env_data_param'] = typed('MCD_DB_PARAMETER', parameter())
-        fields['env_data_params'] = [
-            {'string': 'E1', 'param': typed('MCD_DB_PARAMETER', parameter()),
-             'vector': [10, 20]},
-            {'string': None, 'param': None, 'vector': []}]
+        fields['env_data_info_map'] = [
+            {'map_key': 'E1', 'env_data_param': typed('MCD_DB_PARAMETER', parameter()),
+             'dtc_values': [10, 20]},
+            {'map_key': None, 'env_data_param': None, 'dtc_values': []}]
     return fields
 
 
@@ -400,28 +400,35 @@ class EnvDataDescIdentifierTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_ENV_DATA_DESC', body), typed('MCD_DB_ENV_DATA_DESC', {
             'description': 'Desc', 'long_name': 'Long', 'short_name': 'Name',
             'description_id': 'DID', 'long_name_id': 'LNID', 'unique_object_id': 'UOI',
-            'env_data_param_map': [], 'env_data_params': []}))
+            'env_data_param_map': [], 'env_data_info_map': []}))
 
 
 class ParameterEnvDataDescTests(unittest.TestCase):
     def test_mcd_db_parameter_env_data_desc_minimal(self):
         body = ObjectBytes().u8(0).ascii('PName')
         body.nested('MCD_DB_ENV_DATA_DESC', env_data_desc_body()).u16(4)
-        self.assertEqual(load('MCD_DB_PARAMETER_ENV_DATA_DESC', body), typed(
+        result = load('MCD_DB_PARAMETER_ENV_DATA_DESC', body)
+        self.assertEqual(result, typed(
             'MCD_DB_PARAMETER_ENV_DATA_DESC', {
-                'is_parameter_short_name_path_available': 0, 'parameter_name': 'PName',
+                'is_parameter_short_name_path_available': False, 'parameter_name': 'PName',
                 'env_data_desc': typed('MCD_DB_ENV_DATA_DESC', env_data_desc()),
                 'byte_length': 4}))
+        # 0 == False, so the type has to be checked explicitly
+        self.assertIs(type(result['is_parameter_short_name_path_available']), bool)
+        self.assertNotIn('parameter_short_name_path', result)
 
     def test_mcd_db_parameter_env_data_desc_all_branches(self):
         body = ObjectBytes().u8(1).ascii('PATH')
         body.nested('MCD_DB_ENV_DATA_DESC', env_data_desc_body(True)).u16(4)
-        self.assertEqual(load('MCD_DB_PARAMETER_ENV_DATA_DESC', body), typed(
+        result = load('MCD_DB_PARAMETER_ENV_DATA_DESC', body)
+        self.assertEqual(result, typed(
             'MCD_DB_PARAMETER_ENV_DATA_DESC', {
-                'is_parameter_short_name_path_available': 1,
+                'is_parameter_short_name_path_available': True,
                 'parameter_short_name_path': 'PATH',
                 'env_data_desc': typed('MCD_DB_ENV_DATA_DESC', env_data_desc(True)),
                 'byte_length': 4}))
+        self.assertIs(type(result['is_parameter_short_name_path_available']), bool)
+        self.assertNotIn('parameter_name', result)
 
 
 def multiplexer_body(full=False):
