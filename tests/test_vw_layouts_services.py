@@ -943,6 +943,12 @@ def primitive(full=False, transmission_mode='eNO_TRANSMISSION', suppression=None
         'is_no_operation': False, 'diagnostic_class': 2,
         'ecu_state_transition_references': state_refs, 'ecu_state_references': state_refs,
         'has_suppress_positive_response_capability': suppression is not None})
+    # kernel: getPosRespSuppressBitMask, hasPosRespSuppressParamSNPath, getPosRespSuppressParamSNPath
+    # and getPosRespSuppressParamShortName report not set without the capability
+    fields.update({'positive_response_suppress_bit_mask': None,
+                   'has_positive_response_suppress_parameter_short_name_path': None,
+                   'positive_response_suppress_parameter_short_name_path': None,
+                   'positive_response_suppress_parameter_short_name': None})
     if suppression is not None:
         by_path = suppression != 'name'
         # kernel: setPosRespSuppressBitMask, setPosRespSuppressParamSNPath and
@@ -1009,12 +1015,13 @@ class StartCommunicationTests(unittest.TestCase):
             'MCD_DB_STARTCOMMUNICATION',
             {**primitive(True), 'service_protocol_parameters': PROTOCOL_PARAMETERS_MAP}))
 
-    def test_mcd_db_startcommunication_without_suppression_has_no_branch_keys(self):
+    def test_mcd_db_startcommunication_without_suppression_has_none_branch_keys(self):
         body = concat(primitive_body(), ObjectBytes().u16(0))
         result = load('MCD_DB_STARTCOMMUNICATION', body)
         for key in ('positive_response_suppress_bit_mask', 'has_positive_response_suppress_parameter_short_name_path',
                     'positive_response_suppress_parameter_short_name_path', 'positive_response_suppress_parameter_short_name'):
-            self.assertNotIn(key, result)
+            self.assertIn(key, result)
+            self.assertIsNone(result[key])
 
     def test_mcd_db_diag_com_primitive_unknown_transmission_mode(self):
         # kernel: an unknown transmission mode is kept as its number and reading goes on
