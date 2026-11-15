@@ -33,9 +33,8 @@ def load(stream):
     if pending:
         readers['C'] = lambda s: [common_loaders.load_reference(s, True) for _ in range(len(pending))]
     streams = common_loaders.loadNamedStreams(stream, readers)
-    if pending:
-        if 'C' not in streams:
-            raise RuntimeError('Named stream C missing for {} precondition definitions'.format(len(pending)))
+    # kernel: without stream C the table parameters stay empty
+    if 'C' in streams:
         for definition, reference in zip(pending, streams['C']):
             definition['table_parameter'] = reference
     
