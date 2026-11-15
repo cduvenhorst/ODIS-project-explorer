@@ -518,6 +518,8 @@ def layer_data(full=False, location='eMULTIPLE_ECU_JOB', kernel_collections=Fals
     fields = {'layer_id': 'Layer', 'layer_name': 'Unknown', 'protocol_type': 'ProtoType',
               'protocol_stack_short_name': 'Stack', 'com_param_spec_pool_id': 'ComParamPool',
               'location_type': location,
+              'base_variant_reference': None, 'ecu_variant_reference': None,
+              'functional_group_reference': None,
               'diag_com_primitive_references': diag_com_map() if full else [],
               'dtc_dop_names': strings('Dtc', n), 'dop_references': ref_map('Dop', n),
               'table_references': ref_map('Table', n, vector=True),
@@ -568,6 +570,9 @@ class LayerDataTests(unittest.TestCase):
         expected = layer_data(True, 'eECU_BASE_VARIANT')
         expected['base_variant_reference'] = {'object_id': 'LOC', 'pool_id': 'LOCPOOL'}
         self.assertEqual(load('DB_LAYER_DATA', body), expected)
+        result = load('DB_LAYER_DATA', body)
+        self.assertIsNone(result['ecu_variant_reference'])
+        self.assertIsNone(result['functional_group_reference'])
 
     def test_db_layer_data_location_types(self):
         cases = [(0x0101, 'eECU_BASE_VARIANT'), (0x0102, 'eECU_VARIANT'),

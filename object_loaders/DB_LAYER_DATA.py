@@ -15,6 +15,10 @@ def load(stream):
     # kernel: MCDLocationType; an unknown location type is kept as its number
     obj['location_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDLocationType, stream.loadEnumMediumRange())
     
+    # kernel: setBaseVarRef, setEcuVarRef, setFunctionalGroupRef; outside its branch the reference stays empty
+    obj['base_variant_reference'] = None
+    obj['ecu_variant_reference'] = None
+    obj['functional_group_reference'] = None
     match obj['location_type']:
         case 'eECU_BASE_VARIANT':
             obj['base_variant_reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbEcuBaseVariantImpl
@@ -33,6 +37,7 @@ def load(stream):
     # kernel: DbSemanticAttributedObjectReference, read as an attributed reference
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['table_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
+    # kernel: setDbRequestRefs; the kernel reads this map and discards it right away; kept readable for VW projects
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['request_references'] = common_loaders.loadStringToReferenceMap(stream)
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
@@ -56,13 +61,13 @@ def load(stream):
         common_loaders.put_map_entry(obj['functional_class_data_primitives_map'], positions, common_loaders.kernel_string_key(key), item)
     
     # kernel: DbSemanticAttributedObjectReference, read as an attributed reference
-    # EcuStateChartRefs
+    # kernel: setDbEcuStateChartRefs
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['ecu_state_chart_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
-    # SubComponentRefs
+    # kernel: setDbSubComponentRefs
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['sub_component_references'] = common_loaders.loadStringToReferenceMap(stream, is_attributed_reference=True)
-    # AdditionalAudienceRefs
+    # kernel: setDbAdditionalAudienceRefs
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['additional_audience_references'] = common_loaders.loadStringToReferenceMap(stream)
     
@@ -85,10 +90,10 @@ def load(stream):
     
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['not_inherited_dops'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
-    # NotInheritedTables
+    # kernel: setNotInheritedTables
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['not_inherited_tables'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
-    # NotInheritedDiagComms
+    # kernel: setNotInheritedDiagComms
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['not_inherited_diag_com_primitives'] = common_loaders.loadStringVectorMapFromObjectStream(stream)
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
@@ -108,12 +113,12 @@ def load(stream):
     if not stream.is_database_version(15):
         stream.loadOneByteType()
     
-    # SpecialDataGroupRefs; kernel: an absent collection reads as an empty one
+    # kernel: setDbSDGs; an absent collection reads as an empty one
     obj['special_data_group_references'] = []
     if stream.loadOneByteType():
         obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
-    # MultipleEcuJobRefs
+    # kernel: setDbMultipleEcuJobRefs
     # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['multiple_ecu_job_references'] = common_loaders.loadStringToReferenceMap(stream, is_DbDiagComObjectReference = True)
     
