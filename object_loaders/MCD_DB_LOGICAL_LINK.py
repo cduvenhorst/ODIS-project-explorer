@@ -4,16 +4,19 @@ from classes import DbObject
 
 
 def loadStringToObjectMap(stream):
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj = []
+    positions = {}
     
     map_item_count = stream.loadNumericType(2)
     for i in range(map_item_count):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         item['object'] = DbObject.load_object_from_stream_if_exists(stream)
         
-        obj.append(item)
+        common_loaders.put_map_entry(obj, positions, common_loaders.kernel_string_key(key), item)
     
     return obj
 

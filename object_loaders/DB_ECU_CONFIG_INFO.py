@@ -2,12 +2,14 @@ from common_utils import common_loaders
 
 
 def _load_map(stream, with_value):
-    # Keys can repeat, so the entries stay a list in read order
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     entries = []
+    positions = {}
     map_items = stream.loadNumericType(4)
     for i in range(map_items):
         entry = {}
-        entry['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        entry['map_key'] = key[0]
         entry['items'] = []
         collection_items = stream.loadNumericType(4)
         for j in range(collection_items):
@@ -18,7 +20,7 @@ def _load_map(stream, with_value):
             if with_value:
                 item['value'] = common_loaders.loadMCDValueFromObjectStream(stream)
             entry['items'].append(item)
-        entries.append(entry)
+        common_loaders.put_map_entry(entries, positions, common_loaders.kernel_string_key(key), entry)
     return entries
 
 

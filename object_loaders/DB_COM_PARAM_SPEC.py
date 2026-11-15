@@ -8,7 +8,9 @@ def load(stream):
     loop_index_less_than_num = (num != 0)
     
     # kernel: setProtStackMap; the key of each entry is the short name of the protocol stack
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['protocol_stack_map'] = []
+    positions = {}
     loop_index = 0
     while True:
         if not loop_index_less_than_num:
@@ -16,7 +18,8 @@ def load(stream):
         
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         
         item['request_parameters_references'] = []
         counter = stream.loadNumericType(2)
@@ -24,7 +27,7 @@ def load(stream):
             ref = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbRequestParametersImpl
             item['request_parameters_references'].append(ref)
         
-        obj['protocol_stack_map'].append(item)
+        common_loaders.put_map_entry(obj['protocol_stack_map'], positions, common_loaders.kernel_string_key(key), item)
         
         loop_index += 1
         loop_index_less_than_num = (loop_index < num)

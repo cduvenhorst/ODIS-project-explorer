@@ -157,10 +157,11 @@ class ConnectorTests(unittest.TestCase):
         self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', param_connector_body()),
                          param_connector())
 
-    def test_param_connector_keeps_duplicate_names(self):
-        body = param_connector_body(out_params=(('OUT1', 1), ('OUT1', 1)))
+    def test_param_connector_duplicate_name_replaces_earlier_entry(self):
+        # kernel: std::map; a later duplicate name replaces the earlier entry in its place
+        body = param_connector_body(out_params=(('OUT1', 1), ('OUT2', 1), ('OUT1', 0)))
         self.assertEqual(load('MCD_DB_SUB_COMPONENT_PARAM_CONNECTOR', body),
-                         param_connector(out_params=(('OUT1', True), ('OUT1', True))))
+                         param_connector(out_params=(('OUT1', False), ('OUT2', True))))
 
 
 class ConnectorCollectionTests(unittest.TestCase):

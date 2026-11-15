@@ -5,11 +5,14 @@ from common_utils import common_loaders
 # Field names are the kernel setter names; per the getters, the keys are short names of a
 # state transition (actions map) and of a state (precondition definitions map)
 def load_map(stream):
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     entries = []
+    positions = {}
     for _ in range(stream.loadNumericType(2)):
-        entry = {'map_key': stream.loadAsciiString()[0]}
+        key = stream.loadAsciiString()
+        entry = {'map_key': key[0]}
         entry['items'] = [DbObject.load_object_from_stream_if_exists(stream) for _ in range(stream.loadNumericType(2))]
-        entries.append(entry)
+        common_loaders.put_map_entry(entries, positions, common_loaders.kernel_string_key(key), entry)
     return entries
 
 

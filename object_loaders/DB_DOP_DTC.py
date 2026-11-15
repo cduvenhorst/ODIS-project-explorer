@@ -5,13 +5,15 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
+    # kernel: std::map ordered by the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['diag_trouble_code_references'] = []
+    positions = {}
     map_items = stream.loadNumericType(2)
     for i in range(map_items):
         item = {}
         item['map_key'] = stream.loadNumericType(4)
         item['reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbDiagTroubleCodeImpl
-        obj['diag_trouble_code_references'].append(item)
+        common_loaders.put_map_entry(obj['diag_trouble_code_references'], positions, item['map_key'], item)
     
     # LinkedDtcDops
     obj['linked_dtc_dops'] = []

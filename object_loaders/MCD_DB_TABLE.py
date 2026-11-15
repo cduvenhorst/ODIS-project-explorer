@@ -15,7 +15,9 @@ def load(stream):
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     
+    # kernel: std::map ordered by the key text; a later duplicate key replaces the earlier entry; kept in read order
     obj['table_key_map'] = []
+    positions = {}
     counter = stream.loadNumericType(4)
     for i in range(counter):
         item = {}
@@ -27,7 +29,7 @@ def load(stream):
         # kernel: the third word of the reference is object_id2
         item['reference'] = common_loaders.load_reference(stream, True)
         
-        obj['table_key_map'].append(item)
+        common_loaders.put_map_entry(obj['table_key_map'], positions, item['map_key'], item)
     
     obj['semantic'] = stream.loadAsciiString()[0]
     

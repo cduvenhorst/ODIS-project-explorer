@@ -1,4 +1,5 @@
 from classes import DbObject
+from common_utils import common_loaders
 
 
 def load(stream):
@@ -14,13 +15,15 @@ def load(stream):
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     
     # kernel: getEnvDataParamMap; the key is a DTC value, the value the short name of its environment data parameter
+    # kernel: std::map ordered by the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['env_data_parameter_map'] = []
+    positions = {}
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         item['map_key'] = stream.loadNumericType(4)
         item['value'] = stream.loadAsciiString()[0]
-        obj['env_data_parameter_map'].append(item)
+        common_loaders.put_map_entry(obj['env_data_parameter_map'], positions, item['map_key'], item)
     
     # Not a mistake, 1b is checked twice
     if stream.loadOneByteType():
@@ -28,12 +31,15 @@ def load(stream):
     
     # kernel: each entry is added with addDbEnvDataParam(parameter, vector); the vector holds the
     # DTC values the parameter applies to
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order
     obj['env_data_information_map'] = []
+    positions = {}
     counter = stream.loadNumericType(2)
     for i in range(counter):
         item = {}
         
-        item['map_key'] = stream.loadAsciiString()[0]
+        key = stream.loadAsciiString()
+        item['map_key'] = key[0]
         item['env_data_parameter'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbParameterImpl
         
         # loadVectorFromObjectStream
@@ -43,6 +49,6 @@ def load(stream):
         for j in range(vector_items):
             item['dtc_values'].append(stream.loadNumericType(4))
         
-        obj['env_data_information_map'].append(item)
+        common_loaders.put_map_entry(obj['env_data_information_map'], positions, common_loaders.kernel_string_key(key), item)
     
     return obj

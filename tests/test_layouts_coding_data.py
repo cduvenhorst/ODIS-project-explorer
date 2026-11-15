@@ -551,6 +551,14 @@ class ConfigurationDataTests(unittest.TestCase):
             self.assertEqual(loaded['base_variant_to_case_map'],
                              [{'map_key': 'K', 'unknown_1': 2, 'values': ['V']}])
 
+    def test_mcd_db_configuration_data_duplicate_case_value_keeps_first(self):
+        # kernel: std::set; a later duplicate value is dropped
+        body = ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None).ascii(None)
+        body.u16(0).u32(1).ascii('K').u8(2).u32(3).ascii('V').ascii('W').ascii('V')
+        body.u8(0).u32(0).u32(0).u32(0).flag(False).u8(0)
+        loaded = support.load('MCD_DB_CONFIGURATION_DATA', body)
+        self.assertEqual(loaded['base_variant_to_case_map'][0]['values'], ['V', 'W'])
+
     def test_db_ecu_config_info_minimal(self):
         self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body()), config_info())
 
@@ -558,9 +566,8 @@ class ConfigurationDataTests(unittest.TestCase):
         self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body(FULL_CONFIG_INFO)),
                          config_info(FULL_CONFIG_INFO))
 
-    def test_db_ecu_config_info_duplicate_keys_are_kept(self):
+    def test_db_ecu_config_info_duplicate_key_replaces_earlier_entry(self):
+        # kernel: std::map; a later duplicate key replaces the earlier entry in its place
         maps = ([], [], [('VAR', [('X1', 'A')]), ('VAR', [('X2', 'B')])], [])
-        loaded = load('DB_ECU_CONFIG_INFO', config_info_body(maps))
-        self.assertEqual(loaded, config_info(maps))
-        self.assertEqual([entry['items'][0]['object_id'] for entry in loaded['unknown_3']],
-                         ['X1', 'X2'])
+        self.assertEqual(load('DB_ECU_CONFIG_INFO', config_info_body(maps)),
+                         config_info(([], [], [('VAR', [('X2', 'B')])], [])))

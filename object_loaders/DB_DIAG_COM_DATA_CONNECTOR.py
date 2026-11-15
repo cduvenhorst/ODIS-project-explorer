@@ -28,6 +28,7 @@ def load(stream):
     obj['uncompressed_size'] = stream.loadNumericType(4)
     obj['start_address'] = stream.loadNumericType(4)
     
+    # kernel: std::map ordered by the string number of the key; a later duplicate key replaces the earlier entry; kept in read order (all four maps below)
     obj['write_parameter_value_map'] = common_loaders.loadAsciiToUnicodeStringMap(stream)
     obj['write_parameter_value_short_name_path_map'] = common_loaders.loadAsciiToUnicodeStringMap(stream)
     obj['read_parameter_value_map'] = common_loaders.loadAsciiToUnicodeStringMap(stream)
