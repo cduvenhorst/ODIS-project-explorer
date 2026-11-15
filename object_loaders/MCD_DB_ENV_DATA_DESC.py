@@ -13,6 +13,7 @@ def load(stream):
     obj['long_name_id'] = stream.loadAsciiString()[0]
     obj['unique_object_id'] = stream.loadAsciiString()[0]
     
+    # kernel: getEnvDataParamMap; the key is a DTC value, the value the short name of its environment data parameter
     obj['env_data_param_map'] = []
     counter = stream.loadNumericType(2)
     for i in range(counter):
