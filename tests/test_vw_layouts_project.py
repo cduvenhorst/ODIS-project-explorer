@@ -251,7 +251,8 @@ def matching_patterns_body(body, full):
 def matching_patterns(full):
     if not full:
         return []
-    return [{'short_name': 'MP1', 'items': []}, {'short_name': 'MP2', 'items': None}]
+    return [{'map_key': 'MP1', 'ecu_variant_patterns': []},
+            {'map_key': 'MP2', 'ecu_variant_patterns': None}]
 
 
 class EcuBaseVariantTests(unittest.TestCase):
@@ -260,15 +261,15 @@ class EcuBaseVariantTests(unittest.TestCase):
         matching_patterns_body(body, False)
         ecu_body(body)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
-            'ecu_variant_ref_collection': [], 'matching_patterns': [], 'ecu': ecu_part()}))
+            'ecu_variant_refs': [], 'ecu_variant_patterns_map': [], 'ecu': ecu_part()}))
 
     def test_mcd_db_ecu_base_variant_all_branches(self):
         body = named_refs_body(ObjectBytes(), NAMED_REFS)
         matching_patterns_body(body, True)
         ecu_body(body, ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU_BASE_VARIANT', body), typed('MCD_DB_ECU_BASE_VARIANT', {
-            'ecu_variant_ref_collection': named_refs(NAMED_REFS),
-            'matching_patterns': matching_patterns(True), 'ecu': ecu_part(ECU_LOCATIONS)}))
+            'ecu_variant_refs': named_refs(NAMED_REFS),
+            'ecu_variant_patterns_map': matching_patterns(True), 'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
 class EcuVariantTests(unittest.TestCase):
@@ -277,7 +278,7 @@ class EcuVariantTests(unittest.TestCase):
         ecu_body(body)
         self.assertEqual(load('MCD_DB_ECU_VARIANT', body), typed('MCD_DB_ECU_VARIANT', {
             'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
-            'matching_patterns': None, 'ecu': ecu_part()}))
+            'variant_patterns': None, 'ecu': ecu_part()}))
 
     def test_mcd_db_ecu_variant_all_branches(self):
         body = ref_body(ObjectBytes(), 'BV', 'BVPOOL')
@@ -285,19 +286,19 @@ class EcuVariantTests(unittest.TestCase):
         ecu_body(body, ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_ECU_VARIANT', body), typed('MCD_DB_ECU_VARIANT', {
             'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
-            'matching_patterns': [], 'ecu': ecu_part(ECU_LOCATIONS)}))
+            'variant_patterns': [], 'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
 class FunctionalGroupTests(unittest.TestCase):
     def test_mcd_db_functional_group_minimal(self):
         body = ecu_body(named_refs_body(ObjectBytes()))
         self.assertEqual(load('MCD_DB_FUNCTIONAL_GROUP', body), typed('MCD_DB_FUNCTIONAL_GROUP', {
-            'group_member_ref_collection': [], 'ecu': ecu_part()}))
+            'group_member_refs': [], 'ecu': ecu_part()}))
 
     def test_mcd_db_functional_group_all_branches(self):
         body = ecu_body(named_refs_body(ObjectBytes(), NAMED_REFS), ECU_LOCATIONS)
         self.assertEqual(load('MCD_DB_FUNCTIONAL_GROUP', body), typed('MCD_DB_FUNCTIONAL_GROUP', {
-            'group_member_ref_collection': named_refs(NAMED_REFS),
+            'group_member_refs': named_refs(NAMED_REFS),
             'ecu': ecu_part(ECU_LOCATIONS)}))
 
 
@@ -630,7 +631,7 @@ def project_data(full=False):
         # kernel: the elements are the project data of the variants
         'ecu_var_projects': [typed('MCD_DB_ECU_VARIANT', {
             'ecu_base_variant_ref': {'object_id': 'BV', 'pool_id': 'BVPOOL'},
-            'matching_patterns': None, 'ecu': ecu_part()}), None] if full else []})
+            'variant_patterns': None, 'ecu': ecu_part()}), None] if full else []})
 
 
 class ProjectDataTests(unittest.TestCase):

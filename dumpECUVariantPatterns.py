@@ -68,7 +68,7 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
             output_object['matching_patterns'] = []
             
             # Go through each matching pattern of the ECU-VARIANT
-            for matching_pattern in ecu_variant['matching_patterns']:
+            for matching_pattern in ecu_variant['variant_patterns']:
                 # The "matching parameters" are the values requested from the ECU and checked against known constants
                 matching_parameters = matching_pattern['matching_parameters']
                 
