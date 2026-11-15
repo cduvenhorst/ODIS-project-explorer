@@ -12,7 +12,8 @@ def load(stream):
     obj['protocol_stack_short_name'] = stream.loadAsciiString()[0]
     obj['com_param_spec_pool_id'] = stream.loadAsciiString()[0]
     
-    obj['location_type'] = enum_converters.get_MCDLocationType(stream.loadEnumMediumRange())
+    # kernel: MCDLocationType; an unknown location type is kept as its number
+    obj['location_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDLocationType, stream.loadEnumMediumRange())
     
     match obj['location_type']:
         case 'eECU_BASE_VARIANT':

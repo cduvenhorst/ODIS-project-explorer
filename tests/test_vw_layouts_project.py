@@ -128,8 +128,8 @@ def described_ids():
 # Access key and ECU
 # ---------------------------------------------------------------------------
 
-LOCATION_TYPES = [(0x0101, 'ECU_BASE_VARIANT'), (0x0102, 'ECU_VARIANT'),
-                  (0x0103, 'FUNCTIONAL_GROUP'), (0x0104, 'MULTIPLE_ECU_JOB'), (0x0105, 'PROTOCOL')]
+LOCATION_TYPES = [(0x0101, 'eECU_BASE_VARIANT'), (0x0102, 'eECU_VARIANT'),
+                  (0x0103, 'eFUNCTIONAL_GROUP'), (0x0104, 'eMULTIPLE_ECU_JOB'), (0x0105, 'ePROTOCOL')]
 POOL_ID = 'A.B.C@VARIANT.vi'
 ACCESS_KEY_STRING = '[Protocol]PROT.[FunctionalGroup]FG.[EcuBaseVariant]BV.[EcuVariant]EV'
 
@@ -144,7 +144,7 @@ def access_key_body(full=False, location=0x0101, last=''):
     return body.u16(location).ascii(last)
 
 
-def access_key_fields(full=False, location_type='ECU_BASE_VARIANT'):
+def access_key_fields(full=False, location_type='eECU_BASE_VARIANT'):
     fields = {'ecu_base_variant': None, 'ecu_base_variant_id': None, 'ecu_variant': None,
               'ecu_variant_id': None, 'functional_group': None, 'multiple_ecu_job': None,
               'protocol': None, 'location_type': location_type, 'string': ''}
@@ -157,7 +157,7 @@ def access_key_fields(full=False, location_type='ECU_BASE_VARIANT'):
     return fields
 
 
-def access_key(full=False, location_type='ECU_BASE_VARIANT'):
+def access_key(full=False, location_type='eECU_BASE_VARIANT'):
     return typed('MCD_ACCESS_KEY', access_key_fields(full, location_type))
 
 
@@ -205,6 +205,11 @@ class AccessKeyTests(unittest.TestCase):
             with self.subTest(location=name):
                 body = access_key_body(location=code)
                 self.assertEqual(load('MCD_ACCESS_KEY', body), access_key(location_type=name))
+
+    def test_mcd_access_key_unknown_location_type(self):
+        # kernel: an unknown location type is kept as its number
+        self.assertEqual(load('MCD_ACCESS_KEY', access_key_body(location=0x0106)),
+                         access_key(location_type=0x0106))
 
     def test_mcd_access_key_empty_last_string(self):
         expected = access_key_fields()
@@ -575,6 +580,11 @@ class LayerDataTests(unittest.TestCase):
                     expected[LAYER_LOCATION_REFS[code]] = {'object_id': 'LOC',
                                                            'pool_id': 'LOCPOOL'}
                 self.assertEqual(load('DB_LAYER_DATA', layer_data_body(location=code)), expected)
+
+    def test_db_layer_data_unknown_location_type(self):
+        # kernel: an unknown location type is kept as its number
+        self.assertEqual(load('DB_LAYER_DATA', layer_data_body(location=0x0106)),
+                         layer_data(location=0x0106))
 
     def test_layer_data_skips_byte_only_outside_0015(self):
         # kernel: the byte after the protocol parameters is absent only in version 0015

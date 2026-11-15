@@ -19,7 +19,8 @@ def load(stream):
     obj['multiple_ecu_job'] = stream.loadAsciiString()[0]
     obj['protocol'] = stream.loadAsciiString()[0]
     
-    obj['location_type'] = enum_converters.get_location_type_enum(stream.loadEnumMediumRange())
+    # kernel: MCDLocationType; an unknown location type is kept as its number
+    obj['location_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDLocationType, stream.loadEnumMediumRange())
     
     # The kernel accepts an empty location string or one shorter than a pool ID
     var_id = stream.loadAsciiString()[0]

@@ -272,21 +272,8 @@ object_types = {
   0x031F: 'DB_INLINE_FLASH_DATA'
 }
 
-location_types = {
-    0x0101: 'ECU_BASE_VARIANT',
-    0x0102: 'ECU_VARIANT',
-    0x0103: 'FUNCTIONAL_GROUP',
-    0x0104: 'MULTIPLE_ECU_JOB',
-    0x0105: 'PROTOCOL'
-}
-
-
 def get_object_type_enum(value):
     return object_types[int(value)]
-
-
-def get_location_type_enum(value):
-    return location_types[int(value)]
 
 
 def get_mcd_value_data_type_enum(value):
