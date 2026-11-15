@@ -11,37 +11,51 @@ def add_field_to_string(key, field, value):
 def load(stream):
     obj = {}
     
-    obj['ecu_base_variant'] = stream.loadAsciiString()[0]
-    obj['ecu_base_variant_id'] = stream.loadAsciiString()[0]
-    obj['ecu_variant'] = stream.loadAsciiString()[0]
-    obj['ecu_variant_id'] = stream.loadAsciiString()[0]
-    obj['functional_group'] = stream.loadAsciiString()[0]
-    obj['multiple_ecu_job'] = stream.loadAsciiString()[0]
-    obj['protocol'] = stream.loadAsciiString()[0]
+    # Each name is kept with its word: a word of 0 is not set, an embedded string (word None) is set
+    names = [stream.loadAsciiString() for _ in range(7)]
+    (base_variant, base_variant_id, variant, variant_id,
+     functional_group, multiple_ecu_job, protocol) = names
+    obj['ecu_base_variant'] = base_variant[0]
+    obj['ecu_base_variant_id'] = base_variant_id[0]
+    obj['ecu_variant'] = variant[0]
+    obj['ecu_variant_id'] = variant_id[0]
+    obj['functional_group'] = functional_group[0]
+    obj['multiple_ecu_job'] = multiple_ecu_job[0]
+    obj['protocol'] = protocol[0]
     
     # kernel: MCDLocationType; an unknown location type is kept as its number
     obj['location_type'] = enum_converters.enum_name_or_number(enum_converters.get_MCDLocationType, stream.loadEnumMediumRange())
     
-    # The kernel accepts an empty location string or one shorter than a pool ID
-    var_id = stream.loadAsciiString()[0]
-    if var_id is not None and len(var_id) > 5 and var_id[1] == '.' and var_id[3] == '.' and var_id[5] == '@' and var_id[-3] == '.':
-        obj['pool_id'] = var_id
-    else:
-        obj['layer_data_object_id'] = var_id
+    # kernel: the last string is the access key's own pool ID (setDbPoolID)
+    obj['pool_id'] = stream.loadAsciiString()[0]
     
-    string = ''
-    if obj['protocol'] is not None:
-        string = add_field_to_string(string, 'Protocol', obj['protocol'])
-    if obj['functional_group'] is not None:
-        string = add_field_to_string(string, 'FunctionalGroup', obj['functional_group'])
-    if obj['ecu_base_variant'] is not None:
-        string = add_field_to_string(string, 'EcuBaseVariant', obj['ecu_base_variant'])
-    if obj['ecu_variant'] is not None:
-        string = add_field_to_string(string, 'EcuVariant', obj['ecu_variant'])
-    
-    #if string_storage.get_ascii_hash(string) is None:
-    #    raise RuntimeError('Failed to find AccessKey "{}"'.format(string))
-    
-    obj['string'] = string
+    # derived, not stored by the kernel; composed as getStringNr does
+    obj['string'] = compose_string(base_variant, variant, functional_group, multiple_ecu_job, protocol)
     
     return obj
+
+
+def compose_string(base_variant, variant, functional_group, multiple_ecu_job, protocol):
+    def is_set(loaded):
+        return loaded[1] != 0
+    
+    if is_set(multiple_ecu_job):
+        parts = [('MultipleEcuJob', multiple_ecu_job)]
+    else:
+        parts = [('Protocol', protocol)] if is_set(protocol) else []
+        # kernel: the functional group is left out when a base variant is set
+        if is_set(functional_group) and not is_set(base_variant):
+            parts.append(('FunctionalGroup', functional_group))
+        if is_set(base_variant):
+            parts.append(('EcuBaseVariant', base_variant))
+        if is_set(variant):
+            parts.append(('EcuVariant', variant))
+    
+    # kernel: getString fails when a set name cannot be resolved
+    if any(loaded[0] is None for _, loaded in parts):
+        return None
+    
+    string = ''
+    for field, loaded in parts:
+        string = add_field_to_string(string, field, loaded[0])
+    return string

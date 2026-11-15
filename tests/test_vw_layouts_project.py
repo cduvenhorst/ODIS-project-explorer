@@ -12,8 +12,7 @@ connector pin loaders do the same for description_id, long_name_id and unique_ob
 which stand before the description in their name block.
 The vehicle information data loader follows the kernel: the second counter introduces the
 collection base_variant_protocol_id_to_link_information_map instead of having to be 0.  The access key
-loader accepts an empty or short last string (stored as layer_data_object_id) instead of
-indexing into it.
+loader accepts an empty or short last string (its pool_id) instead of indexing into it.
 The layer data loader follows the kernel: the layer name, the two not inherited maps (tables
 and diagnostic communication primitives), and the state chart, sub component, additional
 audience, special data group and multiple ECU job references are read as the keys
@@ -131,7 +130,7 @@ def described_ids():
 LOCATION_TYPES = [(0x0101, 'eECU_BASE_VARIANT'), (0x0102, 'eECU_VARIANT'),
                   (0x0103, 'eFUNCTIONAL_GROUP'), (0x0104, 'eMULTIPLE_ECU_JOB'), (0x0105, 'ePROTOCOL')]
 POOL_ID = 'A.B.C@VARIANT.vi'
-ACCESS_KEY_STRING = '[Protocol]PROT.[FunctionalGroup]FG.[EcuBaseVariant]BV.[EcuVariant]EV'
+ACCESS_KEY_STRING = '[MultipleEcuJob]MEJ'
 
 
 def access_key_body(full=False, location=0x0101, last=''):
@@ -153,7 +152,7 @@ def access_key_fields(full=False, location_type='eECU_BASE_VARIANT'):
                       ecu_variant_id='EVID', functional_group='FG', multiple_ecu_job='MEJ',
                       protocol='PROT', pool_id=POOL_ID, string=ACCESS_KEY_STRING)
     else:
-        fields['layer_data_object_id'] = 'LAYER-1'
+        fields['pool_id'] = 'LAYER-1'
     return fields
 
 
@@ -191,6 +190,14 @@ def ecu_part(locations=()):
     return typed('MCD_DB_ECU', ecu_fields(locations))
 
 
+def access_key_names_body(names, body=None):
+    """MCD_ACCESS_KEY from seven names in stream order BV, BVID, EV, EVID, FG, MEJ, PROT."""
+    body = ObjectBytes() if body is None else body
+    for text in names:
+        body.ascii(text)
+    return body.u16(0x0101).ascii(POOL_ID)
+
+
 class AccessKeyTests(unittest.TestCase):
     def test_mcd_access_key_minimal(self):
         body = access_key_body()
@@ -213,15 +220,38 @@ class AccessKeyTests(unittest.TestCase):
 
     def test_mcd_access_key_empty_last_string(self):
         expected = access_key_fields()
-        expected['layer_data_object_id'] = None
+        expected['pool_id'] = None
         self.assertEqual(load('MCD_ACCESS_KEY', access_key_body(last=None)),
                          typed('MCD_ACCESS_KEY', expected))
 
     def test_mcd_access_key_short_last_string(self):
         expected = access_key_fields()
-        expected['layer_data_object_id'] = 'L1'
+        expected['pool_id'] = 'L1'
         self.assertEqual(load('MCD_ACCESS_KEY', access_key_body(last='L1')),
                          typed('MCD_ACCESS_KEY', expected))
+
+    def test_mcd_access_key_string_without_functional_group_beside_base_variant(self):
+        # kernel: getStringNr leaves out the functional group when a base variant is set
+        body = access_key_names_body(('BV', None, 'EV', None, 'FG', None, 'PROT'))
+        self.assertEqual(load('MCD_ACCESS_KEY', body)['string'],
+                         '[Protocol]PROT.[EcuBaseVariant]BV.[EcuVariant]EV')
+
+    def test_mcd_access_key_string_with_functional_group_only(self):
+        body = access_key_names_body((None, None, None, None, 'FG', None, 'PROT'))
+        self.assertEqual(load('MCD_ACCESS_KEY', body)['string'], '[Protocol]PROT.[FunctionalGroup]FG')
+
+    def test_mcd_access_key_embedded_empty_base_variant_is_set(self):
+        body = access_key_names_body((None, None, None, 'FG', None, 'PROT'),
+                                     ObjectBytes().embedded_ascii(''))
+        self.assertEqual(load('MCD_ACCESS_KEY', body)['string'], '[Protocol]PROT.[EcuBaseVariant]')
+
+    def test_mcd_access_key_string_is_none_when_a_set_name_cannot_be_resolved(self):
+        # kernel: getString fails when a set name cannot be resolved
+        body = ObjectBytes().u32(0x1234567)
+        body = access_key_names_body((None, None, None, None, None, 'PROT'), body)
+        loaded = load('MCD_ACCESS_KEY', body)
+        self.assertIsNone(loaded['ecu_base_variant'])
+        self.assertIsNone(loaded['string'])
 
 
 class EcuTests(unittest.TestCase):
