@@ -8,7 +8,9 @@ _HEX_TEXT = re.compile(rb'(?:[0-9A-Fa-f]{2})*')
 
 def load(stream):
     # Single part form: the content is an embedded string behind the type code
+    # kernel: keeps the content and its length; only the length is returned here
     text = stream.loadNativeAsciiString()
+    # is_big_data: derived from the record form, not stored by the kernel
     return {'is_big_data': False, 'inline_flash_data_length': len(text or '')}
 
 
@@ -30,6 +32,7 @@ def content_bytes(parts: list[bytearray]) -> bytes:
             raise ValueError('Inline flash data record is too short for its length word')
         length_word = int.from_bytes(first[2:6], 'little')
         length = length_word & 0x7FFFFFFF
+        # kernel: does not check the length against the record
         if length_word & 0x80000000 and 6 + length > len(first):
             raise ValueError('Inline flash data string is longer than its record')
         text = bytes(first[6:6 + length]) if length_word & 0x80000000 else b''

@@ -18,7 +18,7 @@ def load(stream):
     if stream.loadOneByteType():
         obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
-    # No setter; name chosen for the flag, not taken from the kernel
+    # kernel: stores this as a flag set by setLogicalBlockIndex; the getter reports not set without it
     obj['has_logical_block_index'] = bool(stream.loadOneByteType())
     obj['logical_block_index'] = None
     if obj['has_logical_block_index']:

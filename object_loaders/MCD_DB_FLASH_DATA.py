@@ -27,6 +27,7 @@ def load(stream):
     obj = common_loaders.loadStandardNameBlock(stream)
     
     obj['data_file_name_or_inline_flash_data'] = stream.loadAsciiString()[0]
+    # derived from the name as the kernel splits it; not stored by the kernel
     obj['data_reference'] = decode_data_reference(obj['data_file_name_or_inline_flash_data'])
     obj['late_bound_or_is_inline'] = bool(stream.loadOneByteType())
     # kernel: MCDFlashDataFormat; an unknown value is kept as its number
