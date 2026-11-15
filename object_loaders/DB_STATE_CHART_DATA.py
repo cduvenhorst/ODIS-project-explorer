@@ -21,8 +21,11 @@ def load(stream):
     
     # Precondition definitions without a DiagCom reference take their table parameter from
     # named stream C, one reference each in reading order
+    # kernel: fails when either map holds an object of another type; kept readable for VW projects
     pending = [definition for entry in obj['state_precondition_defs_map'] for definition in entry['items']
-               if definition is not None and definition['diag_com_primitive'] is None]
+               if isinstance(definition, dict)
+               and definition.get('#OBJECT_TYPE') == 'MCD_DB_PRECONDITION_DEFINITION'
+               and definition['diag_com_primitive'] is None]
     readers = {}
     if pending:
         readers['C'] = lambda s: [common_loaders.load_reference(s, True) for _ in range(len(pending))]

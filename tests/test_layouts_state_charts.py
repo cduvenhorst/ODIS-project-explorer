@@ -227,6 +227,11 @@ def map_body(body, entries):
 
 ACTION = 'MCD_DB_STATE_TRANSITION_ACTION'
 PRECONDITION = 'MCD_DB_PRECONDITION_DEFINITION'
+FOREIGN = 'DB_ODX_LINK'
+
+
+def odx_link_body():
+    return ObjectBytes().ascii('ID').ascii('DOC').flag(False)
 
 
 class StateChartDataTests(unittest.TestCase):
@@ -299,3 +304,40 @@ class StateChartDataTests(unittest.TestCase):
         result = load('DB_STATE_CHART_DATA', body, '0015')
         self.assertEqual(result['state_precondition_defs_map'],
                          [{'map_key': 'S1', 'items': [precondition()]}])
+
+    def test_db_state_chart_data_foreign_type_in_precondition_map(self):
+        # kernel: fails when either map holds an object of another type; kept readable for VW projects
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(FOREIGN, odx_link_body())])])
+        result = load('DB_STATE_CHART_DATA', body)
+        item = result['state_precondition_defs_map'][0]['items'][0]
+        self.assertEqual(item['#OBJECT_TYPE'], FOREIGN)
+        self.assertNotIn('table_parameter', item)
+
+    def test_db_state_chart_data_foreign_type_beside_definition(self):
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(FOREIGN, odx_link_body()),
+                                (PRECONDITION, precondition_body(diag_com=False))])])
+        body.raw(b'#>\x00C')
+        table_ref_body(body, 1)
+        body.raw(b'#>\x01')
+        result = load('DB_STATE_CHART_DATA', body)
+        items = result['state_precondition_defs_map'][0]['items']
+        self.assertNotIn('table_parameter', items[0])
+        self.assertEqual(items[1]['table_parameter'], table_ref(1))
+
+    def test_db_state_chart_data_action_in_precondition_map(self):
+        # an action carries a DiagCom reference, so it needs no table parameter
+        body = map_body(ObjectBytes(), [])
+        map_body(body, [('S1', [(ACTION, action_body())])])
+        result = load('DB_STATE_CHART_DATA', body)
+        item = result['state_precondition_defs_map'][0]['items'][0]
+        self.assertEqual(item['#OBJECT_TYPE'], ACTION)
+        self.assertNotIn('table_parameter', item)
+
+    def test_db_state_chart_data_foreign_type_in_actions_map(self):
+        # kernel: fails when either map holds an object of another type; kept readable for VW projects
+        body = map_body(ObjectBytes(), [('T1', [(PRECONDITION, precondition_body())])])
+        map_body(body, [])
+        result = load('DB_STATE_CHART_DATA', body)
+        self.assertEqual(result['state_trans_trans_actions_map'][0]['items'][0]['#OBJECT_TYPE'], PRECONDITION)
