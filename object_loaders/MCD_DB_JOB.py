@@ -9,6 +9,7 @@ def load(stream):
     obj['minor'] = stream.loadNumericType(4)
     obj['revision'] = stream.loadNumericType(4)
     
+    # kernel: fails when the code informations are missing; kept readable for VW projects
     obj['code_informations'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbCodeInformationsImpl
     
     obj['is_reduced_result_enabled'] = bool(stream.loadOneByteType())

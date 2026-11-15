@@ -14,6 +14,7 @@ def load(stream):
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['short_name'] = stream.loadAsciiString()[0]
     
+    # kernel: fails when any of the five collections is missing; kept readable for VW projects
     obj['diag_trouble_code_connectors'] = DbObject.load_object_from_stream_if_exists(stream)
     obj['env_data_connectors'] = DbObject.load_object_from_stream_if_exists(stream)
     obj['sub_component_param_connectors'] = DbObject.load_object_from_stream_if_exists(stream)

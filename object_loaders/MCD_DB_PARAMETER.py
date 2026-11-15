@@ -48,6 +48,7 @@ def load(stream):
     if flags & (1 << 3):
         obj['dop_base_reference'] = common_loaders.load_reference(stream, False)
     
+    # kernel: fails when bit 4 is set and the ODX link is missing; kept readable for VW projects
     obj['dop_base'] = None
     if flags & (1 << 4):
         obj['dop_base'] = DbObject.load_object_from_stream_if_exists(stream) # DopBase

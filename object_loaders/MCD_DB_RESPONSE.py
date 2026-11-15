@@ -13,6 +13,7 @@ def load(stream):
     
     obj['description_id'] = stream.loadAsciiString()[0]
     
+    # kernel: fails when the parameters object is missing; kept readable for VW projects
     obj['response_parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbResponseParametersImpl
     
     # kernel: an unknown response type is kept as its number

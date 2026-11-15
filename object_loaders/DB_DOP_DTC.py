@@ -15,7 +15,7 @@ def load(stream):
         item['reference'] = common_loaders.load_reference(stream, False) # DbObjectReference : MCDDbDiagTroubleCodeImpl
         common_loaders.put_map_entry(obj['diag_trouble_code_references'], positions, item['map_key'], item)
     
-    # LinkedDtcDops
+    # kernel: setLinkedDtcDops
     obj['linked_dtc_dops'] = []
     linked_items = stream.loadNumericType(2)
     for i in range(linked_items):
@@ -28,6 +28,7 @@ def load(stream):
     obj['diag_coded_type'] = DbObject.load_object_from_stream_if_exists(stream)
     obj['physical_type'] = DbObject.load_object_from_stream_if_exists(stream)
     
+    # kernel: the DOP's own name block
     obj['short_name'] = stream.loadAsciiString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]
     obj['description'] = stream.loadUnicodeString()[0]

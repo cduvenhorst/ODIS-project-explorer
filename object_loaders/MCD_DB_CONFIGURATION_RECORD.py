@@ -29,6 +29,7 @@ def load(stream):
     if stream.loadOneByteType():
         obj['default_data_record_reference'] = common_loaders.loadDbValueAttributedObjectReference(stream)
     
+    # kernel: fails when any of the five objects is missing; kept readable for VW projects
     obj['option_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbOptionItemsImpl
     obj['system_items'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbSystemItemsImpl
     obj['read_diag_com_primitives'] = DbObject.load_object_from_stream_if_exists(stream) # DbOdxLinks

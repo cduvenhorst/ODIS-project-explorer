@@ -22,7 +22,6 @@ def load(stream):
     for i in range(counter):
         item = {}
         
-        # kernel: may fail when a row key cannot be resolved (unverified); kept readable for VW projects
         item['map_key'] = stream.loadUnicodeString()[0]
         
         # DbNamedObjectReference : MCDDbTableParameterImpl

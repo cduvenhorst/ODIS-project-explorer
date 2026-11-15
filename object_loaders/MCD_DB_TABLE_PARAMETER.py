@@ -33,6 +33,7 @@ def load(stream):
     obj.update(MCD_DB_PARAMETER.load(stream))
     
     streams = common_loaders.loadNamedStreams(stream, NAMED_STREAM_READERS)
+    # kernel: isApiExecutable defaults to true (constructor); without stream B the precondition states stay empty
     obj['is_api_executable'] = streams.get('A', True)
     obj['pre_condition_state_references'] = streams.get('B')
     

@@ -16,6 +16,7 @@ def load(stream):
     obj['description_id'] = stream.loadAsciiString()[0]
     
     obj['flash_pool_id'] = stream.loadAsciiString()[0]
+    # kernel: fails when any of the four objects is missing; kept readable for VW projects
     obj['checksums'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_CHECKSUMS
     obj['data_blocks'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_DATA_BLOCKS
     obj['expected_idents'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_IDENTS

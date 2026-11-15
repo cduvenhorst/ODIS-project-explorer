@@ -6,6 +6,7 @@ from common_utils import common_loaders
 def load(stream):
     obj = MCD_DB_CONFIGURATION_ITEM.load(stream)
     
+    # kernel: fails when the item values are missing; kept readable for VW projects
     obj['item_values'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbItemValuesImpl
     obj['physical_default_value'] = stream.loadUnicodeString()[0]
     obj['read_audience_state'] = DbObject.load_object_from_stream_if_exists(stream) # MCDAudienceImpl

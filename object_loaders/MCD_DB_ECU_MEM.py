@@ -13,6 +13,7 @@ def load(stream):
     obj['layers'] = None
     obj['all_variant_layers'] = None
     if obj['has_layers']:
+        # kernel: fails when either ODX link collection is missing; kept readable for VW projects
         obj['layers'] = DbObject.load_object_from_stream_if_exists(stream) # DB_ODX_LINKS
         obj['all_variant_layers'] = DbObject.load_object_from_stream_if_exists(stream)
     else:

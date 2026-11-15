@@ -3,7 +3,7 @@ def load(stream):
     
     obj['data_primitive_name'] = stream.loadAsciiString()[0]
     
-    # No setter; name proposed for the flag (weakly supported)
+    # kernel: stored as 0/1 without accessor; 1 means the name was read
     obj['is_response_parameter_name'] = bool(stream.loadOneByteType())
     
     # One string follows in either case

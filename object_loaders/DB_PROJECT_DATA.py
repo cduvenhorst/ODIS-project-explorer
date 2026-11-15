@@ -15,7 +15,7 @@ def load(stream):
         access_key = entry['access_key']
         key_string = access_key['string'] if access_key is not None else None
         if key_string is None:
-            # No key: the entry is always appended
+            # kernel: fails when a location has no access key; kept readable for VW projects
             obj['location_map'].append(entry)
         else:
             common_loaders.put_map_entry(obj['location_map'], positions, key_string, entry)

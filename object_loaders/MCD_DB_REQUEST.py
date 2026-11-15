@@ -13,6 +13,7 @@ def load(stream):
     
     obj['description_id'] = stream.loadAsciiString()[0]
     
+    # kernel: fails when the parameters object is missing; kept readable for VW projects
     obj['request_parameters'] = DbObject.load_object_from_stream_if_exists(stream) # MCDDbRequestParametersImpl
     
     # kernel: an absent collection reads as an empty one

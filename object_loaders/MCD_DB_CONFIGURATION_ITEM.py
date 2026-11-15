@@ -18,6 +18,7 @@ def load(stream):
     if stream.loadOneByteType():
         obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
+    # kernel: fails when the parameter is missing; kept readable for VW projects
     obj['parameter'] = DbObject.load_object_from_stream_if_exists(stream) # setDbParameter; MCDDbParameterSimple in the data
     obj['is_complex'] = bool(stream.loadOneByteType())
     

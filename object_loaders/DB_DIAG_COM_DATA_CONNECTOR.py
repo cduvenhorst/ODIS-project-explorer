@@ -5,7 +5,7 @@ from common_utils import common_loaders
 def load(stream):
     obj = {}
     
-    # Each parameter is addressed either by short name or by short name path; only the one that was read is set
+    # kernel: two slots per parameter; the slot that is not read stays unset
     obj['write_parameter_is_short_name_path'] = bool(stream.loadOneByteType())
     write_param = stream.loadAsciiString()[0]
     obj['write_parameter_short_name'] = None if obj['write_parameter_is_short_name_path'] else write_param
@@ -16,6 +16,7 @@ def load(stream):
     obj['read_parameter_short_name'] = None if obj['read_parameter_is_short_name_path'] else read_param
     obj['read_parameter_short_name_path'] = read_param if obj['read_parameter_is_short_name_path'] else None
     
+    # kernel: fails when the byte is set but the object is missing; kept readable for VW projects
     # The outer byte comes first; the object (with its own presence byte) only follows when it is non-zero
     obj['read_diag_com_primitive'] = None
     if stream.loadOneByteType():
