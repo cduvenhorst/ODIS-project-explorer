@@ -724,14 +724,15 @@ def table_parameter(audience_state=None):
     # kernel: an absent collection reads as an empty one
     return {'key': 'Key', 'audience_state': audience_state,
             'disabled_additional_audiences': [], 'enabled_additional_audiences': [],
-            'parameter': typed('MCD_DB_PARAMETER', parameter()),
+            **parameter(),
             'is_api_executable': True, 'pre_condition_state_references': None}
 
 
 class TableParameterTests(unittest.TestCase):
     def test_mcd_db_table_parameter_minimal(self):
-        self.assertEqual(load('MCD_DB_TABLE_PARAMETER', table_parameter_body()),
-                         typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
+        result = load('MCD_DB_TABLE_PARAMETER', table_parameter_body())
+        self.assertEqual(result, typed('MCD_DB_TABLE_PARAMETER', table_parameter()))
+        self.assertNotIn('parameter', result)
 
     def test_mcd_db_table_parameter_all_branches(self):
         expected = {**table_parameter(audience()), 'pre_condition_state_references': []}

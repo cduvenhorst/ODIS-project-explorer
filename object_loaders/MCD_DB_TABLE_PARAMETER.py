@@ -29,8 +29,8 @@ def load(stream):
     if stream.loadOneByteType():
         obj['enabled_additional_audiences'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
-    obj['parameter'] = {'#OBJECT_TYPE': 'MCD_DB_PARAMETER'}
-    obj['parameter'].update(MCD_DB_PARAMETER.load(stream))
+    # kernel: the MCDDbParameterImpl part is read into the same object
+    obj.update(MCD_DB_PARAMETER.load(stream))
     
     streams = common_loaders.loadNamedStreams(stream, NAMED_STREAM_READERS)
     obj['is_api_executable'] = streams.get('A', True)

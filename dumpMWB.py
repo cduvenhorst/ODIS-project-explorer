@@ -90,7 +90,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
     # Parse the object, depending on its type
     match dop['#OBJECT_TYPE']:
         # Parameter: MCD-2D V2.2 - 7.3.5.4
-        case 'MCD_DB_PARAMETER' | 'MCD_DB_PARAMETER_SIMPLE':
+        # A table parameter contains the parameter fields itself
+        case 'MCD_DB_PARAMETER' | 'MCD_DB_PARAMETER_SIMPLE' | 'MCD_DB_TABLE_PARAMETER':
             output_object['type'] = 'PARAMETER'
             
             # Get the LONG-NAME, LONG-NAME-ID and DESCRIPTION of the parameter
@@ -1421,13 +1422,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 if table_entry['#OBJECT_TYPE'] != 'MCD_DB_TABLE_PARAMETER':
                     raise RuntimeError('Expected MCD_DB_TABLE_PARAMETER, not {}'.format(table_entry['#OBJECT_TYPE']))
                 
-                # Get the table row parameter
-                table_entry_parameter = table_entry['parameter']
-                if table_entry_parameter['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER':
-                    raise RuntimeError('Expected MCD_DB_PARAMETER, not {}'.format(table_entry_parameter['#OBJECT_TYPE']))
-                
-                # Parse the table row parameter
-                table_row_output_object = parse_dop(object_loader, layer_data_objects, project_folder_path, table_entry_parameter)
+                # The table row parameter is part of the table entry itself
+                table_row_output_object = parse_dop(object_loader, layer_data_objects, project_folder_path, table_entry)
                 
                 # The LONG-NAME of the parsed object should be the same as the key from the map
                 # So, the TABLE-KEY's (physical) value will be searched in the LONG-NAME of each table row
