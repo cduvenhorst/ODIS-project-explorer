@@ -5,8 +5,8 @@ from classes import DbObject
 def load(stream):
     obj = {}
     
-    # The kernel uses the first name as short name only when session renaming is switched on,
-    # otherwise the second; both are kept
+    # kernel: the first name is the short name while session renaming is switched on, which is the default
+    # and the setting of the shipped server configuration; the second name is the ODX session short name
     obj['short_name'] = stream.loadAsciiString()[0]
     obj['odx_session_short_name'] = stream.loadAsciiString()[0]
     obj['long_name'] = stream.loadUnicodeString()[0]
@@ -21,10 +21,9 @@ def load(stream):
     obj['expected_idents'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_IDENTS
     obj['flash_job_name'] = stream.loadAsciiString()[0]
     
-    # No setter; name chosen for the flag, not taken from the kernel
-    obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
+    # kernel: the byte only selects an empty collection; no flag is stored
     obj['flash_sessions_classes'] = []
-    if obj['has_flash_session_classes']:
+    if stream.loadOneByteType():
         obj['flash_sessions_classes'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
     obj['securities'] = DbObject.load_object_from_stream_if_exists(stream) # MCD_DB_FLASH_SECURITIES

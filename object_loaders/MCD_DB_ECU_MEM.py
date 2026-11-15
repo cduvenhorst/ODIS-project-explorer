@@ -3,6 +3,7 @@ from classes import DbObject
 
 
 def load(stream):
+    # kernel: with session renaming switched on, the default, the element name names the session and an entry without name fails
     obj = common_loaders.loadStandardNameBlock(stream)
     
     # No setter; name chosen for the flag, not taken from the kernel
@@ -21,11 +22,9 @@ def load(stream):
     obj['flash_sessions'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.loadDbAttributedObjectReference)
     obj['additional_audiences'] = common_loaders.loadAdditionalAudiencesFromObjectStream(stream)
     
-    # No setter; name chosen for the flag, not taken from the kernel
-    obj['has_flash_session_classes'] = bool(stream.loadOneByteType())
-    # kernel: an absent collection reads as an empty one
+    # kernel: the byte only selects an empty collection; no flag is stored
     obj['flash_session_class_references'] = []
-    if obj['has_flash_session_classes']:
+    if stream.loadOneByteType():
         obj['flash_session_class_references'] = common_loaders.loadNamedObjectReferenceCollectionFromObjectStream(stream, common_loaders.load_reference, False)
     
     # No setter; named after the getter hasPhysicalMemory

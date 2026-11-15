@@ -324,8 +324,7 @@ class FlashDataTests(unittest.TestCase):
 
 SESSION_KEYS = ('short_name', 'odx_session_short_name', 'long_name', 'description', 'unique_object_id',
                 'long_name_id', 'description_id', 'flash_pool_id', 'checksums', 'data_blocks',
-                'expected_idents', 'flash_job_name', 'has_flash_session_classes',
-                'flash_sessions_classes', 'securities', 'flash_key', 'priority', 'is_download',
+                'expected_idents', 'flash_job_name', 'flash_sessions_classes', 'securities', 'flash_key', 'priority', 'is_download',
                 'special_data_group_references')
 
 
@@ -343,9 +342,11 @@ class FlashTopLevelTests(unittest.TestCase):
         body.absent().absent().absent().ascii(None).u8(0).absent().ascii(None).u32(0).u8(0).u8(0)
         expected = {key: None for key in SESSION_KEYS}
         # kernel: an absent collection reads as an empty one
-        expected.update({'has_flash_session_classes': False, 'flash_sessions_classes': [],
+        expected.update({'flash_sessions_classes': [],
                          'priority': 0, 'is_download': False, 'special_data_group_references': []})
-        self.assertEqual(load('MCD_DB_FLASH_SESSION', body), typed('MCD_DB_FLASH_SESSION', expected))
+        result = load('MCD_DB_FLASH_SESSION', body)
+        self.assertNotIn('has_flash_session_classes', result)
+        self.assertEqual(result, typed('MCD_DB_FLASH_SESSION', expected))
 
     def test_mcd_db_flash_session_all_branches(self):
         body = ObjectBytes().ascii('S_A').ascii('S_B').embedded_unicode('Lang').unicode('Desc')
@@ -361,18 +362,20 @@ class FlashTopLevelTests(unittest.TestCase):
             'short_name': 'S_A', 'odx_session_short_name': 'S_B', 'long_name': 'Lang',
             'description': 'Desc', 'unique_object_id': 'UID', 'long_name_id': 'LongId',
             'description_id': 'DescId', 'flash_pool_id': 'POOL', 'checksums': [], 'data_blocks': [],
-            'expected_idents': [], 'flash_job_name': 'JOB', 'has_flash_session_classes': True,
+            'expected_idents': [], 'flash_job_name': 'JOB',
             'flash_sessions_classes': support.named_refs(support.NAMED_REFS), 'securities': [],
             'flash_key': 'K', 'priority': 5, 'is_download': True,
             'special_data_group_references': [{'object_id': 7}]}))
 
     def test_mcd_db_ecu_mem_minimal(self):
         body = name_block_body(ObjectBytes()).u8(0).u16(0).u16(0).u16(0).u8(0).u8(0).u8(0).u8(0)
-        self.assertEqual(load('MCD_DB_ECU_MEM', body), typed('MCD_DB_ECU_MEM', {
+        result = load('MCD_DB_ECU_MEM', body)
+        self.assertNotIn('has_flash_session_classes', result)
+        self.assertEqual(result, typed('MCD_DB_ECU_MEM', {
             **name_block(), 'has_layers': False, 'base_variants': [], 'variants': [],
             'layers': None, 'all_variant_layers': None, 'flash_sessions': [],
             # kernel: an absent collection reads as an empty one
-            'additional_audiences': [], 'has_flash_session_classes': False,
+            'additional_audiences': [],
             'flash_session_class_references': [], 'has_physical_memory': False,
             'physical_memory_reference': None, 'special_data_group_references': []}))
 
@@ -389,7 +392,6 @@ class FlashTopLevelTests(unittest.TestCase):
             'layers': [], 'all_variant_layers': None,
             'flash_sessions': support.named_attributed_refs(support.NAMED_ATTRIBUTED_REFS),
             'additional_audiences': support.named_refs(support.NAMED_REFS),
-            'has_flash_session_classes': True,
             'flash_session_class_references': support.named_refs(support.NAMED_REFS),
             'has_physical_memory': True, 'physical_memory_reference': support.attributed_ref(('X',)),
             'special_data_group_references': [{'object_id': 7}]}))
