@@ -13,7 +13,7 @@ def load(stream):
     
     obj['is_multiple'] = bool(stream.loadOneByteType())
     
-    obj['data_primitive'] = {'#OBJECT_TYPE': 'MCD_DB_DATA_PRIMITIVE'}
-    obj['data_primitive'].update(MCD_DB_DATA_PRIMITIVE.load(stream))
+    # kernel: the MCDDbDataPrimitiveImpl part is read into the same object
+    obj.update(MCD_DB_DATA_PRIMITIVE.load(stream))
     
     return obj

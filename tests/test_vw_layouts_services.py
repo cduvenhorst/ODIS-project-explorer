@@ -970,6 +970,7 @@ def data_primitive_body(full=False, repetition=None, access_level=None):
     return concat(body, primitive_body(True))
 
 
+# kernel: the data primitive part is read into the same object, so the fields are flat
 def data_primitive(full=False, repetition_mode=None, access_level=None):
     fields = {'access_level': access_level, 'audience_state': audience() if full else None,
               'repetition_mode': repetition_mode or ('eREPEATED' if full else 'eSINGLE'),
@@ -978,8 +979,8 @@ def data_primitive(full=False, repetition_mode=None, access_level=None):
               'disabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
               'enabled_additional_audiences': named_refs(NAMED_REFS) if full else [],
               'special_data_group_references': [{'object_id': 11}, {'object_id': 22}] if full else []}
-    fields['diag_com_primitive'] = typed('MCD_DB_DIAG_COM_PRIMITIVE', primitive(full))
-    return typed('MCD_DB_DATA_PRIMITIVE', fields)
+    # kernel: the diag com primitive part is read into the same object
+    return {**fields, **primitive(full)}
 
 
 # kernel: fails when an entry has no parameters object; kept readable for VW projects (the second entry has none)
@@ -1072,13 +1073,16 @@ def service(full=False, addressing='ePHYSICAL', runtime='eNONCYCLIC'):
     # kernel: the first byte is the addressing mode; the second field is the protocol parameters map
     return {'addressing_mode': addressing, 'service_protocol_parameters': entries,
             'runtime_mode': runtime,
-            'is_multiple': full, 'data_primitive': data_primitive(full)}
+            'is_multiple': full, **data_primitive(full)}
 
 
 class ServiceTests(unittest.TestCase):
     def test_mcd_db_service_minimal(self):
-        self.assertEqual(load('MCD_DB_SERVICE', service_body()),
-                         typed('MCD_DB_SERVICE', service()))
+        result = load('MCD_DB_SERVICE', service_body())
+        self.assertEqual(result, typed('MCD_DB_SERVICE', service()))
+        self.assertNotIn('data_primitive', result)
+        self.assertNotIn('diag_com_primitive', result)
+        self.assertEqual(result['#OBJECT_TYPE'], 'MCD_DB_SERVICE')
 
     def test_mcd_db_service_all_branches(self):
         self.assertEqual(load('MCD_DB_SERVICE', service_body(True)),
@@ -1122,7 +1126,7 @@ def job_body(full=False):
 def job(full=False):
     return {'major': 1, 'minor': 2, 'revision': 3,
             'code_informations': [] if full else None,
-            'is_reduced_result_enabled': full, 'data_primitive': data_primitive(full)}
+            'is_reduced_result_enabled': full, **data_primitive(full)}
 
 
 class SingleEcuJobTests(unittest.TestCase):
@@ -1133,7 +1137,7 @@ class SingleEcuJobTests(unittest.TestCase):
         self.assertEqual(
             load('MCD_DB_SINGLE_ECU_JOB', body),
             typed('MCD_DB_SINGLE_ECU_JOB',
-                  {**job(), 'data_primitive': data_primitive(repetition_mode=0x6603)}))
+                  {**job(), **data_primitive(repetition_mode=0x6603)}))
 
     def test_mcd_db_single_ecu_job_minimal(self):
         self.assertEqual(load('MCD_DB_SINGLE_ECU_JOB', job_body()),
@@ -1304,7 +1308,7 @@ class AccessLevelTests(unittest.TestCase):
         self.assertEqual(
             load('MCD_DB_SINGLE_ECU_JOB', body),
             typed('MCD_DB_SINGLE_ECU_JOB', {
-                **job(), 'data_primitive': data_primitive(
+                **job(), **data_primitive(
                     access_level=access_level(True, None, 11, audience()))}))
 
 

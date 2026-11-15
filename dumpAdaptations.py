@@ -35,7 +35,7 @@ def get_adaptation_keys_and_table(object_loader, layer_data_objects, project_fol
     wdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_WDBI['reference'])
     
     # Load the request from its reference in the service
-    request = object_loader.load_object_by_reference(project_folder_path, wdbi_service['data_primitive']['diag_com_primitive']['request_reference'])
+    request = object_loader.load_object_by_reference(project_folder_path, wdbi_service['request_reference'])
     
     # One parameter will be the table key (DID) and the other one will be the table structure (Adaptation data)
     data_record_table_key_parameter = None

@@ -32,7 +32,7 @@ def load(stream):
     if status_byte & 4:
         obj['special_data_group_references'] = common_loaders.loadObjectReferenceCollectionFromObjectStream_MCDDbSpecialDataGroupImplRef(stream)
     
-    obj['diag_com_primitive'] = {'#OBJECT_TYPE': 'MCD_DB_DIAG_COM_PRIMITIVE'}
-    obj['diag_com_primitive'].update(MCD_DB_DIAG_COM_PRIMITIVE.load(stream))
+    # kernel: the MCDDbDiagComPrimitiveImpl part is read into the same object
+    obj.update(MCD_DB_DIAG_COM_PRIMITIVE.load(stream))
     
     return obj
