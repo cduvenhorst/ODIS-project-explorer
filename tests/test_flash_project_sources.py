@@ -196,6 +196,22 @@ class ProjectSourcesTests(unittest.TestCase):
             with open(os.path.join(target, 'flash', 'flash_overview.csv'), encoding='utf-8') as handle:
                 self.assertIn('error: ValueError', handle.read())
 
+    def test_block_without_flash_data_is_counted_and_others_continue(self):
+        broken = block('Broken', inline='O1')
+        broken['flash_data'] = None
+        self.loader.add_chain('A.fl', [broken, block('Good', inline='O2')])
+        occurrences, _, errors = self.collect()
+        self.assertEqual(errors, 1)
+        self.assertEqual([item.block for item in occurrences], ['Good'])
+
+    def test_none_segment_or_ident_is_counted_and_others_continue(self):
+        self.loader.add_chain('A.fl', [block('NoSeg', inline='O1', segments=[None]),
+                                       block('NoIdent', inline='O2', idents=[None]),
+                                       block('Good', inline='O3')])
+        occurrences, _, errors = self.collect()
+        self.assertEqual(errors, 2)
+        self.assertEqual([item.block for item in occurrences], ['Good'])
+
     def test_lambdas_bind_their_own_block(self):
         self.loader.add_chain('A.fl', [block('B1', inline='O1'), block('B2', inline='O2')])
         self.loader.inline[('A.fl', 'O1')] = b'one'

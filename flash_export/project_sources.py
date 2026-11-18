@@ -128,47 +128,52 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
                     _report(pool, 'session ' + str(session_reference.get('object_id')), error)
                     continue
                 for number, block in enumerate(blocks, 1):
-                    flash_data = block['flash_data']
-                    reference = flash_data['data_reference']
-                    part_number = _part_number(session.get('expected_idents'), block.get('own_idents'))
-                    notes = [] if part_number else ['no part number in pool']
-                    start, size = _segments(block)
-                    fields = dict(
-                        source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name,
-                        detail='%s/%s/%d' % (pool, session['short_name'], number), ecu=ecu,
-                        part_number=part_number, session=session['short_name'], block=block['short_name'],
-                        block_type=block['data_block_type'], start_address=start, uncompressed_size=size,
-                        method=_method(flash_data), method_source=_METHOD_SOURCE)
-                    kind = reference['kind']
-                    if kind == 'external_file':
-                        name = reference.get('file_name')
-                        sub = flash_data.get('flash_file_sub_directory_name')
-                        found = resolve_external_file(index, sub, name)
-                        if found is None:
-                            wildcard = any(c in (name or '') for c in '*?')
-                            notes.append('file not found in project' + (' (wildcard name)' if wildcard else ''))
-                            source = '%s/%s' % (sub, name) if sub else str(name)
-                            file_counts[source] = file_counts.get(source, 0) + 1
-                            occurrences.append(Occurrence(source=source, block_index=file_counts[source],
-                                                          target=None, read=None, note='; '.join(notes),
-                                                          **fields))
+                    try:
+                        flash_data = block['flash_data']
+                        reference = flash_data['data_reference']
+                        part_number = _part_number(session.get('expected_idents'), block.get('own_idents'))
+                        notes = [] if part_number else ['no part number in pool']
+                        start, size = _segments(block)
+                        fields = dict(
+                            source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name,
+                            detail='%s/%s/%d' % (pool, session['short_name'], number), ecu=ecu,
+                            part_number=part_number, session=session['short_name'], block=block['short_name'],
+                            block_type=block['data_block_type'], start_address=start, uncompressed_size=size,
+                            method=_method(flash_data), method_source=_METHOD_SOURCE)
+                        kind = reference['kind']
+                        if kind == 'external_file':
+                            name = reference.get('file_name')
+                            sub = flash_data.get('flash_file_sub_directory_name')
+                            found = resolve_external_file(index, sub, name)
+                            if found is None:
+                                wildcard = any(c in (name or '') for c in '*?')
+                                notes.append('file not found in project' + (' (wildcard name)' if wildcard else ''))
+                                source = '%s/%s' % (sub, name) if sub else str(name)
+                                file_counts[source] = file_counts.get(source, 0) + 1
+                                occurrences.append(Occurrence(source=source, block_index=file_counts[source],
+                                                              target=None, read=None, note='; '.join(notes),
+                                                              **fields))
+                                continue
+                            reached.add(found)
+                            notes.extend(notes_for(found))
+                            file_counts[found] = file_counts.get(found, 0) + 1
+                            occurrences.append(Occurrence(
+                                source=found, block_index=file_counts[found], target='flash/%s/%s' % (project_name, found),
+                                read=_read_file(os.path.join(project_dir, *found.split('/'))),
+                                note='; '.join(notes), **fields))
                             continue
-                        reached.add(found)
-                        notes.extend(notes_for(found))
-                        file_counts[found] = file_counts.get(found, 0) + 1
-                        occurrences.append(Occurrence(
-                            source=found, block_index=file_counts[found], target='flash/%s/%s' % (project_name, found),
-                            read=_read_file(os.path.join(project_dir, *found.split('/'))),
-                            note='; '.join(notes), **fields))
-                        continue
-                    pool_count += 1
-                    target = 'flash/%s/%s/%s.bin' % (project_name, pool, sanitize_name(block['short_name']))
-                    if kind in ('object', 'big_data_object'):
-                        read = (lambda pool_id=reference['pool_id'], object_id=reference['object_id']:
-                                object_loader.load_inline_flash_data_by_id(project_dir, pool_id, object_id))
-                    else:
-                        stored = flash_data['data_file_name_or_inline_flash_data']
-                        read = lambda stored=stored: bytes.fromhex(stored[len(INLINE_PREFIX):])
-                    occurrences.append(Occurrence(source=pool, block_index=pool_count, target=target, read=read,
-                                                  note='; '.join(notes), **fields))
+                        pool_count += 1
+                        target = 'flash/%s/%s/%s.bin' % (project_name, pool, sanitize_name(block['short_name']))
+                        if kind in ('object', 'big_data_object'):
+                            read = (lambda pool_id=reference['pool_id'], object_id=reference['object_id']:
+                                    object_loader.load_inline_flash_data_by_id(project_dir, pool_id, object_id))
+                        else:
+                            stored = flash_data['data_file_name_or_inline_flash_data']
+                            read = lambda stored=stored: bytes.fromhex(stored[len(INLINE_PREFIX):])
+                        occurrences.append(Occurrence(source=pool, block_index=pool_count, target=target, read=read,
+                                                      note='; '.join(notes), **fields))
+                    except Exception as error:
+                        errors += 1
+                        print('error collecting block %d of session %s in pool %s: %s'
+                              % (number, session.get('short_name'), pool, type(error).__name__), file=sys.stderr)
     return occurrences, reached, errors
