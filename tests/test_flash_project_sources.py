@@ -5,7 +5,8 @@ import tempfile
 import unittest
 
 from flash_export.output import Occurrence, export
-from flash_export.project_sources import (FLASH_DATA_OBJECT_ID, pool_chain_occurrences, project_file_index,
+from flash_export.project_sources import (FLASH_DATA_OBJECT_ID, container_notes, file_occurrences,
+                                          pool_chain_occurrences, project_file_index, project_occurrences,
                                           resolve_external_file)
 
 
@@ -20,6 +21,27 @@ def block(name, file_name=None, sub=None, inline=None, segments=(), method=None,
             'flash_data': {'data_file_name_or_inline_flash_data': stored, 'data_reference': ref,
                            'flash_file_sub_directory_name': sub, 'encryption_compression_method': method},
             'flash_segments': list(segments)}
+
+DOC = ('<!DOCTYPE SW-CNT PUBLIC "-//Example//DTD Container//EN" "x.dtd">'
+       '<SW-CNT><IDENT><CNT-IDENT-TEXT>M\xfcster</CNT-IDENT-TEXT></IDENT>'
+       '<DATEN><DATENBLOECKE>{}</DATENBLOECKE></DATEN></SW-CNT>')
+
+
+def sw_block(name, data_text, fmt='0x00', start='0x00010000', size='0x3'):
+    return ('<DATENBLOCK><DATENBLOCK-NAME>{}</DATENBLOCK-NAME><DATENBLOCK-FORMAT>{}</DATENBLOCK-FORMAT>'
+            '<START-ADR>{}</START-ADR><GROESSE-DEKOMPRIMIERT>{}</GROESSE-DEKOMPRIMIERT>'
+            '<DATENBLOCK-DATEN>{}</DATENBLOCK-DATEN></DATENBLOCK>').format(name, fmt, start, size, data_text)
+
+
+def container(blocks_xml):
+    return DOC.format(blocks_xml).encode('iso-8859-1')
+
+
+def put(root, relative, content=b'x'):
+    path = os.path.join(root, *relative.split('/'))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as handle:
+        handle.write(content)
 
 
 class FakeLoader:
@@ -233,6 +255,140 @@ class ProjectSourcesTests(unittest.TestCase):
         index = project_file_index(self.dir)
         self.assertEqual(index['sub/file.x'], 'Sub/File.X')
         self.assertEqual(index['a.fl.db'], 'A.fl.db')
+
+
+
+class FileSourcesTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = self._tmp.name
+
+    def collect(self, reached=()):
+        index = project_file_index(self.dir)
+        with contextlib.redirect_stderr(io.StringIO()):
+            return file_occurrences(self.dir, 'P1', index, set(reached))
+
+    def test_unreferenced_flash_file_anywhere_below_flash_data(self):
+        for path in ('Dev/flash-data/a/b.bin', 'flash-data/c.bin', 'Dev/other/d.bin', 'Dev/flash-data/r.bin'):
+            put(self.dir, path)
+        occurrences, errors = self.collect(reached={'Dev/flash-data/r.bin'})
+        self.assertEqual(errors, 0)
+        self.assertEqual([(o.source, o.block_index, o.target, o.note) for o in occurrences], [
+            ('Dev/flash-data/a/b.bin', 0, 'flash/P1/Dev/flash-data/a/b.bin', 'not referenced by any pool'),
+            ('flash-data/c.bin', 0, 'flash/P1/flash-data/c.bin', 'not referenced by any pool')])
+        self.assertEqual(occurrences[0].read(), b'x')
+
+    def test_seed_key_rule(self):
+        for path in ('Tools/DLL/k.dll', 'Common/k.EXE', 'Dev/flash-data/k.dll', 'ConfigData_X/k.dll', 'pack.zip'):
+            put(self.dir, path)
+        occurrences, _ = self.collect()
+        self.assertEqual([(o.source, o.note) for o in occurrences], [
+            ('Common/k.EXE', 'seed key program'),
+            ('Dev/flash-data/k.dll', 'not referenced by any pool'),
+            ('Tools/DLL/k.dll', 'seed key program')])
+
+    def test_intel_hex_container_note(self):
+        put(self.dir, 'Dev/flash-data/m.DAF')
+        (item,) = self.collect()[0]
+        self.assertEqual(item.note, 'not referenced by any pool; container format not fully decoded; '
+                                    'only in container')
+
+    def test_sw_cnt_blocks_become_bin_files_beside_container(self):
+        put(self.dir, 'Dev/flash-data/c.sgm', container(sw_block('B1', 'AQID') + sw_block('B2', 'BAU=', fmt='0x11')))
+        occurrences, _ = self.collect(reached={'Dev/flash-data/c.sgm'})
+        self.assertEqual([o.target for o in occurrences],
+                         ['flash/P1/Dev/flash-data/c/B1.bin', 'flash/P1/Dev/flash-data/c/B2.bin'])
+        self.assertEqual([o.read() for o in occurrences], [b'\x01\x02\x03', b'\x04\x05'])
+        self.assertEqual({o.method_source for o in occurrences}, {'DATENBLOCK-FORMAT'})
+        self.assertEqual([o.method for o in occurrences], [0, 0x11])
+        self.assertEqual(occurrences[0].note, 'decoded from container (Base64)')
+        self.assertEqual(occurrences[0].source, 'Dev/flash-data/c.sgm')
+
+    def test_unreferenced_container_gets_file_row_and_blocks(self):
+        put(self.dir, 'flash-data/c.sgm', container(sw_block('', 'AQID')))
+        occurrences, _ = self.collect()
+        occurrences.sort(key=Occurrence.sort_key)
+        self.assertEqual([(o.block_index, o.note) for o in occurrences], [
+            (0, 'not referenced by any pool; only in container'), (1, 'decoded from container (Base64)')])
+        self.assertEqual(occurrences[1].target, 'flash/P1/flash-data/c/block_1.bin')
+
+    def test_undecodable_container_block_row(self):
+        put(self.dir, 'c.sgm', container(sw_block('B1', 'A*B')))
+        (item,) = self.collect()[0]
+        self.assertEqual(item.note, 'could not decode container block')
+        self.assertIsNone(item.target)
+        self.assertIsNone(item.read)
+
+    def test_block_read_fails_when_block_vanishes(self):
+        put(self.dir, 'c.sgm', container(sw_block('B1', 'AQID')))
+        (item,) = self.collect()[0]
+        put(self.dir, 'c.sgm', container(sw_block('B1', 'A*B')))
+        with self.assertRaises(ValueError):
+            item.read()
+        put(self.dir, 'c.sgm', container(''))
+        with self.assertRaises(ValueError):
+            item.read()
+
+    def test_unparsable_sgm_note(self):
+        put(self.dir, 'c.sgm', b'<SW-CNT><DATEN>')
+        put(self.dir, 'flash-data/d.sgm', b'<SW-CNT><DATEN>')
+        self.assertEqual(container_notes(self.dir, 'c.sgm', {}), ['container could not be parsed'])
+        (item,) = self.collect()[0]
+        self.assertEqual(item.note, 'not referenced by any pool; container could not be parsed')
+
+    def test_plain_xml_has_no_container_note(self):
+        put(self.dir, 'a.xml', b'<ODX/>')
+        put(self.dir, 'b.xml', b'<ODX>')
+        self.assertEqual(container_notes(self.dir, 'a.xml', {}), [])
+        self.assertEqual(container_notes(self.dir, 'b.xml', {}), [])
+        self.assertEqual(self.collect(), ([], 0))
+
+    def test_container_notes_parse_once_per_cache(self):
+        put(self.dir, 'c.sgm', container(sw_block('B1', 'AQID')))
+        cache = {}
+        self.assertEqual(container_notes(self.dir, 'c.sgm', cache), ['only in container'])
+        os.remove(os.path.join(self.dir, 'c.sgm'))
+        self.assertEqual(container_notes(self.dir, 'c.sgm', cache), ['only in container'])
+
+    def test_unreadable_container_counts_one_error(self):
+        put(self.dir, 'flash-data/c.sgm', container(sw_block('B1', 'AQID')))
+        put(self.dir, 'flash-data/d.bin')
+        index = project_file_index(self.dir)
+        os.chmod(os.path.join(self.dir, 'flash-data', 'c.sgm'), 0)
+        self.addCleanup(os.chmod, os.path.join(self.dir, 'flash-data', 'c.sgm'), 0o600)
+        if os.access(os.path.join(self.dir, 'flash-data', 'c.sgm'), os.R_OK):
+            self.skipTest('file permissions are not enforced')
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            occurrences, errors = file_occurrences(self.dir, 'P1', index, set())
+        self.assertEqual(errors, 1)
+        self.assertIn('flash-data/c.sgm', stderr.getvalue())
+        self.assertEqual([o.source for o in occurrences], ['flash-data/c.sgm', 'flash-data/d.bin'])
+
+    def test_project_occurrences_end_to_end_with_export(self):
+        for name in ('A.fl.db', 'B.bv.db'):
+            put(self.dir, name, b'')
+        put(self.dir, 'Dev/flash-data/c.sgm', container(sw_block('B1', 'AQID')))
+        put(self.dir, 'Dev/flash-data/loose.bin', b'loose')
+        put(self.dir, 'Tools/k.dll', b'key')
+        loader = FakeLoader()
+        loader.add_chain('A.fl', [block('Ref', file_name='c.sgm', sub='Dev/flash-data'),
+                                  block('Drv', inline='O1')])
+        loader.inline[('A.fl', 'O1')] = b'\x09'
+        with contextlib.redirect_stderr(io.StringIO()):
+            occurrences, errors = project_occurrences(loader, self.dir, 'P1')
+        self.assertEqual(errors, 0)
+        self.assertEqual(sorted(o.source for o in occurrences), [
+            'A.fl', 'Dev/flash-data/c.sgm', 'Dev/flash-data/c.sgm', 'Dev/flash-data/loose.bin', 'Tools/k.dll'])
+        with tempfile.TemporaryDirectory() as target, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(export(occurrences, target), 0)
+            for item in occurrences:
+                self.assertTrue(os.path.isfile(os.path.join(target, *item.target.split('/'))), item.target)
+            with open(os.path.join(target, 'flash', 'flash_overview.csv'), encoding='utf-8') as handle:
+                overview = handle.read()
+        for source in ('Dev/flash-data/loose.bin', 'Tools/k.dll', 'only in container'):
+            self.assertIn(source, overview)
 
 
 if __name__ == '__main__':

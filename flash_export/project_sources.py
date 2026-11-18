@@ -2,11 +2,13 @@
 import os
 import posixpath
 import sys
+import xml.etree.ElementTree as ET
 from typing import Callable
 
 from classes import DbObject  # noqa: F401  (loads the object loaders first; they import each other circularly)
 from common_utils.enum_converters import get_db_file_type
 from flash_export.output import SOURCE_PROJECTS, Occurrence, sanitize_name
+from flash_export.sw_cnt import SwCntBlock, read_sw_cnt
 from object_loaders.MCD_DB_FLASH_DATA import INLINE_PREFIX
 
 FLASH_DATA_OBJECT_ID = 'DbFlashData'
@@ -177,3 +179,122 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
                         print('error collecting block %d of session %s in pool %s: %s'
                               % (number, session.get('short_name'), pool, type(error).__name__), file=sys.stderr)
     return occurrences, reached, errors
+
+
+INTEL_HEX_CONTAINER_SUFFIXES = ('.daf', '.paf', '.obd', '.rdw', '.swd', '.x51', '.brd')
+CONTAINER_TEXT_SUFFIXES = ('.sgm', '.xml')
+_FLASH_FOLDER = 'flash-data'
+_CONFIG_FOLDER_PREFIX = 'ConfigData_'
+
+
+def _suffix(path: str) -> str:
+    return os.path.splitext(path)[1].lower()
+
+
+def _analyse(raw: bytes, suffix: str) -> tuple[list[str], list[SwCntBlock]]:
+    """Return the container notes and the SW-CNT blocks of a container file's content."""
+    if suffix in INTEL_HEX_CONTAINER_SUFFIXES:
+        return ['container format not fully decoded', 'only in container'], []
+    try:
+        blocks = read_sw_cnt(raw)
+    except ET.ParseError:
+        return (['container could not be parsed'] if suffix == '.sgm' else []), []
+    if blocks is None:
+        return [], []
+    return ['only in container'], blocks
+
+
+def _read_container(project_dir: str, relative_path: str) -> bytes:
+    with open(os.path.join(project_dir, *relative_path.split('/')), 'rb') as handle:
+        return handle.read()
+
+
+def _report_read(relative_path: str, error: Exception) -> None:
+    print('error reading container %s: %s' % (relative_path, type(error).__name__), file=sys.stderr)
+
+
+def container_notes(project_dir: str, relative_path: str, cache: dict[str, list[str]]) -> list[str]:
+    """Notes for a container file; each file is parsed once per cache. Not a container: no notes."""
+    if relative_path in cache:
+        return cache[relative_path]
+    suffix = _suffix(relative_path)
+    notes: list[str] = []
+    if suffix in INTEL_HEX_CONTAINER_SUFFIXES or suffix in CONTAINER_TEXT_SUFFIXES:
+        try:
+            notes = _analyse(_read_container(project_dir, relative_path), suffix)[0]
+        except OSError as error:
+            _report_read(relative_path, error)
+    cache[relative_path] = notes
+    return notes
+
+
+def _block_reader(project_dir: str, relative_path: str, index: int) -> Callable[[], bytes]:
+    def read() -> bytes:
+        for item in _analyse(_read_container(project_dir, relative_path), _suffix(relative_path))[1]:
+            if item.index == index:
+                if item.data is None:
+                    raise ValueError('container block %d could not be decoded' % index)
+                return item.data
+        raise ValueError('container block %d not found' % index)
+    return read
+
+
+def file_occurrences(project_dir: str, project_name: str, index: dict[str, str], reached: set[str],
+                     cache: dict[str, list[str]] | None = None) -> tuple[list[Occurrence], int]:
+    """Collect unreferenced flash files, seed key programs and the blocks of SW-CNT containers."""
+    if cache is None:
+        cache = {}
+    occurrences: list[Occurrence] = []
+    errors = 0
+    for path in sorted(index.values()):
+        folders = path.split('/')[:-1]
+        suffix = _suffix(path)
+        in_flash = _FLASH_FOLDER in folders
+        notes: list[str] = []
+        if suffix in INTEL_HEX_CONTAINER_SUFFIXES or suffix in CONTAINER_TEXT_SUFFIXES:
+            try:
+                notes, blocks = _analyse(_read_container(project_dir, path), suffix)
+                cache.setdefault(path, notes)
+            except OSError as error:
+                errors += 1
+                _report_read(path, error)
+                cache.setdefault(path, [])
+                blocks = []
+            stem = path[:-len(suffix)]
+            for item in blocks:
+                fields = dict(source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name,
+                              source=path, block_index=item.index, block=item.name,
+                              start_address=item.start_address, uncompressed_size=item.uncompressed_size,
+                              method=item.data_format, method_source='DATENBLOCK-FORMAT')
+                if item.data is None:
+                    occurrences.append(Occurrence(target=None, read=None,
+                                                  note='could not decode container block', **fields))
+                else:
+                    target = 'flash/%s/%s/%s.bin' % (project_name, stem,
+                                                     sanitize_name(item.name) if item.name else 'block_%d' % item.index)
+                    occurrences.append(Occurrence(target=target, read=_block_reader(project_dir, path, item.index),
+                                                  note='decoded from container (Base64)', **fields))
+        row_note = None
+        if in_flash and path not in reached:
+            row_note = '; '.join(['not referenced by any pool'] + notes)
+        elif (suffix in ('.dll', '.exe') and not in_flash
+              and not any(folder.startswith(_CONFIG_FOLDER_PREFIX) for folder in folders)):
+            row_note = 'seed key program'
+        if row_note is not None:
+            occurrences.append(Occurrence(source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name,
+                                          source=path, block_index=0,
+                                          target='flash/%s/%s' % (project_name, path),
+                                          read=_read_file(os.path.join(project_dir, *path.split('/'))),
+                                          note=row_note))
+    return occurrences, errors
+
+
+def project_occurrences(object_loader, project_dir: str, project_name: str) -> tuple[list[Occurrence], int]:
+    """All flash occurrences of a project and the error count."""
+    cache: dict[str, list[str]] = {}
+    index = project_file_index(project_dir)
+    occurrences, reached, errors = pool_chain_occurrences(
+        object_loader, project_dir, project_name, index,
+        notes_for=lambda path: container_notes(project_dir, path, cache))
+    more, more_errors = file_occurrences(project_dir, project_name, index, reached, cache)
+    return occurrences + more, errors + more_errors
