@@ -141,15 +141,21 @@ def read_flash_document(stream) -> OdxFlashDocument:
     return OdxFlashDocument(ecus=tuple(ecus), blocks=tuple(result))
 
 
-def read_intern_data(stream) -> dict[str, bytes]:
-    """Map FLASHDATA short names to their decoded DATA; raises ValueError for malformed hex text."""
-    contents: dict[str, bytes] = {}
+def read_intern_data(stream) -> dict[str, bytes | ValueError]:
+    """Map FLASHDATA short names to their decoded DATA, or to the ValueError of malformed hex text.
+
+    The whole document is decoded; one malformed entry does not hide the others.
+    """
+    contents: dict[str, bytes | ValueError] = {}
     for _event, element in ET.iterparse(stream, events=('end',)):
         if _local(element.tag) != 'FLASHDATA':
             continue
         data = _child(element, 'DATA')
         if data is not None:
             name = _text(element, 'SHORT-NAME') or ''
-            contents[name] = bytes.fromhex((data.text or '').translate(_WS_DELETE))
+            try:
+                contents[name] = bytes.fromhex((data.text or '').translate(_WS_DELETE))
+            except ValueError as error:
+                contents[name] = error
         element.clear()
     return contents

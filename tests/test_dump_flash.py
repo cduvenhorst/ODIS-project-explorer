@@ -238,6 +238,30 @@ class DumpFlashTest(unittest.TestCase):
         self.assertFalse(os.path.exists(self.out))
         manager.assert_not_called()
 
+    def test_projects_output_inside_workspace_is_refused(self):
+        projects = os.path.join(self.root, 'all')
+        os.makedirs(projects)
+        make_project(projects, 'PA1')
+        workspace = self.make_workspace(mapping=None)
+        target = os.path.join(workspace, 'out')
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('projects', projects, target, workspace)
+        self.assertEqual(code, 1)
+        self.assertIn('Output folder must not be inside the workspace folder', text)
+        self.assertFalse(os.path.exists(target))
+        manager.assert_not_called()
+
+    def test_projects_workspace_must_be_folder(self):
+        projects = os.path.join(self.root, 'all')
+        os.makedirs(projects)
+        make_project(projects, 'PA1')
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('projects', projects, self.out, os.path.join(self.root, 'missing'))
+        self.assertEqual(code, 1)
+        self.assertIn('Workspace must be folder', text)
+        self.assertFalse(os.path.exists(self.out))
+        manager.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

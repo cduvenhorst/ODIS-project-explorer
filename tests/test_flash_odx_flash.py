@@ -110,13 +110,16 @@ class OdxFlashTest(unittest.TestCase):
         self.assertIsNone(result.start_address)
         self.assertIsNone(result.uncompressed_size)
 
-    def test_bad_hex_data_raises(self):
-        data = doc(flash_datas=flash_data('F1', 'FD1', 'INTERN-FLASHDATA', '<DATA>0G</DATA>'))
-        with self.assertRaises(ValueError):
-            read_intern_data(io.BytesIO(data))
-        odd = doc(flash_datas=flash_data('F1', 'FD1', 'INTERN-FLASHDATA', '<DATA>012</DATA>'))
-        with self.assertRaises(ValueError):
-            read_intern_data(io.BytesIO(odd))
+    def test_bad_hex_data_is_stored_per_entry(self):
+        data = doc(flash_datas=(
+            flash_data('F1', 'FD1', 'INTERN-FLASHDATA', '<DATA>0G</DATA>')
+            + flash_data('F2', 'FD2', 'INTERN-FLASHDATA', '<DATA>0102</DATA>')
+            + flash_data('F3', 'FD3', 'INTERN-FLASHDATA', '<DATA>012</DATA>')))
+        result = read_intern_data(io.BytesIO(data))
+        self.assertEqual(['FD1', 'FD2', 'FD3'], sorted(result))
+        self.assertIsInstance(result['FD1'], ValueError)
+        self.assertEqual(b'\x01\x02', result['FD2'])
+        self.assertIsInstance(result['FD3'], ValueError)
 
     def test_is_flash_document(self):
         self.assertTrue(is_flash_document(io.BytesIO(doc())))

@@ -189,7 +189,7 @@ This script dumps the flash data of a project as binary files: data files refere
 Nothing is decrypted or decompressed; the only decoding is Base64 decoding of `SW-CNT` blocks.
 Flash contents are never printed to the console.
 
-Files are written below `<output>/flash/`:
+Files are written below `<output>/flash/`, except the `mcr` entries of workspace packages (see below):
 - Files from the project keep their relative path: `flash/<project>/<relative path>`.
 - Inline data is written to `flash/<project>/<pool ID>/<block short name>.bin`.
 - Decoded `SW-CNT` blocks are written to `flash/<project>/<container path without extension>/<block name>.bin`.
@@ -211,8 +211,11 @@ For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` f
 - `project` uses `<workspace>/mapping.properties` (lines `pidt-vehicle-platform.<folder>=<regular expression>`) to select the platforms whose expression matches the whole project name.
   Without that file the script stops with exit code 1; if no expression matches, the run continues without workspace data.
 - `projects` reads every platform of the workspace.
-- Flash data of workspace packages is written to `flash/workspace/<package>/...`, other package entries of `.pcc` files to `mcr/<package>/...`; the `origin_kind` column is `workspace` or `pcc`, and `origin` is the platform folder.
-- A full workspace needs space in the order of 10.6 GB after deduplication.
+- `*.pdx` packages and loose `*.odx` files are read only directly in `<platform>/flash-data/flash-data/`.
+- Flash data of a `.pdx` package is written to `flash/workspace/<package>/...`, that of a loose `.odx` file to `flash/workspace/<file without extension>/<FLASHDATA>.bin`, and the data set downloads of a `.pcc` package to `flash/workspace/<package>/<entry>/...`.
+- The other entries of `.pcc` packages are copied unchanged to `<output>/mcr/<package>/...`, beside `flash/`.
+- The `origin_kind` column is `workspace` or `pcc`, and `origin` is the platform folder.
+- A full workspace needs on the order of 10 GB after deduplication.
 - The workspace must be a folder, and the output folder must not be inside it.
 
 > [!TIP]

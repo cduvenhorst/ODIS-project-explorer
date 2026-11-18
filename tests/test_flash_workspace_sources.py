@@ -110,6 +110,36 @@ class WorkspaceSourcesTest(unittest.TestCase):
         # the decoded document stays cached across both export passes, so it is decoded exactly once
         self.assertEqual(1, cache.reads())
 
+    def test_one_bad_flash_data_does_not_hide_the_other_blocks(self):
+        write_loose_odx(self.ws, 'pa', 'L1.odx', [
+            DocBlock('b1', flash_name='X1', data=b'one'), DocBlock('b2', flash_name='X2', data=b'two'),
+            DocBlock('b3', flash_name='X3', data=b'three'), DocBlock('b4', flash_name='X4', data=b'four')])
+        path = os.path.join(flash_folder(self.ws, 'pa'), 'L1.odx')
+        with open(path, 'rb') as handle:
+            text = handle.read()
+        broken = text.replace(b'<DATA>' + b'three'.hex().encode() + b'</DATA>', b'<DATA>0G</DATA>')
+        self.assertNotEqual(text, broken)
+        write_file(path, broken)
+        cache = DocumentCache()
+        occurrences, errors = loose_odx_occurrences(self.ws, 'pa', cache)
+        self.assertEqual(0, errors)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(1, export(occurrences, self.out))
+        self.assertEqual(['X1.bin', 'X2.bin', 'X4.bin'],
+                         sorted(os.listdir(os.path.join(self.out, 'flash', 'workspace', 'L1'))))
+        self.assertEqual(1, cache.reads())
+
+    def test_two_loose_documents_in_a_row_are_reloaded_per_document_change_in_both_passes(self):
+        write_loose_odx(self.ws, 'pa', 'L1.odx', [DocBlock('b1', flash_name='X1', data=b'one')])
+        write_loose_odx(self.ws, 'pa', 'L2.odx', [DocBlock('b2', flash_name='X2', data=b'two')])
+        cache = DocumentCache()
+        occurrences, errors = loose_odx_occurrences(self.ws, 'pa', cache)
+        self.assertEqual(0, errors)
+        self.assertEqual(0, export(occurrences, self.out))
+        self.assertEqual(['X1.bin'], os.listdir(os.path.join(self.out, 'flash', 'workspace', 'L1')))
+        self.assertEqual(['X2.bin'], os.listdir(os.path.join(self.out, 'flash', 'workspace', 'L2')))
+        self.assertEqual(4, cache.reads())
+
     def test_cache_keeps_only_the_latest_document(self):
         cache = DocumentCache()
         cache.get(('a',), lambda: {'x': b'1'})

@@ -1,4 +1,8 @@
-"""Flash data of the PIDT workspace: vehicle platforms, PDX packages and loose ODX files."""
+"""Flash data of the PIDT workspace: vehicle platforms, PDX packages, loose ODX files and PCC packages.
+
+PDX and loose ODX data go to flash/workspace; of PCC packages the data set downloads and container areas go
+there too, while their other entries are copied unchanged to mcr/<package>.
+"""
 import os
 import re
 import sys
@@ -55,7 +59,11 @@ def workspace_platforms(workspace_dir: str) -> list[str]:
 
 
 def read_platform_mapping(workspace_dir: str) -> list[tuple[str, str]]:
-    """(folder, regex) pairs of mapping.properties in file order; FileNotFoundError if the file is missing."""
+    """(folder, regex) pairs of mapping.properties in file order; FileNotFoundError if the file is missing.
+
+    Only a subset of the Java properties format is read: no escapes, no ':' separator, no continuation lines;
+    on repeated keys all lines are kept.
+    """
     mapping = []
     with open(os.path.join(workspace_dir, MAPPING_FILE), encoding='iso-8859-1') as handle:
         for line in handle:
@@ -129,7 +137,10 @@ def _read_embedded(cache: DocumentCache, key: tuple, opener: Callable[[], object
         def load():
             with opener() as stream:
                 return read_intern_data(stream)
-        return cache.get(key, load)[name]
+        value = cache.get(key, load)[name]
+        if isinstance(value, ValueError):
+            raise value
+        return value
     return read
 
 
@@ -258,7 +269,7 @@ def loose_odx_occurrences(workspace_dir: str, platform: str, cache: DocumentCach
 
 
 def _pcc_paths(workspace_dir: str, platform: str) -> list[tuple[str, list[str]]]:
-    """(workspace-relative path parts, absolute path) of every .pcc below mcr-data, sorted by relative path."""
+    """(absolute path, workspace-relative path parts) of every .pcc below mcr-data, sorted by relative path."""
     mcr = _subfolder(os.path.join(workspace_dir, platform), 'mcr-data')
     if mcr is None:
         return []
