@@ -99,6 +99,23 @@ class DumpFlashTest(unittest.TestCase):
         self.assertFalse(os.path.exists(target))
         manager.assert_not_called()
 
+    def test_output_inside_source_with_other_case_spelling_is_refused(self):
+        folder = make_project(self.root, 'Proj')
+        swapped = os.path.join(self.root, 'pROJ')
+        if not os.path.exists(swapped):
+            self.skipTest('file system is case-sensitive')
+        target = os.path.join(swapped, 'out')
+        code, text = self.run_main('project', folder, target)
+        self.assertEqual(code, 1)
+        self.assertIn('Output folder must not be inside the source folder', text)
+        self.assertFalse(os.path.exists(os.path.join(folder, 'out')))
+
+    def test_sibling_with_same_prefix_is_accepted(self):
+        folder = make_project(self.root, 'proj')
+        self.assertFalse(dumpFlash.is_inside(os.path.join(self.root, 'proj2'), folder))
+        self.assertFalse(dumpFlash.is_inside(os.path.join(self.root, 'proj2', 'out'), folder))
+        self.assertTrue(dumpFlash.is_inside(os.path.join(folder, 'a', 'b'), folder))
+
     def test_not_enough_space(self):
         folder = make_project(self.root, 'P1')
         with mock.patch('flash_export.output.free_space', return_value=0):

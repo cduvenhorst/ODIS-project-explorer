@@ -19,9 +19,19 @@ def create_pbl_record_manager():
 
 
 def is_inside(path, folder):
-    path = os.path.realpath(path)
-    folder = os.path.realpath(folder)
-    return path == folder or path.startswith(folder.rstrip(os.sep) + os.sep)
+    real_path = os.path.realpath(path)
+    real_folder = os.path.realpath(folder)
+    if real_path == real_folder or real_path.startswith(real_folder.rstrip(os.sep) + os.sep):
+        return True
+    # On case-insensitive file systems the spelling may differ, so compare every existing ancestor by identity
+    current = os.path.abspath(path)
+    while True:
+        if os.path.exists(current) and os.path.samefile(current, folder):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
 
 
 def print_elapsed(start_time):
