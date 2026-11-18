@@ -8,6 +8,7 @@ from unittest import mock
 
 import dumpFlash
 from tests import support
+from tests.flash_workspace_support import DocBlock, write_file, write_loose_odx
 from tests.test_flash_project_sources import container, put, sw_block
 
 A_BYTES = bytes([0xC3, 0x5A, 0x91, 0x7E, 0x2D, 0xB4, 0x68, 0xF1])
@@ -160,6 +161,82 @@ class DumpFlashTest(unittest.TestCase):
         self.assertEqual(text.count('Cannot create output folder'), 1)
         self.assertIn(os.path.join(blocker, 'out', 'flash') + ': ', text)
         self.assertIn('NotADirectoryError', text)
+
+    def make_workspace(self, mapping='pidt-vehicle-platform.pa=[Pp][Aa].*\n'):
+        workspace = os.path.join(self.root, 'ws')
+        for platform, payload in (('pa', b'\x11\x22\x33\x44'), ('pb', b'\x55\x66\x77\x88')):
+            write_loose_odx(workspace, platform, 'x.odx', [DocBlock('blk', data=payload)])
+        if mapping is not None:
+            write_file(os.path.join(workspace, 'mapping.properties'), mapping.encode())
+        return workspace
+
+    def workspace_origins(self):
+        return {row['origin'] for row in self.overview_rows() if row['origin_kind'] == 'workspace'}
+
+    def test_project_with_workspace_reads_only_mapped_platform(self):
+        folder = make_project(self.root, 'PA1')
+        workspace = self.make_workspace()
+        code, text = self.run_main('project', folder, self.out, workspace)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.workspace_origins(), {'pa'})
+        self.assertIn('Collecting workspace pa', text)
+        self.assertNotIn('Collecting workspace pb', text)
+
+    def test_projects_with_workspace_reads_all_platforms(self):
+        projects = os.path.join(self.root, 'all')
+        os.makedirs(projects)
+        make_project(projects, 'PA1')
+        workspace = self.make_workspace(mapping=None)
+        code, text = self.run_main('projects', projects, self.out, workspace)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.workspace_origins(), {'pa', 'pb'})
+        self.assertIn('Collecting workspace pa', text)
+        self.assertIn('Collecting workspace pb', text)
+
+    def test_project_without_mapping_match_continues(self):
+        folder = make_project(self.root, 'QX')
+        workspace = self.make_workspace()
+        code, text = self.run_main('project', folder, self.out, workspace)
+        self.assertEqual(code, 0)
+        self.assertIn('No vehicle platform in workspace for QX', text)
+        self.assertEqual(self.workspace_origins(), set())
+        self.assertEqual(len(self.overview_rows()), 4)
+
+    def test_project_with_workspace_without_mapping_file(self):
+        folder = make_project(self.root, 'PA1')
+        workspace = self.make_workspace(mapping=None)
+        code, text = self.run_main('project', folder, self.out, workspace)
+        self.assertEqual(code, 1)
+        self.assertIn('No mapping.properties in workspace', text)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_project_with_invalid_mapping_expression_writes_nothing(self):
+        folder = make_project(self.root, 'PA1')
+        workspace = self.make_workspace(mapping='pidt-vehicle-platform.pa=[\n')
+        code, text = self.run_main('project', folder, self.out, workspace)
+        self.assertEqual(code, 1)
+        self.assertIn('invalid regular expression', text)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_output_inside_workspace_is_refused(self):
+        folder = make_project(self.root, 'PA1')
+        workspace = self.make_workspace()
+        target = os.path.join(workspace, 'out')
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('project', folder, target, workspace)
+        self.assertEqual(code, 1)
+        self.assertIn('Output folder must not be inside the workspace folder', text)
+        self.assertFalse(os.path.exists(target))
+        manager.assert_not_called()
+
+    def test_workspace_must_be_folder(self):
+        folder = make_project(self.root, 'PA1')
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('project', folder, self.out, os.path.join(self.root, 'missing'))
+        self.assertEqual(code, 1)
+        self.assertIn('Workspace must be folder', text)
+        self.assertFalse(os.path.exists(self.out))
+        manager.assert_not_called()
 
 
 if __name__ == '__main__':

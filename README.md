@@ -205,12 +205,25 @@ If it does not fit, nothing is written, not even a folder, and the exit code is 
 The output folder must not be inside the source folder; otherwise the script stops immediately with exit code 1.
 Read errors do not stop the run; they are noted in the overview and reported on stderr, and the exit code is 1.
 
+Both commands accept a PIDT workspace folder as an optional third argument.
+Each sub folder of the workspace that contains `flash-data/flash-data` or `mcr-data` is a vehicle platform.
+For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` files and `*.pcc` packages (any depth below `mcr-data`) are read in addition to the project data.
+- `project` uses `<workspace>/mapping.properties` (lines `pidt-vehicle-platform.<folder>=<regular expression>`) to select the platforms whose expression matches the whole project name.
+  Without that file the script stops with exit code 1; if no expression matches, the run continues without workspace data.
+- `projects` reads every platform of the workspace.
+- Flash data of workspace packages is written to `flash/workspace/<package>/...`, other package entries of `.pcc` files to `mcr/<package>/...`; the `origin_kind` column is `workspace` or `pcc`, and `origin` is the platform folder.
+- A full workspace needs space in the order of 10.6 GB after deduplication.
+- The workspace must be a folder, and the output folder must not be inside it.
+
 > [!TIP]
 > ```powershell
 > python dumpFlash.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/Flash" --hexdump
 > ```
 > ```powershell
 > python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash"
+> ```
+> ```powershell
+> python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash" "D:/PIDT/workspace"
 > ```
 
 ### `dumpMWB`
