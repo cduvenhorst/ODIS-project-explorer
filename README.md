@@ -183,6 +183,36 @@ It will only dump the objects necessary for Variant Coding - service 0x2E, DID 0
 > python dumpCoding.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/VRCs"
 > ```
 
+### `dumpFlash`
+
+This script dumps the flash data of a project as binary files: data files referenced by the flash pools (or found in a `flash-data` folder), inline flash data stored in the pools, seed key programs (`.dll`/`.exe` files outside `flash-data` and `ConfigData_*` folders) and the blocks of `SW-CNT` flash containers.
+Nothing is decrypted or decompressed; the only decoding is Base64 decoding of `SW-CNT` blocks.
+Flash contents are never printed to the console.
+
+Files are written below `<output>/flash/`:
+- Files from the project keep their relative path: `flash/<project>/<relative path>`.
+- Inline data is written to `flash/<project>/<pool ID>/<block short name>.bin`.
+- Decoded `SW-CNT` blocks are written to `flash/<project>/<container path without extension>/<block name>.bin`.
+- Identical content is written once per run; later occurrences only get a row in the overview that points to the first file.
+
+`flash/flash_overview.csv` lists every occurrence with the columns `origin_kind, origin, source, ecu, part_number, session, block, block_type, start_address, size, uncompressed_size, method, data_kind, written_file, duplicate, note`.
+Addresses are `0x%08X`, `method` is `0x%02X`, sizes are decimal bytes, and `note` collects remarks and errors separated by `; `.
+
+`--hexdump` additionally writes `<file>.hexdump.txt` next to every dumped file.
+
+Before anything is written, the needed space (contents, hexdumps and overview) is compared with the free space of the output drive.
+If it does not fit, nothing is written, not even a folder, and the exit code is 1.
+The output folder must not be inside the source folder; otherwise the script stops immediately with exit code 1.
+Read errors do not stop the run; they are noted in the overview and reported on stderr, and the exit code is 1.
+
+> [!TIP]
+> ```powershell
+> python dumpFlash.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/Flash" --hexdump
+> ```
+> ```powershell
+> python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash"
+> ```
+
 ### `dumpMWB`
 
 This script will dump "MWB definitions".
