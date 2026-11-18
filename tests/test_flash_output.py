@@ -111,6 +111,36 @@ class FlashOutputTests(unittest.TestCase):
         self.assertEqual(rows[0]['note'], 'error: ValueError: bad hex')
         self.assertTrue(os.path.exists(os.path.join(self.target, 'flash/P1/b.bin')))
 
+    def _flaky(self, second):
+        calls = []
+
+        def read():
+            calls.append(1)
+            if len(calls) == 1:
+                return b'first'
+            return second()
+        return read
+
+    def test_second_read_error_leaves_no_file_and_marks_row(self):
+        def fail():
+            raise OSError('disk gone')
+        item = occ('a.bin', 'flash/P1/a.bin', b'x', )
+        item.read = self._flaky(fail)
+        dup = occ('b.bin', 'flash/P1/b.bin', b'first')
+        errors = export([item, dup], self.target, hexdump=True, free_space_of=BIG)
+        self.assertEqual(errors, 1)
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin')))
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin.hexdump.txt')))
+        self.assertEqual(read_overview(self.target)[0]['note'], 'error: OSError: disk gone')
+
+    def test_second_read_with_different_bytes_is_an_error(self):
+        item = occ('a.bin', 'flash/P1/a.bin', b'x')
+        item.read = self._flaky(lambda: b'other')
+        errors = export([item], self.target, free_space_of=BIG)
+        self.assertEqual(errors, 1)
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin')))
+        self.assertEqual(read_overview(self.target)[0]['note'], 'error: ValueError: content changed between reads')
+
     def test_rows_sorted_by_rank_origin_source_block_detail(self):
         export([occ('s', 'flash/r1', b'1', source_rank=1, origin='A', block='r1'),
                 occ('s', 'flash/b2', b'2', origin='B', block_index=2, block='b2'),

@@ -100,6 +100,15 @@ def _needs_space(path: str, size: int) -> int:
     return size
 
 
+def _overview_text(rows: list[dict]) -> str:
+    buffer = io.StringIO(newline='')
+    writer = csv.writer(buffer, lineterminator='\n')
+    writer.writerow(OVERVIEW_COLUMNS)
+    for row in rows:
+        writer.writerow([row[column] for column in OVERVIEW_COLUMNS])
+    return buffer.getvalue()
+
+
 def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False,
            free_space_of: Callable[[str], int] | None = None) -> int:
     """Write every distinct content once and the overview; return the number of errors."""
@@ -110,7 +119,7 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
     by_hash: dict[str, str] = {}
     used: set[str] = set()
     rows = []
-    to_write = []  # (occurrence, target, size, hexdump size)
+    to_write = []  # (occurrence, row, target, first-pass hash, size, hexdump size)
     for item in ordered:
         row = {'origin_kind': item.origin_kind, 'origin': item.origin, 'source': item.source, 'ecu': item.ecu,
                'part_number': item.part_number, 'session': item.session, 'block': item.block,
@@ -147,18 +156,13 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         by_hash[digest] = target
         row['written_file'] = target
         row['duplicate'] = 'no'
-        to_write.append((item, target, len(data), dump_size))
+        to_write.append((item, row, target, digest, len(data), dump_size))
 
-    buffer = io.StringIO(newline='')
-    writer = csv.writer(buffer, lineterminator='\n')
-    writer.writerow(OVERVIEW_COLUMNS)
-    for row in rows:
-        writer.writerow([row[column] for column in OVERVIEW_COLUMNS])
-    overview = buffer.getvalue()
+    overview = _overview_text(rows)
     overview_bytes = overview.encode('utf-8')
 
     needed = _needs_space(overview_path(target_dir), len(overview_bytes))
-    for _, target, size, dump_size in to_write:
+    for _, _, target, _, size, dump_size in to_write:
         path = _disk_path(target_dir, target)
         needed += _needs_space(path, size)
         if hexdump:
@@ -167,10 +171,12 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
     if needed > free:
         raise InsufficientSpaceError(needed, free)
 
-    for item, target, _, _ in to_write:
+    for item, row, target, digest, _, _ in to_write:
         path = _disk_path(target_dir, target)
         try:
             data = item.read()
+            if hashlib.sha256(data).hexdigest() != digest:
+                raise ValueError('content changed between reads')
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as handle:
                 handle.write(data)
@@ -178,8 +184,16 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
                 write_hexdump(data, path + '.hexdump.txt')
         except Exception as error:
             errors += 1
+            for leftover in (path, path + '.hexdump.txt'):
+                try:
+                    os.remove(leftover)
+                except OSError:
+                    pass
+            message = 'error: %s: %s' % (type(error).__name__, error)
+            row['note'] = row['note'] + '; ' + message if row['note'] else message
             print('error writing %s block %s: %s' % (item.source, item.block or item.block_index,
                                                       type(error).__name__), file=sys.stderr)
+    overview = _overview_text(rows)
     os.makedirs(os.path.dirname(overview_path(target_dir)), exist_ok=True)
     with open(overview_path(target_dir), 'w', encoding='utf-8', newline='') as handle:
         handle.write(overview)
