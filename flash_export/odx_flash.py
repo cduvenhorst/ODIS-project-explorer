@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 _HEX = re.compile(r'(?:0[xX])?[0-9A-Fa-f]+')
+_WS_DELETE = {ord(c): None for c in ' \t\n\r\x0b\x0c'}
 
 
 @dataclass(frozen=True)
@@ -58,19 +59,19 @@ def _number(text, base):
 
 
 def is_flash_document(stream) -> bool:
-    """True when the root is ODX and its first child is FLASH; only the start of the stream is read."""
+    """True when the root is ODX and its first child is FLASH; only the start of the stream is read.
+
+    The stream is left advanced (callers reopen the entry). Malformed XML at the start raises ET.ParseError.
+    """
     depth = 0
-    try:
-        for event, element in ET.iterparse(stream, events=('start',)):
-            depth += 1
-            name = _local(element.tag)
-            if depth == 1:
-                if name != 'ODX':
-                    return False
-            else:
-                return name == 'FLASH'
-    except ET.ParseError:
-        return False
+    for _event, element in ET.iterparse(stream, events=('start',)):
+        depth += 1
+        name = _local(element.tag)
+        if depth == 1:
+            if name != 'ODX':
+                return False
+        else:
+            return name == 'FLASH'
     return False
 
 
@@ -149,6 +150,6 @@ def read_intern_data(stream) -> dict[str, bytes]:
         data = _child(element, 'DATA')
         if data is not None:
             name = _text(element, 'SHORT-NAME') or ''
-            contents[name] = bytes.fromhex(''.join((data.text or '').split()))
+            contents[name] = bytes.fromhex((data.text or '').translate(_WS_DELETE))
         element.clear()
     return contents

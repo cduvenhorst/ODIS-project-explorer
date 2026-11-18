@@ -1,5 +1,6 @@
 import io
 import unittest
+import xml.etree.ElementTree as ET
 
 from flash_export.odx_flash import is_flash_document, read_flash_document, read_intern_data
 
@@ -122,6 +123,16 @@ class OdxFlashTest(unittest.TestCase):
         self.assertFalse(is_flash_document(io.BytesIO(b'<ODX><DIAG-LAYER-CONTAINER/><FLASH/></ODX>')))
         self.assertFalse(is_flash_document(io.BytesIO(b'<OTHER><FLASH/></OTHER>')))
         self.assertFalse(is_flash_document(io.BytesIO(b'<ODX/>')))
+
+    def test_is_flash_document_raises_on_malformed_start(self):
+        with self.assertRaises(ET.ParseError):
+            is_flash_document(io.BytesIO(b'<ODX><FLASH'))
+        with self.assertRaises(ET.ParseError):
+            is_flash_document(io.BytesIO(b'not xml at all'))
+
+    def test_whitespace_kinds_in_data_are_removed(self):
+        data = doc(flash_datas=flash_data('F1', 'FD1', 'INTERN-FLASHDATA', '<DATA>01\t02\r\n 03</DATA>'))
+        self.assertEqual({'FD1': b'\x01\x02\x03'}, read_intern_data(io.BytesIO(data)))
 
 
 if __name__ == '__main__':
