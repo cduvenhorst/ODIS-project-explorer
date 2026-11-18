@@ -118,6 +118,7 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
     errors = 0
     by_hash: dict[str, str] = {}
     used: set[str] = set()
+    duplicates: dict[str, list] = {}
     rows = []
     to_write = []  # (occurrence, row, target, first-pass hash, size, hexdump size)
     for item in ordered:
@@ -146,6 +147,7 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         if digest in by_hash:
             row['written_file'] = by_hash[digest]
             row['duplicate'] = 'yes'
+            duplicates.setdefault(digest, []).append(row)
             continue
         target = item.target
         number = 1
@@ -190,7 +192,10 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
                 except OSError:
                     pass
             message = 'error: %s: %s' % (type(error).__name__, error)
-            row['note'] = row['note'] + '; ' + message if row['note'] else message
+            for failed in [row] + duplicates.get(digest, []):
+                failed['note'] = failed['note'] + '; ' + message if failed['note'] else message
+                if failed is not row:
+                    failed['written_file'] = ''
             print('error writing %s block %s: %s' % (item.source, item.block or item.block_index,
                                                       type(error).__name__), file=sys.stderr)
     overview = _overview_text(rows)

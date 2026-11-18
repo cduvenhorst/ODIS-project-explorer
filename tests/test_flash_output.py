@@ -133,6 +133,17 @@ class FlashOutputTests(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin.hexdump.txt')))
         self.assertEqual(read_overview(self.target)[0]['note'], 'error: OSError: disk gone')
 
+    def test_duplicates_of_a_failed_first_occurrence_are_marked(self):
+        def fail():
+            raise OSError('disk gone')
+        item = occ('a.bin', 'flash/P1/a.bin', b'x')
+        item.read = self._flaky(fail)
+        dup = occ('b.bin', 'flash/P1/b.bin', b'first')
+        self.assertEqual(export([item, dup], self.target, free_space_of=BIG), 1)
+        row = read_overview(self.target)[1]
+        self.assertEqual((row['duplicate'], row['written_file']), ('yes', ''))
+        self.assertEqual(row['note'], 'error: OSError: disk gone')
+
     def test_second_read_with_different_bytes_is_an_error(self):
         item = occ('a.bin', 'flash/P1/a.bin', b'x')
         item.read = self._flaky(lambda: b'other')
