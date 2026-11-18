@@ -194,8 +194,7 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
             message = 'error: %s: %s' % (type(error).__name__, error)
             for failed in [row] + duplicates.get(digest, []):
                 failed['note'] = failed['note'] + '; ' + message if failed['note'] else message
-                if failed is not row:
-                    failed['written_file'] = ''
+                failed['written_file'] = ''
             print('error writing %s block %s: %s' % (item.source, item.block or item.block_index,
                                                       type(error).__name__), file=sys.stderr)
     overview = _overview_text(rows)

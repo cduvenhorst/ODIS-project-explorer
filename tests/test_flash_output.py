@@ -131,7 +131,9 @@ class FlashOutputTests(unittest.TestCase):
         self.assertEqual(errors, 1)
         self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin')))
         self.assertFalse(os.path.exists(os.path.join(self.target, 'flash/P1/a.bin.hexdump.txt')))
-        self.assertEqual(read_overview(self.target)[0]['note'], 'error: OSError: disk gone')
+        first = read_overview(self.target)[0]
+        self.assertEqual(first['note'], 'error: OSError: disk gone')
+        self.assertEqual((first['written_file'], first['duplicate']), ('', 'no'))
 
     def test_duplicates_of_a_failed_first_occurrence_are_marked(self):
         def fail():
