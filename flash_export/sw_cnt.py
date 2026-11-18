@@ -10,7 +10,7 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
-_HEADER_LINE = re.compile(r'^[A-Za-z][A-Za-z0-9-]*:')
+_HEADER_LINE = re.compile(r'^[A-Za-z][A-Za-z0-9 -]*:')
 
 
 @dataclass(frozen=True)

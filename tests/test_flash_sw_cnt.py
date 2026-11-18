@@ -31,6 +31,11 @@ class SwCntTests(unittest.TestCase):
         text = '\nContent-Type: application/octet-stream;\n\tname="a.bin"\n\nAQID\n'
         self.assertEqual(read_sw_cnt(container(block('B', text)))[0].data, b'\x01\x02\x03')
 
+    def test_header_name_with_spaces_is_skipped(self):
+        text = ('\nMIME-Version: 1.0\nContent-Type: application/octet-stream\n'
+                'Content -Transfer - Encoding: base64\n\nAQID\n')
+        self.assertEqual(read_sw_cnt(container(block('B', text)))[0].data, b'\x01\x02\x03')
+
     def test_missing_padding_is_added(self):
         self.assertEqual(read_sw_cnt(container(block('B', 'AQ')))[0].data, b'\x01')
 
