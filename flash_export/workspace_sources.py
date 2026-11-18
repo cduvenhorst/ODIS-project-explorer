@@ -67,14 +67,17 @@ def read_platform_mapping(workspace_dir: str) -> list[tuple[str, str]]:
 
 
 def platforms_for_project(mapping: list[tuple[str, str]], project_name: str, platforms: list[str]) -> list[str]:
-    """Existing platforms whose expression matches the whole project name, like Java String.matches."""
+    """Existing platforms whose expression matches the whole project name, like Java String.matches.
+
+    An invalid expression raises ValueError.
+    """
     matched = set()
     for folder, regex in mapping:
         try:
             if re.fullmatch(regex, project_name):
                 matched.add(folder)
-        except re.error:
-            continue
+        except re.error as error:
+            raise ValueError('invalid regular expression for %s in %s: %s' % (folder, MAPPING_FILE, error)) from error
     return [platform for platform in platforms if platform in matched]
 
 

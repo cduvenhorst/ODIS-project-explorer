@@ -48,6 +48,11 @@ class WorkspaceSourcesTest(unittest.TestCase):
         self.assertEqual([], platforms_for_project(mapping, 'XPA', ['pa', 'pb']))
         self.assertEqual([], platforms_for_project(mapping, 'Z1', ['pa', 'pb']))
 
+    def test_invalid_mapping_expression_raises(self):
+        with self.assertRaises(ValueError) as caught:
+            platforms_for_project([('pa', '[Pp')], 'PA1', ['pa'])
+        self.assertIn('invalid regular expression for pa in mapping.properties', str(caught.exception))
+
     def test_mapping_file_missing_raises(self):
         with self.assertRaises(FileNotFoundError):
             read_platform_mapping(self.ws)
@@ -90,7 +95,7 @@ class WorkspaceSourcesTest(unittest.TestCase):
         rows = overview(self.out)
         self.assertEqual({('pa', 'no'), ('pb', 'yes')}, {(r['origin'], r['duplicate']) for r in rows})
 
-    def test_loose_odx_is_decoded_once_per_pass(self):
+    def test_loose_odx_is_decoded_once_across_both_passes(self):
         write_loose_odx(self.ws, 'pa', 'L1.odx', [
             DocBlock('b1', flash_name='X1', data=b'one'), DocBlock('b2', flash_name='X2', data=b'two'),
             DocBlock('b3', flash_name='X3', data=b'three')])
