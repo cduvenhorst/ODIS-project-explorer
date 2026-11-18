@@ -52,6 +52,13 @@ class InsufficientSpaceError(Exception):
         self.free = free
 
 
+class OutputFolderError(OSError):
+    def __init__(self, path: str, cause: OSError):
+        super().__init__('cannot create output folder %s: %s' % (path, type(cause).__name__))
+        self.path = path
+        self.cause = cause
+
+
 def sanitize_name(name: str) -> str:
     """Replace characters that are not allowed in file names by '_'."""
     name = _UNSAFE.sub('_', name)
@@ -91,6 +98,12 @@ def _disk_path(target_dir: str, relative: str) -> str:
     return os.path.join(target_dir, *relative.split('/'))
 
 
+def _is_safe_target(target: str) -> bool:
+    """A target is a relative '/'-path without empty, '.' or '..' parts and without backslashes."""
+    return not target.startswith('/') and '\\' not in target and not any(
+        part in ('', '.', '..') for part in target.split('/'))
+
+
 def _needs_space(path: str, size: int) -> int:
     try:
         if os.path.getsize(path) == size:
@@ -102,7 +115,7 @@ def _needs_space(path: str, size: int) -> int:
 
 def _overview_text(rows: list[dict]) -> str:
     buffer = io.StringIO(newline='')
-    writer = csv.writer(buffer, lineterminator='\n')
+    writer = csv.writer(buffer)
     writer.writerow(OVERVIEW_COLUMNS)
     for row in rows:
         writer.writerow([row[column] for column in OVERVIEW_COLUMNS])
@@ -131,12 +144,18 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         rows.append(row)
         if item.target is None or item.read is None:
             continue
+        if not _is_safe_target(item.target):
+            errors += 1
+            message = 'error: ValueError: unsafe target path'
+            row['note'] = row['note'] + '; ' + message if row['note'] else message
+            print('error writing %s block %s: ValueError' % (item.source, item.block or item.block_index),
+                  file=sys.stderr)
+            continue
         try:
             data = item.read()
             digest = hashlib.sha256(data).hexdigest()
             row['size'] = str(len(data))
             row['data_kind'] = describe_data_kind(data, item.method, item.method_source)
-            dump_size = hexdump_size(data) if hexdump else 0
         except Exception as error:
             errors += 1
             message = 'error: %s: %s' % (type(error).__name__, error)
@@ -149,6 +168,7 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
             row['duplicate'] = 'yes'
             duplicates.setdefault(digest, []).append(row)
             continue
+        dump_size = hexdump_size(data) if hexdump else 0
         target = item.target
         number = 1
         while target.lower() in used:
@@ -172,6 +192,11 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
     free = free_space_of(target_dir)
     if needed > free:
         raise InsufficientSpaceError(needed, free)
+    flash_folder = os.path.dirname(overview_path(target_dir))
+    try:
+        os.makedirs(flash_folder, exist_ok=True)
+    except OSError as error:
+        raise OutputFolderError(flash_folder, error) from error
 
     for item, row, target, digest, _, _ in to_write:
         path = _disk_path(target_dir, target)
@@ -198,7 +223,6 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
             print('error writing %s block %s: %s' % (item.source, item.block or item.block_index,
                                                       type(error).__name__), file=sys.stderr)
     overview = _overview_text(rows)
-    os.makedirs(os.path.dirname(overview_path(target_dir)), exist_ok=True)
     with open(overview_path(target_dir), 'w', encoding='utf-8', newline='') as handle:
         handle.write(overview)
     return errors

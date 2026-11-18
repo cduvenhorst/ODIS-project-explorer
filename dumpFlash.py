@@ -7,7 +7,7 @@ from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
-from flash_export.output import InsufficientSpaceError, export, overview_path
+from flash_export.output import InsufficientSpaceError, OutputFolderError, export, overview_path
 from flash_export.project_sources import project_occurrences
 
 
@@ -49,6 +49,10 @@ def finish(occurrences, errors, output_folder_path, hexdump, start_time):
         print('Not enough free space in {}: needed {} bytes, free {} bytes'.format(output_folder_path, error.needed, error.free))
         print_elapsed(start_time)
         return 1
+    except OutputFolderError as error:
+        print('Cannot create output folder {}: {}'.format(error.path, type(error.cause).__name__))
+        print_elapsed(start_time)
+        return 1
     if errors > 0:
         print('Errors: {}'.format(errors))
     print('Overview: {}'.format(overview_path(output_folder_path)))
@@ -70,8 +74,8 @@ def dumpFlash_project(project_folder_path, output_folder_path, hexdump=False, pb
     if pbl_record_manager is None:
         pbl_record_manager = create_pbl_record_manager()
     
-    # The project name is the name of the last folder in the path
-    project_name = os.path.basename(os.path.normpath(project_folder_path))
+    # The project name is the name of the project folder itself, also for '.' or '..' as path
+    project_name = os.path.basename(os.path.abspath(project_folder_path))
     print('Collecting {}'.format(project_name))
     
     try:

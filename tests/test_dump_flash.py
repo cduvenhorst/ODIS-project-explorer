@@ -132,6 +132,35 @@ class DumpFlashTest(unittest.TestCase):
         self.assertNotIn(A_BYTES.hex(' '), text.lower())
         self.assertNotIn(A_BYTES.decode('latin-1'), text)
 
+    def test_dot_as_project_path_uses_real_folder_name(self):
+        folder = make_project(self.root, 'P1')
+        os.chdir(folder)
+        with mock.patch('dumpFlash.PblRecordManager'):
+            code, _ = self.run_main('project', '.', self.out)
+        self.assertEqual(code, 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'flash', 'P1', 'Dev', 'flash-data', 'a.bin')))
+        self.assertEqual(sorted(os.listdir(os.path.join(self.out, 'flash'))), ['P1', 'flash_overview.csv'])
+
+    def test_dot_dot_as_project_path_uses_real_folder_name(self):
+        folder = make_project(self.root, 'P1')
+        os.makedirs(os.path.join(folder, 'sub'))
+        os.chdir(os.path.join(folder, 'sub'))
+        with mock.patch('dumpFlash.PblRecordManager'):
+            code, _ = self.run_main('project', '..', self.out)
+        self.assertEqual(code, 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'flash', 'P1', 'Dev', 'flash-data', 'a.bin')))
+
+    def test_unwritable_output_folder_is_reported_once(self):
+        folder = make_project(self.root, 'P1')
+        blocker = os.path.join(self.root, 'file')
+        with open(blocker, 'wb'):
+            pass
+        code, text = self.run_main('project', folder, os.path.join(blocker, 'out'))
+        self.assertEqual(code, 1)
+        self.assertEqual(text.count('Cannot create output folder'), 1)
+        self.assertIn(os.path.join(blocker, 'out', 'flash') + ': ', text)
+        self.assertIn('NotADirectoryError', text)
+
 
 if __name__ == '__main__':
     unittest.main()

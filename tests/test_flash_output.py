@@ -1,11 +1,13 @@
+import contextlib
 import csv
 import io
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from flash_export.hexdump import hexdump_lines
-from flash_export.output import (OVERVIEW_COLUMNS, InsufficientSpaceError, Occurrence, export, overview_path,
+from flash_export.output import (OVERVIEW_COLUMNS, InsufficientSpaceError, Occurrence, OutputFolderError, export, overview_path,
                                  sanitize_name)
 
 BIG = lambda p: 10 ** 12
@@ -165,6 +167,52 @@ class FlashOutputTests(unittest.TestCase):
         export([occ('a.bin', 'flash/P1/a.bin', b'abc', method=0x11, method_source='DATENBLOCK-FORMAT')],
                self.target, free_space_of=BIG)
         self.assertIn('DATENBLOCK-FORMAT 0x11', read_overview(self.target)[0]['data_kind'])
+
+    def test_overview_uses_default_csv_line_terminator(self):
+        export([occ('a.bin', 'flash/P1/a.bin', b'1')], self.target, free_space_of=BIG)
+        with open(overview_path(self.target), 'rb') as handle:
+            lines = handle.read().split(b'\r\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[2], b'')
+        self.assertNotIn(b'\n', b''.join(lines))
+
+    def test_hexdump_size_is_computed_only_for_new_content(self):
+        with mock.patch('flash_export.output.hexdump_size', return_value=1) as size:
+            export([occ('a.bin', 'flash/P1/a.bin', b'same'), occ('b.bin', 'flash/P1/b.bin', b'same'),
+                    occ('c.bin', 'flash/P1/c.bin', b'other')], self.target, hexdump=True, free_space_of=BIG)
+        self.assertEqual(size.call_count, 2)
+
+    def test_unsafe_targets_become_error_rows_and_write_nothing(self):
+        unsafe = ['flash/P1/../x.bin', 'flash//x.bin', 'flash/./x.bin', '/abs/x.bin', 'flash\\x.bin',
+                  '../x.bin', 'flash/P1/']
+        occurrences = [occ('s%d' % number, target, b'data%d' % number, block_index=number)
+                       for number, target in enumerate(unsafe)]
+        occurrences.append(occ('z-good', 'flash/P1/good.bin', b'good', block_index=99))
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            errors = export(occurrences, self.target, free_space_of=BIG)
+        self.assertEqual(errors, len(unsafe))
+        rows = read_overview(self.target)
+        self.assertEqual(len(rows), len(unsafe) + 1)
+        for row in rows[:-1]:
+            self.assertEqual(row['note'], 'error: ValueError: unsafe target path')
+            self.assertEqual((row['size'], row['written_file'], row['duplicate']), ('', '', ''))
+        self.assertIn('s0', stderr.getvalue())
+        self.assertEqual(sorted(os.listdir(os.path.join(self.target, 'flash'))), ['P1', 'flash_overview.csv'])
+        self.assertEqual(os.listdir(os.path.join(self.target, 'flash', 'P1')), ['good.bin'])
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'x.bin')))
+
+    def test_unwritable_output_folder_aborts_once(self):
+        blocker = os.path.join(self.target, 'file')
+        with open(blocker, 'wb'):
+            pass
+        reads = []
+        item = occ('a.bin', 'flash/P1/a.bin', b'x')
+        item.read = lambda: reads.append(1) or b'x'
+        with self.assertRaises(OutputFolderError) as ctx:
+            export([item, occ('b.bin', 'flash/P1/b.bin', b'y')], os.path.join(blocker, 'out'), free_space_of=BIG)
+        self.assertIsInstance(ctx.exception, OSError)
+        self.assertEqual(ctx.exception.path, os.path.join(blocker, 'out', 'flash'))
 
 
 if __name__ == '__main__':
