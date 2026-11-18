@@ -62,13 +62,20 @@ def _number(parent, tag):
         return None
 
 
+def _parse(raw):
+    """Parse a document; an XML declaration decides the encoding, else ISO-8859-1."""
+    if raw.startswith(b'<?xml'):
+        return ET.fromstring(raw)
+    return ET.fromstring(raw.decode('iso-8859-1'))
+
+
 def read_sw_cnt(raw):
     """Read the data blocks of a SW-CNT container.
 
     Returns None when the root element is not SW-CNT; raises ET.ParseError
     when the text is not well-formed XML.
     """
-    root = ET.fromstring(raw.decode('iso-8859-1'))
+    root = _parse(raw)
     if root.tag != 'SW-CNT':
         return None
     blocks = []
@@ -82,3 +89,24 @@ def read_sw_cnt(raw):
                                  _number(element, 'START-ADR'),
                                  _number(element, 'GROESSE-DEKOMPRIMIERT'), data))
     return blocks
+
+
+def read_sw_cnt_areas(raw):
+    """Read the data areas (DATENBEREICHE/DATENBEREICH) of a SW-CNT container.
+
+    Returns None when the root element is not SW-CNT; raises ET.ParseError
+    when the text is not well-formed XML. The data format is not available.
+    """
+    root = _parse(raw)
+    if root.tag != 'SW-CNT':
+        return None
+    areas = []
+    for index, element in enumerate(root.findall('DATENBEREICHE/DATENBEREICH'), start=1):
+        name = element.findtext('DATEN-NAME') or ''
+        data_element = element.find('DATEN')
+        data = None
+        if data_element is not None:
+            data = decode_mime_base64(data_element.text or '')
+        areas.append(SwCntBlock(index, name.strip(), None, _number(element, 'START-ADR'),
+                                _number(element, 'GROESSE-DEKOMPRIMIERT'), data))
+    return areas

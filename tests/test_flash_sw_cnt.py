@@ -1,7 +1,7 @@
 import unittest
 import xml.etree.ElementTree as ET
 
-from flash_export.sw_cnt import SwCntBlock, decode_mime_base64, read_sw_cnt
+from flash_export.sw_cnt import SwCntBlock, decode_mime_base64, read_sw_cnt, read_sw_cnt_areas
 
 DOC = ('<!DOCTYPE SW-CNT PUBLIC "-//Example//DTD Container//EN" "x.dtd">'
        '<SW-CNT><IDENT><CNT-IDENT-TEXT>M\xfcster</CNT-IDENT-TEXT></IDENT>'
@@ -66,6 +66,26 @@ class SwCntTests(unittest.TestCase):
 
     def test_decode_empty_text_gives_empty_bytes(self):
         self.assertEqual(decode_mime_base64(''), b'')
+
+    def test_areas_of_container_with_xml_declaration(self):
+        raw = (b'<?xml version="1.0" encoding="UTF-8"?><SW-CNT><DATENBEREICHE><DATENBEREICH>'
+               b'<DATEN-NAME>D\xc3\xbc</DATEN-NAME><DATEN-FORMAT-NAME>DFN_BYTE</DATEN-FORMAT-NAME>'
+               b'<START-ADR>1A</START-ADR><GROESSE-DEKOMPRIMIERT>3</GROESSE-DEKOMPRIMIERT>'
+               b'<DATEN>AQID</DATEN></DATENBEREICH></DATENBEREICHE></SW-CNT>')
+        self.assertEqual(read_sw_cnt_areas(raw),
+                         [SwCntBlock(1, 'D\xfc', None, 0x1A, 3, b'\x01\x02\x03')])
+
+    def test_areas_of_other_root_is_none(self):
+        self.assertIsNone(read_sw_cnt_areas(b'<OTHER/>'))
+
+    def test_document_without_areas_gives_empty_list(self):
+        self.assertEqual(read_sw_cnt_areas(b'<SW-CNT><IDENT/></SW-CNT>'), [])
+
+    def test_blocks_of_container_with_xml_declaration(self):
+        raw = (b'<?xml version="1.0" encoding="UTF-8"?><SW-CNT><DATEN><DATENBLOECKE><DATENBLOCK>'
+               b'<DATENBLOCK-NAME>B\xc3\xbc</DATENBLOCK-NAME><DATENBLOCK-DATEN>AQID</DATENBLOCK-DATEN>'
+               b'</DATENBLOCK></DATENBLOECKE></DATEN></SW-CNT>')
+        self.assertEqual(read_sw_cnt(raw)[0].name, 'B\xfc')
 
 
 if __name__ == '__main__':
