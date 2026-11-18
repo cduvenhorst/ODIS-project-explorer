@@ -3,6 +3,7 @@ import io
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from flash_export.output import Occurrence, export
 from flash_export.project_sources import (FLASH_DATA_OBJECT_ID, container_notes, file_occurrences,
@@ -42,6 +43,10 @@ def put(root, relative, content=b'x'):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'wb') as handle:
         handle.write(content)
+
+
+def error_rows(occurrences):
+    return [item for item in occurrences if item.note.startswith('error: ')]
 
 
 class FakeLoader:
@@ -204,7 +209,35 @@ class ProjectSourcesTests(unittest.TestCase):
         del self.loader.objects[('A.fl', 'S_S1')]
         occurrences, _, errors = self.collect()
         self.assertEqual(errors, 1)
-        self.assertEqual([item.block for item in occurrences], ['Good'])
+        self.assertEqual([item.block for item in occurrences if item.read], ['Good'])
+        (row,) = error_rows(occurrences)
+        self.assertEqual((row.source, row.block_index, row.target, row.read), ('A.fl', 0, None, None))
+        self.assertTrue(row.note.startswith('error: KeyError: '))
+        self.assertIn('S_S1', row.detail)
+        self.assertEqual((row.origin_kind, row.origin), ('project', 'P1'))
+
+    def test_failing_ecu_mem_leaves_error_row_naming_the_reference_pool(self):
+        self.loader.add_chain('A.fl', [block('B', inline='O1')])
+        self.loader.objects[('A.fl', FLASH_DATA_OBJECT_ID)]['ecu_mem_references'][0]['reference']['pool_id'] = 'X.fl'
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            occurrences, _, errors = pool_chain_occurrences(self.loader, self.dir, 'P1', project_file_index(self.dir))
+        self.assertEqual(errors, 1)
+        (row,) = occurrences
+        self.assertEqual((row.source, row.block_index, row.target), ('X.fl', 0, None))
+        self.assertTrue(row.note.startswith('error: KeyError: '))
+        self.assertIn('EM', row.detail)
+        self.assertIn('X.fl', stderr.getvalue())
+
+    def test_failing_flash_data_object_leaves_error_row(self):
+        def fail(folder, pool_id, object_id):
+            raise ValueError('broken pool')
+        self.loader.load_object_by_id = fail
+        occurrences, _, errors = self.collect()
+        self.assertEqual(errors, 1)
+        (row,) = occurrences
+        self.assertEqual((row.source, row.block_index, row.note), ('A.fl', 0, 'error: ValueError: broken pool'))
+        self.assertIn(FLASH_DATA_OBJECT_ID, row.detail)
 
     def test_inline_read_error_reaches_export_as_error_row(self):
         self.loader.add_chain('A.fl', [block('B', inline='O1')])
@@ -224,7 +257,12 @@ class ProjectSourcesTests(unittest.TestCase):
         self.loader.add_chain('A.fl', [broken, block('Good', inline='O2')])
         occurrences, _, errors = self.collect()
         self.assertEqual(errors, 1)
-        self.assertEqual([item.block for item in occurrences], ['Good'])
+        self.assertEqual([item.block for item in occurrences if item.read], ['Good'])
+        (row,) = error_rows(occurrences)
+        self.assertEqual((row.source, row.block_index, row.session, row.block), ('A.fl', 1, 'S1', 'Broken'))
+        self.assertEqual((row.target, row.read), (None, None))
+        self.assertTrue(row.note.startswith('error: TypeError: '))
+        self.assertIn('S1', row.detail)
 
     def test_none_segment_or_ident_is_counted_and_others_continue(self):
         self.loader.add_chain('A.fl', [block('NoSeg', inline='O1', segments=[None]),
@@ -232,7 +270,9 @@ class ProjectSourcesTests(unittest.TestCase):
                                        block('Good', inline='O3')])
         occurrences, _, errors = self.collect()
         self.assertEqual(errors, 2)
-        self.assertEqual([item.block for item in occurrences], ['Good'])
+        self.assertEqual([item.block for item in occurrences if item.read], ['Good'])
+        self.assertEqual([(row.block_index, row.block) for row in error_rows(occurrences)],
+                         [(1, 'NoSeg'), (2, 'NoIdent')])
 
     def test_lambdas_bind_their_own_block(self):
         self.loader.add_chain('A.fl', [block('B1', inline='O1'), block('B2', inline='O2')])
@@ -364,7 +404,27 @@ class FileSourcesTests(unittest.TestCase):
             occurrences, errors = file_occurrences(self.dir, 'P1', index, set())
         self.assertEqual(errors, 1)
         self.assertIn('flash-data/c.sgm', stderr.getvalue())
-        self.assertEqual([o.source for o in occurrences], ['flash-data/c.sgm', 'flash-data/d.bin'])
+        self.assertEqual([o.source for o in occurrences], ['flash-data/c.sgm', 'flash-data/c.sgm', 'flash-data/d.bin'])
+        (row,) = error_rows(occurrences)
+        self.assertEqual((row.source, row.block_index, row.target, row.read), ('flash-data/c.sgm', 0, None, None))
+        self.assertTrue(row.note.startswith('error: PermissionError: '))
+
+    def test_any_exception_while_analysing_a_container_is_a_counted_error_row(self):
+        put(self.dir, 'flash-data/c.sgm', container(sw_block('B1', 'AQID')))
+        put(self.dir, 'flash-data/d.bin')
+        index = project_file_index(self.dir)
+        cache = {}
+        with mock.patch('flash_export.project_sources._analyse', side_effect=RuntimeError('odd content')):
+            self.assertEqual(container_notes(self.dir, 'flash-data/c.sgm', cache), [])
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                occurrences, errors = file_occurrences(self.dir, 'P1', index, set(), cache)
+        self.assertEqual(errors, 1)
+        self.assertIn('RuntimeError', stderr.getvalue())
+        (row,) = error_rows(occurrences)
+        self.assertEqual((row.source, row.block_index, row.note),
+                         ('flash-data/c.sgm', 0, 'error: RuntimeError: odd content'))
+        self.assertIn('flash-data/d.bin', [o.source for o in occurrences])
 
     def test_project_occurrences_end_to_end_with_export(self):
         for name in ('A.fl.db', 'B.bv.db'):

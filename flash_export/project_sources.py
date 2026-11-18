@@ -85,6 +85,24 @@ def _report(pool: str, what: str, error: Exception) -> None:
     print('error loading %s of pool %s: %s' % (what, pool, type(error).__name__), file=sys.stderr)
 
 
+def _error_row(project_name: str, source: str, block_index: int, detail: str, error: Exception,
+               **fields) -> Occurrence:
+    """A row without content that records a collection failure."""
+    return Occurrence(source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name, source=source,
+                      block_index=block_index, target=None, read=None, detail=detail,
+                      note='error: %s: %s' % (type(error).__name__, error), **fields)
+
+
+def _reference_part(reference, key: str, default: str) -> str:
+    value = reference.get(key) if isinstance(reference, dict) else None
+    return default if value is None else str(value)
+
+
+def _name_of(item, default: str = '') -> str:
+    name = item.get('short_name') if isinstance(item, dict) else None
+    return default if name is None else str(name)
+
+
 def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, index: dict[str, str],
                            notes_for: Callable[[str], list[str]] = lambda path: []
                            ) -> tuple[list[Occurrence], set[str], int]:
@@ -106,6 +124,7 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
         except Exception as error:
             errors += 1
             _report(pool, FLASH_DATA_OBJECT_ID, error)
+            occurrences.append(_error_row(project_name, pool, 0, FLASH_DATA_OBJECT_ID, error))
             continue
         pool_count = 0
         for mem_entry in flash_data_object['ecu_mem_references']:
@@ -117,7 +136,10 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
                 session_entries = ecu_mem['flash_sessions'] or []
             except Exception as error:
                 errors += 1
-                _report(pool, 'ECU_MEM ' + str(mem_reference.get('object_id')), error)
+                mem_pool = _reference_part(mem_reference, 'pool_id', pool)
+                mem_object = _reference_part(mem_reference, 'object_id', '')
+                _report(mem_pool, 'ECU_MEM ' + mem_object, error)
+                occurrences.append(_error_row(project_name, mem_pool, 0, 'ECU_MEM/' + mem_object, error))
                 continue
             for session_entry in session_entries:
                 session_reference = session_entry['reference']
@@ -127,7 +149,11 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
                     blocks = session['data_blocks'] or []
                 except Exception as error:
                     errors += 1
-                    _report(pool, 'session ' + str(session_reference.get('object_id')), error)
+                    session_pool = _reference_part(session_reference, 'pool_id', pool)
+                    session_object = _reference_part(session_reference, 'object_id', '')
+                    _report(session_pool, 'session ' + session_object, error)
+                    occurrences.append(_error_row(project_name, session_pool, 0, 'session/' + session_object,
+                                                  error))
                     continue
                 for number, block in enumerate(blocks, 1):
                     try:
@@ -176,8 +202,12 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
                                                       note='; '.join(notes), **fields))
                     except Exception as error:
                         errors += 1
+                        session_name = _name_of(session)
                         print('error collecting block %d of session %s in pool %s: %s'
-                              % (number, session.get('short_name'), pool, type(error).__name__), file=sys.stderr)
+                              % (number, session_name, pool, type(error).__name__), file=sys.stderr)
+                        occurrences.append(_error_row(project_name, pool, number,
+                                                      '%s/%s/%d' % (pool, session_name, number), error,
+                                                      session=session_name, block=_name_of(block)))
     return occurrences, reached, errors
 
 
@@ -210,7 +240,7 @@ def _read_container(project_dir: str, relative_path: str) -> bytes:
 
 
 def _report_read(relative_path: str, error: Exception) -> None:
-    print('error reading container %s: %s' % (relative_path, type(error).__name__), file=sys.stderr)
+    print('error analysing container %s: %s' % (relative_path, type(error).__name__), file=sys.stderr)
 
 
 def container_notes(project_dir: str, relative_path: str, cache: dict[str, list[str]]) -> list[str]:
@@ -222,7 +252,7 @@ def container_notes(project_dir: str, relative_path: str, cache: dict[str, list[
     if suffix in INTEL_HEX_CONTAINER_SUFFIXES or suffix in CONTAINER_TEXT_SUFFIXES:
         try:
             notes = _analyse(_read_container(project_dir, relative_path), suffix)[0]
-        except OSError as error:
+        except Exception as error:
             _report_read(relative_path, error)
     cache[relative_path] = notes
     return notes
@@ -255,9 +285,10 @@ def file_occurrences(project_dir: str, project_name: str, index: dict[str, str],
             try:
                 notes, blocks = _analyse(_read_container(project_dir, path), suffix)
                 cache.setdefault(path, notes)
-            except OSError as error:
+            except Exception as error:
                 errors += 1
                 _report_read(path, error)
+                occurrences.append(_error_row(project_name, path, 0, 'container', error))
                 cache.setdefault(path, [])
                 blocks = []
             stem = path[:-len(suffix)]
