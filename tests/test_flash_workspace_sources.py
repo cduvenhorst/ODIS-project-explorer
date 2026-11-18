@@ -273,7 +273,13 @@ class PccTests(unittest.TestCase):
         self.assertEqual([('pa', 1), ('pa', 2), ('pa', 3), ('pb', 1), ('pb', 2), ('pb', 3)],
                          [(o.origin, o.source_rank) for o in occurrences])
         self.assertEqual(0, export(occurrences, self.out))
-        self.assertEqual(6, len(overview(self.out)))
+        rows = overview(self.out)
+        expected = ['pa/flash-data/flash-data/K.pdx/doc.odx', 'pb/flash-data/flash-data/K.pdx/doc.odx',
+                    'pa/flash-data/flash-data/L.odx', 'pb/flash-data/flash-data/L.odx',
+                    'pa/mcr-data/P.pcc/a.sig', 'pb/mcr-data/P.pcc/a.sig']
+        self.assertEqual(sorted(expected), sorted(row['source'] for row in rows))
+        self.assertEqual(expected, [row['source'] for row in rows])
+        self.assertEqual(['workspace'] * 4 + ['pcc'] * 2, [row['origin_kind'] for row in rows])
 
 
 if __name__ == '__main__':
