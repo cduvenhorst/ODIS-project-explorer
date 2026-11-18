@@ -91,3 +91,30 @@ def write_loose_odx(workspace: str, platform: str, name: str, blocks: list[DocBl
     path = os.path.join(flash_folder(workspace, platform), name)
     write_file(path, odx_flash_document(blocks, ecus))
     return path
+
+
+def sw_cnt_areas_xml(areas: list[tuple[str, bytes | None]]) -> bytes:
+    """A SW-CNT container with an XML declaration and one DATENBEREICH per (name, data) pair.
+
+    ``None`` as data gives an area whose container text is not valid Base64.
+    """
+    import base64
+    items = []
+    for name, data in areas:
+        text = '!!not base64!!' if data is None else base64.b64encode(data).decode()
+        items.append('<DATENBEREICH><DATEN-NAME>%s</DATEN-NAME><START-ADR>0000A000</START-ADR>'
+                     '<GROESSE-DEKOMPRIMIERT>10</GROESSE-DEKOMPRIMIERT><DATEN>%s</DATEN></DATENBEREICH>'
+                     % (name, text))
+    return ('<?xml version="1.0" encoding="UTF-8"?><SW-CNT><DATENBEREICHE>%s</DATENBEREICHE></SW-CNT>'
+            % ''.join(items)).encode()
+
+
+def mcr_folder(workspace: str, platform: str) -> str:
+    return os.path.join(workspace, platform, 'mcr-data')
+
+
+def write_pcc(workspace: str, platform: str, relative: str, entries: dict[str, bytes]) -> str:
+    """A PCC package below the platform's mcr-data folder; returns its path."""
+    path = os.path.join(mcr_folder(workspace, platform), *relative.split('/'))
+    write_zip(path, entries)
+    return path

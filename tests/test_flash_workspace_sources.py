@@ -7,10 +7,11 @@ import unittest
 
 from flash_export.output import export, overview_path
 from flash_export.workspace_sources import (
-    DocumentCache, loose_odx_occurrences, pdx_occurrences, platforms_for_project, read_platform_mapping,
-    workspace_platforms)
+    DocumentCache, loose_odx_occurrences, pcc_occurrences, pdx_occurrences, platforms_for_project,
+    read_platform_mapping, workspace_occurrences, workspace_platforms)
 from tests.flash_workspace_support import (
-    DocBlock, flash_folder, odx_flash_document, write_file, write_loose_odx, write_pdx, write_zip)
+    DocBlock, flash_folder, odx_flash_document, sw_cnt_areas_xml, write_file, write_loose_odx, write_pcc,
+    write_pdx, write_zip)
 
 
 def overview(target):
@@ -169,6 +170,110 @@ class WorkspaceSourcesTest(unittest.TestCase):
         self.assertEqual(0, errors)
         self.assertEqual('pa/Flash-Data/FLASH-DATA/L1.ODX', item.source)
         self.assertEqual('flash/workspace/L1/b1.bin', item.target)
+
+
+class PccTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.ws = os.path.join(self._tmp.name, 'ws')
+        self.out = os.path.join(self._tmp.name, 'out')
+        os.makedirs(self.ws)
+
+    def read_target(self, *parts):
+        with open(os.path.join(self.out, *parts), 'rb') as handle:
+            return handle.read()
+
+    def test_dsdl_documents_get_a_folder_per_entry(self):
+        write_pcc(self.ws, 'pa', 'P1.pcc', {
+            'A.odx': odx_flash_document([DocBlock('b', flash_name='FD1', data=b'aaa')]),
+            'B.odx': odx_flash_document([DocBlock('b', flash_name='FD1', data=b'bbb')])})
+        occurrences, errors = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual(0, errors)
+        self.assertEqual(['flash/workspace/P1/A/FD1.bin', 'flash/workspace/P1/B/FD1.bin'],
+                         [o.target for o in occurrences])
+        first = occurrences[0]
+        self.assertEqual(('pcc', 'pa', 3, 'pa/mcr-data/P1.pcc/A.odx', 'A.odx/1'),
+                         (first.origin_kind, first.origin, first.source_rank, first.source, first.detail))
+        self.assertEqual(0, export(occurrences, self.out))
+        self.assertEqual(b'aaa', self.read_target('flash', 'workspace', 'P1', 'A', 'FD1.bin'))
+        self.assertEqual(b'bbb', self.read_target('flash', 'workspace', 'P1', 'B', 'FD1.bin'))
+
+    def test_sw_cnt_areas_are_decoded(self):
+        write_pcc(self.ws, 'pa', 'sub/deeper/P1.PCC', {
+            'S.xml': sw_cnt_areas_xml([('Area One', b'\x01\x02'), ('', b'\x03'), ('Bad', None)])})
+        occurrences, errors = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual(0, errors)
+        self.assertEqual(['flash/workspace/P1/S/Area One.bin', 'flash/workspace/P1/S/bereich_2.bin', None],
+                         [o.target for o in occurrences])
+        first = occurrences[0]
+        self.assertEqual('pa/mcr-data/sub/deeper/P1.PCC/S.xml', first.source)
+        self.assertEqual(('S.xml/1', 1, 'Area One', 0xA000, 0x10, None, 'decoded from container (Base64)'),
+                         (first.detail, first.block_index, first.block, first.start_address,
+                          first.uncompressed_size, first.method, first.note))
+        self.assertEqual('could not decode container block', occurrences[2].note)
+        self.assertEqual(b'\x03', occurrences[1].read())
+        self.assertEqual(0, export(occurrences, self.out))
+        self.assertEqual(b'\x01\x02', self.read_target('flash', 'workspace', 'P1', 'S', 'Area One.bin'))
+
+    def test_area_without_data_raises_on_read(self):
+        write_pcc(self.ws, 'pa', 'P1.pcc', {'S.xml': sw_cnt_areas_xml([('A', b'x')])})
+        (item,), _ = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        write_pcc(self.ws, 'pa', 'P1.pcc', {'S.xml': sw_cnt_areas_xml([('B', None)])})
+        with self.assertRaises(ValueError):
+            item.read()
+
+    def test_other_entries_go_to_mcr_unchanged(self):
+        entries = {'ConfigData_X.odx-e': b'enc', 'Z.xml': b'<ZDC/>', 'a.session': b'1', 'a.sig': b'2',
+                   'a.kfh': b'3', 'index.xml': b'<index/>', 'bad.xml': b'<a><b></a>'}
+        write_pcc(self.ws, 'pa', 'P1.pcc', entries)
+        occurrences, errors = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual(0, errors)
+        self.assertEqual(sorted('mcr/P1/' + name for name in entries), [o.target for o in occurrences])
+        for item in occurrences:
+            self.assertEqual((0, 'package entry, unchanged'), (item.block_index, item.note))
+        self.assertEqual(0, export(occurrences, self.out))
+        for name, data in entries.items():
+            self.assertEqual(data, self.read_target('mcr', 'P1', name))
+
+    def test_odx_entry_without_flash_goes_to_mcr(self):
+        write_pcc(self.ws, 'pa', 'P1.pcc', {'C.odx': b'<?xml version="1.0"?><ODX><COMPARAM-SPEC/></ODX>'})
+        (item,), errors = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual((0, 'mcr/P1/C.odx'), (errors, item.target))
+
+    def test_broken_entries_and_packages_are_error_rows(self):
+        write_pcc(self.ws, 'pa', 'P1.pcc', {'bad.odx': b'<ODX><FLASH>', 'ok.sig': b'1'})
+        write_file(os.path.join(self.ws, 'pa', 'mcr-data', 'P2.pcc'), b'not a zip')
+        with contextlib.redirect_stderr(io.StringIO()):
+            occurrences, errors = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual(2, errors)
+        self.assertEqual(['pa/mcr-data/P1.pcc/bad.odx', 'pa/mcr-data/P1.pcc/ok.sig', 'pa/mcr-data/P2.pcc'],
+                         [o.source for o in occurrences])
+        self.assertTrue(occurrences[0].note.startswith('error: ParseError'))
+        self.assertIsNone(occurrences[0].target)
+        self.assertEqual('mcr/P1/ok.sig', occurrences[1].target)
+        self.assertTrue(occurrences[2].note.startswith('error: BadZipFile'))
+
+    def test_same_entry_in_two_packages_is_written_once(self):
+        write_pcc(self.ws, 'pa', 'P1.pcc', {'a.sig': b'same'})
+        write_pcc(self.ws, 'pa', 'P2.pcc', {'a.sig': b'same'})
+        occurrences, _ = pcc_occurrences(self.ws, 'pa', DocumentCache())
+        self.assertEqual(0, export(occurrences, self.out))
+        self.assertEqual(['no', 'yes'], [r['duplicate'] for r in overview(self.out)])
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'mcr', 'P2')))
+
+    def test_workspace_occurrences_end_to_end(self):
+        for platform in ('pb', 'pa'):
+            write_pdx(self.ws, platform, 'K.pdx', [DocBlock('b', flash_name='FD', data=platform.encode())])
+            write_loose_odx(self.ws, platform, 'L.odx', [DocBlock('b', flash_name='FD', data=platform.encode() * 2)])
+            write_pcc(self.ws, platform, 'P.pcc', {'a.sig': platform.encode() * 3})
+        seen = []
+        occurrences, errors = workspace_occurrences(self.ws, ['pa', 'pb'], progress=seen.append)
+        self.assertEqual((0, ['pa', 'pb']), (errors, seen))
+        self.assertEqual([('pa', 1), ('pa', 2), ('pa', 3), ('pb', 1), ('pb', 2), ('pb', 3)],
+                         [(o.origin, o.source_rank) for o in occurrences])
+        self.assertEqual(0, export(occurrences, self.out))
+        self.assertEqual(6, len(overview(self.out)))
 
 
 if __name__ == '__main__':

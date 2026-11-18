@@ -2,12 +2,14 @@
 import os
 import re
 import sys
+import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable
 
 from flash_export.odx_flash import (
     OdxFlashDocument, is_flash_document, read_flash_document, read_intern_data)
 from flash_export.output import Occurrence, sanitize_name
+from flash_export.sw_cnt import read_sw_cnt_areas
 
 SOURCE_PDX = 1
 SOURCE_LOOSE_ODX = 2
@@ -252,4 +254,130 @@ def loose_odx_occurrences(workspace_dir: str, platform: str, cache: DocumentCach
             errors += 1
             _report(path, error)
             occurrences.append(_error_row(platform, source, SOURCE_LOOSE_ODX, name, error))
+    return occurrences, errors
+
+
+def _pcc_paths(workspace_dir: str, platform: str) -> list[tuple[str, list[str]]]:
+    """(workspace-relative path parts, absolute path) of every .pcc below mcr-data, sorted by relative path."""
+    mcr = _subfolder(os.path.join(workspace_dir, platform), 'mcr-data')
+    if mcr is None:
+        return []
+    base = os.path.join(workspace_dir, platform, mcr)
+    found = []
+    for folder, _, names in os.walk(base):
+        for name in names:
+            path = os.path.join(folder, name)
+            if _has_extension(name, ('.pcc',)) and os.path.isfile(path):
+                relative = os.path.relpath(path, base).split(os.sep)
+                found.append(([platform, mcr] + relative, path))
+    found.sort(key=lambda item: item[0])
+    return [(path, parts) for parts, path in found]
+
+
+def _read_areas(cache: DocumentCache, key: tuple, archive_path: str, entry: str, index: int) -> Callable[[], bytes]:
+    def read(cache=cache, key=key, archive_path=archive_path, entry=entry, index=index) -> bytes:
+        def load():
+            areas = read_sw_cnt_areas(_read_external(archive_path, entry)())
+            return {area.index: area.data for area in areas or [] if area.data is not None}
+        data = cache.get(key, load)
+        if index not in data:
+            raise ValueError('no data for area %d of %s' % (index, entry))
+        return data[index]
+    return read
+
+
+def _area_rows(areas: list, platform: str, source: str, entry: str, folder: str,
+               cache: DocumentCache, archive_path: str) -> list[Occurrence]:
+    rows = []
+    for area in areas:
+        if area.data is None:
+            target, read, note = None, None, 'could not decode container block'
+        else:
+            name = sanitize_name(area.name) if area.name else 'bereich_%d' % area.index
+            target = 'flash/workspace/%s/%s.bin' % (folder, name)
+            read = _read_areas(cache, (archive_path, entry), archive_path, entry, area.index)
+            note = 'decoded from container (Base64)'
+        rows.append(Occurrence(
+            source_rank=SOURCE_PCC, origin_kind='pcc', origin=platform, source=source, block_index=area.index,
+            target=target, read=read, detail='%s/%d' % (entry, area.index), block=area.name,
+            start_address=area.start_address, uncompressed_size=area.uncompressed_size, method=None, note=note))
+    return rows
+
+
+def _entry_rows(archive: zipfile.ZipFile, entry: str, platform: str, source: str, archive_path: str,
+                package: str, entries: set[str], cache: DocumentCache) -> list[Occurrence]:
+    """Rows of one package entry: data set blocks, container areas or the unchanged entry."""
+    folder = '%s/%s' % (sanitize_name(package), sanitize_name(_stem(entry)))
+    if _has_extension(entry, _ODX_EXTENSIONS):
+        with archive.open(entry) as stream:
+            flash = is_flash_document(stream)
+        if flash:
+            with archive.open(entry) as stream:
+                document = read_flash_document(stream)
+            rows = _block_rows(
+                document, platform, SOURCE_PCC, source, entry, folder, entries, archive_path, cache,
+                (archive_path, entry), lambda: _open_entry(archive_path, entry))
+            for row in rows:
+                row.origin_kind = 'pcc'
+            return rows
+    elif _has_extension(entry, ('.xml',)):
+        try:
+            areas = read_sw_cnt_areas(archive.read(entry))
+        except ET.ParseError:
+            areas = None
+        if areas is not None:
+            return _area_rows(areas, platform, source, entry, folder, cache, archive_path)
+    return [Occurrence(
+        source_rank=SOURCE_PCC, origin_kind='pcc', origin=platform, source=source, block_index=0,
+        target='mcr/%s/%s' % (sanitize_name(package), sanitize_name(entry)),
+        read=_read_external(archive_path, entry), detail=entry, note='package entry, unchanged')]
+
+
+def pcc_occurrences(workspace_dir: str, platform: str, cache: DocumentCache) -> tuple[list[Occurrence], int]:
+    """Rows of every PCC package of the platform; unreadable packages and entries give an error row."""
+    occurrences: list[Occurrence] = []
+    errors = 0
+    for archive_path, parts in _pcc_paths(workspace_dir, platform):
+        package_source = '/'.join(parts)
+        package = _stem(parts[-1])
+        try:
+            archive = zipfile.ZipFile(archive_path)
+        except Exception as error:
+            errors += 1
+            _report(archive_path, error)
+            occurrences.append(_pcc_error(platform, package_source, parts[-1], error))
+            continue
+        with archive:
+            entries = {name for name in archive.namelist() if not name.endswith('/')}
+            for entry in sorted(entries):
+                source = package_source + '/' + entry
+                try:
+                    occurrences.extend(_entry_rows(
+                        archive, entry, platform, source, archive_path, package, entries, cache))
+                except Exception as error:
+                    errors += 1
+                    _report(archive_path + '/' + entry, error)
+                    occurrences.append(_pcc_error(platform, source, entry, error))
+    return occurrences, errors
+
+
+def _pcc_error(platform: str, source: str, detail: str, error: Exception) -> Occurrence:
+    row = _error_row(platform, source, SOURCE_PCC, detail, error)
+    row.origin_kind = 'pcc'
+    return row
+
+
+def workspace_occurrences(workspace_dir: str, platforms: list[str],
+                          progress: Callable[[str], None] | None = None) -> tuple[list[Occurrence], int]:
+    """PDX, loose ODX and PCC rows of the given platforms, in that order per platform, and the error count."""
+    cache = DocumentCache()
+    occurrences: list[Occurrence] = []
+    errors = 0
+    for platform in platforms:
+        if progress is not None:
+            progress(platform)
+        for collect in (pdx_occurrences, loose_odx_occurrences, pcc_occurrences):
+            rows, count = collect(workspace_dir, platform, cache)
+            occurrences.extend(rows)
+            errors += count
     return occurrences, errors
