@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import dumpAllProjects
 import dumpProject
@@ -120,6 +121,29 @@ class DumpProjectTest(unittest.TestCase):
         self.assertEqual({'A.sd.c': EXPECTED_A}, files)
         self.assertEqual('', stdout)
 
+    def test_unreadable_rt_index_gives_no_note(self):
+        unit = unit_body()
+        write_project(self.folder, {'A.sd': {'UNIT_ONE': unit_record()}}, unit.ascii_strings, unit.unicode_strings)
+        with open(os.path.join(self.folder, 'rt_index.xml'), 'w', encoding='utf-8') as handle:
+            handle.write('<INDEX/>')
+        with mock.patch.object(dumpProject.ET, 'parse', side_effect=PermissionError('denied')):
+            self.assertIsNone(dumpProject.pools_not_in_rt_index(self.folder))
+        # a directory in place of the file counts as missing
+        os.remove(os.path.join(self.folder, 'rt_index.xml'))
+        os.mkdir(os.path.join(self.folder, 'rt_index.xml'))
+        self.assertIsNone(dumpProject.pools_not_in_rt_index(self.folder))
+
+    def test_failing_pool_leaves_no_half_written_file(self):
+        unit = unit_body()
+        write_project(self.folder, {'A.sd': {'UNIT_ONE': unit_record()}}, unit.ascii_strings, unit.unicode_strings)
+        with open(os.path.join(self.folder, 'A.sd.db'), 'r+b') as handle:
+            handle.truncate(4)
+        storage = StringStorage(self.folder)
+        with tempfile.TemporaryDirectory() as output_folder:
+            with self.assertRaises(Exception), contextlib.redirect_stdout(io.StringIO()):
+                dumpProject.app_dumpProject(storage, self.folder, output_folder, False)
+            self.assertEqual([], os.listdir(output_folder))
+
 
 class DumpAllProjectsTest(unittest.TestCase):
     def run_script(self, truncate):
@@ -140,6 +164,21 @@ class DumpAllProjectsTest(unittest.TestCase):
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn('Elapsed: ', result.stdout)
         self.assertIn('Error', result.stdout)
+
+    def test_rerun_after_failure_still_fails(self):
+        with tempfile.TemporaryDirectory() as root:
+            projects = os.path.join(root, 'projects')
+            project = os.path.join(projects, 'P')
+            os.makedirs(project)
+            unit = unit_body()
+            write_project(project, {'A.sd': {'UNIT_ONE': unit_record()}}, unit.ascii_strings, unit.unicode_strings)
+            with open(os.path.join(project, 'A.sd.db'), 'r+b') as handle:
+                handle.truncate(4)
+            command = [sys.executable, '-B', 'dumpAllProjects.py', projects, os.path.join(root, 'out')]
+            for run in (1, 2):
+                result = subprocess.run(command, cwd=REPOSITORY_ROOT, capture_output=True, text=True)
+                self.assertEqual(1, result.returncode, 'run {}: {}'.format(run, result.stderr))
+            self.assertFalse(os.path.exists(os.path.join(root, 'out', 'P', 'A.sd.c')))
 
     def test_dump_all_projects_exits_zero_when_clean(self):
         result = self.run_script(truncate=False)

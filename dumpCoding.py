@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import time
 import traceback
 
@@ -9,7 +8,7 @@ from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
-from common_utils.layer_chain import get_inherited_diag_com_primitive_references
+from common_utils.layer_chain import get_inherited_diag_com_primitive_references, load_layer_data
 from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
 
 
@@ -284,6 +283,9 @@ def dump_codings_for_all_base_variants_in_all_projects(project_folder_path, outp
         
         # Dump the Coding for each ECU-VARIANT in each BASE-VARIANT with the other function
         dump_codings_for_all_base_variants_in_project(object_loader, project_path, project_output_folder_path, False, debug_info_indentation_level + 1)
+
+        # The layer data cache keeps the ObjectLoader of this project alive, so drop it
+        load_layer_data.cache_clear()
 
 
 def dumpCoding_basevariant(project_folder_path, base_variant_filename, output_folder_path):

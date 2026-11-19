@@ -54,6 +54,13 @@ class ChainTests(TempProjectCase):
                                    ('PR1.pr', '#RtGen_DB_LAYER_DATA'): layer(), ('X.pr', 'other'): {}})
         self.assertEqual([p for p, _ in get_parent_layer_chain(loader, self.tmp, 'BV.bv')], ['PR1.pr'])
 
+    def test_chain_raises_when_layer_data_of_the_layer_itself_is_missing(self):
+        loader = FakeObjectLoader({('BV.bv', 'other'): {}})
+        with self.assertRaises(KeyError):
+            get_parent_layer_chain(loader, self.tmp, 'BV.bv')
+        with self.assertRaises(FileNotFoundError):
+            get_parent_layer_chain(loader, self.tmp, 'GONE.bv')
+
     def test_layer_data_is_cached_per_loader_and_pool(self):
         loader = make_loader({'BV.bv': layer()})
         load_layer_data(loader, self.tmp, 'BV.bv')
@@ -88,6 +95,13 @@ class UdsTests(TempProjectCase):
                               'PR1.pr': layer(protocol_type=KWP_TYPE),
                               'PR2.pr': layer(protocol_type='ISO_OBD_on_ISO_15765_4')})
         self.assertFalse(is_uds_base_variant(loader, self.tmp, 'BV.bv'))
+
+    def test_missing_layer_data_of_base_variant_raises_instead_of_not_uds(self):
+        loader = FakeObjectLoader({('BV.bv', 'other'): {}, ('PR1.pr', '#RtGen_DB_LAYER_DATA'): layer()})
+        with self.assertRaises(KeyError):
+            is_uds_base_variant(loader, self.tmp, 'BV.bv')
+        with self.assertRaises(KeyError):
+            get_protocol_layer_data_list(loader, self.tmp, 'BV.bv')
 
     def test_base_variant_with_untyped_protocol_is_not_uds(self):
         loader = make_loader({'BV.bv': layer(parent_layers=['PR1.pr']), 'PR1.pr': layer(protocol_type=None)})
@@ -166,6 +180,17 @@ class InheritanceTests(TempProjectCase):
             'FG.fg': layer(diag_com_primitive_references=[service('D', 'FG'), service('E', 'FG')])})
         ev = layer(parent_layers=['BV.bv'])
         self.assertEqual(self.keys(get_inherited_diag_com_primitive_references(loader, self.tmp, ev)), ['E'])
+
+    def test_branch_order_own_then_each_parent_with_its_inherited_set(self):
+        # EV -> [P1, P2], P1 -> [G]; G and P2 both define X: P1's effective set (with G) precedes P2
+        loader = make_loader({
+            'P1.pr': layer(parent_layers=['G.pr']),
+            'G.pr': layer(diag_com_primitive_references=[service('X', 'G')]),
+            'P2.pr': layer(diag_com_primitive_references=[service('X', 'P2'), service('Y', 'P2')])})
+        ev = layer(parent_layers=['P1.pr', 'P2.pr'])
+        result = get_inherited_diag_com_primitive_references(loader, self.tmp, ev)
+        self.assertEqual({e['map_key']: e['reference']['pool_id'] for e in result}, {'X': 'G', 'Y': 'P2'})
+        self.assertEqual(self.keys(result), ['X', 'Y'])
 
     def test_inheritance_survives_cycles_and_missing_parents(self):
         loader = make_loader({

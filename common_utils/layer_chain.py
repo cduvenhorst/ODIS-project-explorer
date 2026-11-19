@@ -34,14 +34,14 @@ def _load_parent_layer_data(object_loader, project_folder_path, pool_id):
 
 
 # Get all parent layers of a layer, nearest first (breadth first), without the layer itself and each pool once
-### returns a list of (PoolID, layer data); parents that cannot be loaded are skipped
+### returns a list of (PoolID, layer data); parents that cannot be loaded are skipped,
+### but the layer data of the layer itself must exist (the loader's error is raised otherwise)
 def get_parent_layer_chain(object_loader, project_folder_path, pool_id):
     chain = []
     seen = {pool_id}
-    queue = [pool_id]
+    queue = [(pool_id, load_layer_data(object_loader, project_folder_path, pool_id))]
     while queue:
-        current_pool_id = queue.pop(0)
-        current = _load_parent_layer_data(object_loader, project_folder_path, current_pool_id)
+        _, current = queue.pop(0)
         if current is None:
             continue
         for parent_pool_id in current['parent_layers']:
@@ -52,7 +52,7 @@ def get_parent_layer_chain(object_loader, project_folder_path, pool_id):
             if parent is None:
                 continue
             chain.append((parent_pool_id, parent))
-            queue.append(parent_pool_id)
+            queue.append((parent_pool_id, parent))
     return chain
 
 
@@ -97,7 +97,9 @@ def get_protocol_layer_data_list(object_loader, project_folder_path, base_varian
     return head + rest
 
 
-# Collect what a layer offers: its own entries first, then what its parent layers offer
+# Collect what a layer offers: its own entries first, then what each parent layer offers in turn, in the order of
+# parent_layers; what a parent offers already includes what it inherits itself. A name that is already present is
+# skipped, so with several parents the first parent in that order supplies a name that more than one of them offers.
 ### own_field / blocked_field = names of the layer data fields with the own entries and the NOT-INHERITED map
 ### key = function that gives the name of an entry
 def _collect_inherited(object_loader, project_folder_path, layer_data, own_field, blocked_field, key, path):
@@ -122,7 +124,7 @@ def _collect_inherited(object_loader, project_folder_path, layer_data, own_field
     return unique
 
 
-# Get the diag-com primitive references of a layer including the inherited ones, nearest definition first
+# Get the diag-com primitive references of a layer including the inherited ones; for the order see _collect_inherited
 ### layer_data = layer data object of the layer (its own PoolID is not needed)
 ### returns entries shaped like layer_data['diag_com_primitive_references']
 def get_inherited_diag_com_primitive_references(object_loader, project_folder_path, layer_data):

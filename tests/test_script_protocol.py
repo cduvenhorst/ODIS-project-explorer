@@ -11,6 +11,7 @@ import dumpDTC
 import dumpECUVariantPatterns
 import dumpFreezeFrames
 import dumpMWB
+import parseMWB
 from common_utils.layer_chain import load_layer_data
 from tests.script_support import FakeObjectLoader, layer
 
@@ -108,6 +109,10 @@ class BaseVariantProtocolTest(unittest.TestCase):
                                            self.tmp, 'BV.bv.db', self.out, False, 2)
                 self.assertEqual(output, '    Not UDS\n')
                 self.assertFalse(os.path.exists(self.out))
+
+    def test_parse_mwb_rejects_non_uds_base_variant(self):
+        with self.assertRaisesRegex(RuntimeError, 'is not UDS'):
+            parseMWB.app_parseMWB(self.loader(KWP_TYPE), None, self.tmp, 'BV.bv.db', 'EV', 0xF40D, '00')
 
     def test_dump_codings_for_uds_base_variant_without_coding_service(self):
         # BV -> PR(ISO_15765_3_...), BV has no coding service -> 'Has no Coding', no 'Not UDS'

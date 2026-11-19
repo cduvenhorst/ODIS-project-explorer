@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import time
 import traceback
 
@@ -8,7 +7,7 @@ from common_utils import enum_converters, object_printer
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
-from common_utils.layer_chain import is_uds_base_variant, get_protocol_layer_data_list, get_inherited_dtc_dop_names
+from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_dtc_dop_names, load_layer_data
 from classes.LongNameTranslation import LongNameTranslation
 
 from dumpMWB import get_ecu_variant_map, get_ecu_variant_layer_data
@@ -30,8 +29,9 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
     if enum_converters.get_db_file_type(pool_id) != 'Base Variant':
         raise RuntimeError('A BASE-VARIANT database must be provided (.bv.db)')
     
-    # Only UDS base variants are dumped
-    if not is_uds_base_variant(object_loader, project_folder_path, pool_id):
+    # Only UDS base variants are dumped; the protocol layers are searched too when resolving the DOP references
+    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id)
+    if protocol_layer_data_list is None:
         object_printer.print_indented(debug_info_indentation_level, 'Not UDS')
         return
     
@@ -51,9 +51,6 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
     
     # Load the layer data for the BASE-VARIANT, which is contained in the current file
     base_variant_layer_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_LAYER_DATA')
-    
-    # The protocol layers are searched too when resolving the DOP references
-    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id) or []
     
     # Add the BASE-VARIANT at the front of the map to also get its MWBs
     if ecu_variant_map is not None:
@@ -186,6 +183,9 @@ def dump_dtcs_for_all_base_variants_in_all_projects(long_name_translation, proje
         
         # Dump the project's DTCs with the other function
         dump_dtcs_for_all_base_variants_in_project(object_loader, long_name_translation, project_path, project_output_folder_path, False, debug_info_indentation_level + 1)
+
+        # The layer data cache keeps the ObjectLoader of this project alive, so drop it
+        load_layer_data.cache_clear()
 
 
 def dumpDTC_basevariant(project_folder_path, base_variant_filename, output_folder_path, translation_database_folder_path, translation_language):

@@ -21,14 +21,14 @@ pbl_record_manager = PblRecordManager(pbl_dll_path)
 
 # Find the Pools of a Project which are not listed in its rt_index.xml
 ### project_folder_path = Project path (folder with .db and .key files)
-### returns the PoolIDs whose .db file is not listed, or None if rt_index.xml is missing or cannot be parsed
+### returns the PoolIDs whose .db file is not listed, or None if rt_index.xml is missing or cannot be read or parsed
 def pools_not_in_rt_index(project_folder_path: str) -> set[str] | None:
     rt_index_path = os.path.join(project_folder_path, 'rt_index.xml')
     if not os.path.isfile(rt_index_path):
         return None
     try:
         root = ET.parse(rt_index_path).getroot()
-    except ET.ParseError:
+    except (ET.ParseError, OSError):
         return None
     
     # The FILE elements may be nested at any depth and use backslashes in their paths
@@ -73,59 +73,66 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
         
         # Only unpack the Pool if the file doesn't already exist (or if overwriting is allowed)
         if overwrite or not os.path.isfile(output_pool_path):
-            # Open the output file
-            with open(output_pool_path, 'w', encoding='utf-8') as output_pool_file:
-                # Determine the Pool's type and write it to the file
-                db_file_type = enum_converters.get_db_file_type(PoolID)
-                object_printer.print_indented(0, db_file_type, output_pool_file)
+            # A pool that fails to dump must not leave a half-written file behind, or a rerun without
+            # overwriting would skip it
+            output_pool_file = open(output_pool_path, 'w', encoding='utf-8')
+            try:
+                with output_pool_file:
+                    # Determine the Pool's type and write it to the file
+                    db_file_type = enum_converters.get_db_file_type(PoolID)
+                    object_printer.print_indented(0, db_file_type, output_pool_file)
                 
-                # Note Pools which the Project's rt_index.xml does not list
-                if PoolID in unlisted_pools:
-                    print('Pool {} is not listed in rt_index.xml'.format(PoolID))
-                    object_printer.print_indented(0, 'Not listed in rt_index.xml', output_pool_file)
+                    # Note Pools which the Project's rt_index.xml does not list
+                    if PoolID in unlisted_pools:
+                        print('Pool {} is not listed in rt_index.xml'.format(PoolID))
+                        object_printer.print_indented(0, 'Not listed in rt_index.xml', output_pool_file)
                 
-                # Load all records from the .key file
-                # They contain information on how to extract all Objects from the .db file
-                pbl_records = pbl_record_manager.get_all_records(project_folder_path, PoolID)
+                    # Load all records from the .key file
+                    # They contain information on how to extract all Objects from the .db file
+                    pbl_records = pbl_record_manager.get_all_records(project_folder_path, PoolID)
                 
-                # Open the .db file once for all Objects
-                db_file_path = os.path.join(project_folder_path, PoolID + '.db')
-                with open(db_file_path, 'rb') as db_file:
-                    # Go though each record, to unpack each Object
-                    for ObjectID_hash in pbl_records:
-                        # Extract the current Object's parts from the .db file
-                        # A record has several parts for big data Objects (e.g. DB_INLINE_FLASH_DATA)
-                        object_parts = ObjectLoader.get_object_parts_from_opened_db_file(pbl_records[ObjectID_hash], db_file)
+                    # Open the .db file once for all Objects
+                    db_file_path = os.path.join(project_folder_path, PoolID + '.db')
+                    with open(db_file_path, 'rb') as db_file:
+                        # Go though each record, to unpack each Object
+                        for ObjectID_hash in pbl_records:
+                            # Extract the current Object's parts from the .db file
+                            # A record has several parts for big data Objects (e.g. DB_INLINE_FLASH_DATA)
+                            object_parts = ObjectLoader.get_object_parts_from_opened_db_file(pbl_records[ObjectID_hash], db_file)
                         
-                        # kernel: stores each Object under the hash of its name (4-byte key, int here) and under the name
-                        # itself (any other length, str here), see ObjectLoader.__find_pbl_data
-                        # Convert a hash to the corresponding string (using the strings database), this is the Object's name
-                        # If the strings database has no string for the hash, the Object is dumped under the hash
-                        if isinstance(ObjectID_hash, str):
-                            ObjectID = ObjectID_hash
-                        else:
-                            ObjectID = string_storage.get_ascii_string(ObjectID_hash)
-                            if ObjectID is None:
-                                ObjectID = 'hash {}'.format(ObjectID_hash)
+                            # kernel: stores each Object under the hash of its name (4-byte key, int here) and under the name
+                            # itself (any other length, str here), see ObjectLoader.__find_pbl_data
+                            # Convert a hash to the corresponding string (using the strings database), this is the Object's name
+                            # If the strings database has no string for the hash, the Object is dumped under the hash
+                            if isinstance(ObjectID_hash, str):
+                                ObjectID = ObjectID_hash
+                            else:
+                                ObjectID = string_storage.get_ascii_string(ObjectID_hash)
+                                if ObjectID is None:
+                                    ObjectID = 'hash {}'.format(ObjectID_hash)
                         
-                        # The first 2 bytes of an Object's data are an enum which represents the Object's type
-                        object_type_enum = struct.unpack('<H', object_parts[0][:2])[0]
-                        object_type = enum_converters.get_object_type_enum(object_type_enum)
+                            # The first 2 bytes of an Object's data are an enum which represents the Object's type
+                            object_type_enum = struct.unpack('<H', object_parts[0][:2])[0]
+                            object_type = enum_converters.get_object_type_enum(object_type_enum)
                         
-                        # Only attempt to parse known object types
-                        if object_type in supported_object_types:
-                            # Load the Object
-                            # This will either return dictionary (most common), or a list (for Objects with "plural" types)
-                            obj = object_loader.load_object_by_parts(object_parts)
+                            # Only attempt to parse known object types
+                            if object_type in supported_object_types:
+                                # Load the Object
+                                # This will either return dictionary (most common), or a list (for Objects with "plural" types)
+                                obj = object_loader.load_object_by_parts(object_parts)
                             
-                            # Dump the Object to the output file
-                            object_printer.print_indented(0, '', output_pool_file)
-                            object_printer.print_object(obj, '\'{}\''.format(ObjectID), 0, output_pool_file)
+                                # Dump the Object to the output file
+                                object_printer.print_indented(0, '', output_pool_file)
+                                object_printer.print_object(obj, '\'{}\''.format(ObjectID), 0, output_pool_file)
                         
-                        # Warn about unknown object types
-                        else:
-                            print('Unknown object_type: {}'.format(object_type))
+                            # Warn about unknown object types
+                            else:
+                                print('Unknown object_type: {}'.format(object_type))
 
+            except BaseException:
+                output_pool_file.close()
+                os.remove(output_pool_path)
+                raise
 
 # Handle usage as script
 if __name__ == '__main__':

@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import time
 import traceback
 import json
@@ -20,7 +19,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 # The protocol layers of a base variant come from the protocol type in its parent layer chain; the fixed VW pool
 # PR_UDSOnCAN still counts as UDS. The other scripts import the function from here.
-from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_diag_com_primitive_references
+from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_diag_com_primitive_references, load_layer_data
 
 
 # PBL is needed for parsing .key files, which will be done by the PblRecordManager class
@@ -1754,6 +1753,9 @@ def dump_mwbs_for_all_base_variants_in_all_projects(project_folder_path, output_
         
         # Dump the MWBs for each ECU-VARIANT in each BASE-VARIANT with the other function
         dump_mwbs_for_all_base_variants_in_project(object_loader, project_path, project_output_folder_path, False, debug_info_indentation_level + 1)
+
+        # The layer data cache keeps the ObjectLoader of this project alive, so drop it
+        load_layer_data.cache_clear()
 
 
 def dumpMWB_basevariant(project_folder_path, base_variant_filename, output_folder_path):
