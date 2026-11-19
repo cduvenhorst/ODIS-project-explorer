@@ -8,8 +8,9 @@ from common_utils import enum_converters, object_printer
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
+from common_utils.layer_chain import is_uds_base_variant
 
-from dumpMWB import get_ecu_variant_map, get_protocol_layer_data_list
+from dumpMWB import get_ecu_variant_map
 
 
 # PBL is needed for parsing .key files, which will be done by the PblRecordManager class
@@ -27,6 +28,11 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
     # Only parse a .bv.db file
     if enum_converters.get_db_file_type(pool_id) != 'Base Variant':
         raise RuntimeError('A BASE-VARIANT database must be provided (.bv.db)')
+    
+    # Only UDS base variants are dumped
+    if not is_uds_base_variant(object_loader, project_folder_path, pool_id):
+        object_printer.print_indented(debug_info_indentation_level, 'Not UDS')
+        return
     
     # Load the Object with ID '#RtGen_DB_PROJECT_DATA', which contains info about the ECU-VARIANTs included in the BASE-VARIANT
     db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
@@ -175,13 +181,6 @@ def dump_patterns_for_all_base_variants_in_all_projects(project_folder_path, out
         # An instance of the ObjectLoader class is used for loading Objects and References from the BASE-VARIANT Pool
         object_loader = ObjectLoader(pbl_record_manager, string_storage)
         
-        # The project must contain the UDS protocol definition
-        try:
-            get_protocol_layer_data_list(object_loader, project_path)
-        except FileNotFoundError:
-            object_printer.print_indented(debug_info_indentation_level + 1, 'Not UDS project')
-            continue
-        
         # Create the project output folder if it doesn't exist
         project_output_folder_path = os.path.join(output_folder_path, project_name)
         if not os.path.isdir(project_output_folder_path):
@@ -243,13 +242,6 @@ def dumpECUVariantPatterns_project(project_folder_path, output_folder_path):
     
     # Get the starting timestamp
     start_time = time.time()
-    
-    # The project must contain the UDS protocol definition
-    try:
-        get_protocol_layer_data_list(object_loader, project_folder_path)
-    except FileNotFoundError:
-        print('    Not UDS project')
-        sys.exit()
     
     # Run the app
     # Catch any exceptions, so the elapsed time can be displayed even if an unpacking error occurs

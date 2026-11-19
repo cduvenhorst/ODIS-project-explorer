@@ -101,7 +101,7 @@ def get_coding_structure(object_loader, project_folder_path, coding_table_row_pa
     return coding_table_row_parameter['dop']
 
 
-def dump_codings_for_base_variant(object_loader, protocol_layer_data_list, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
+def dump_codings_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
     # The PoolID simply refers to the file's name (without extension)
     pool_id = base_variant_filename
     if base_variant_filename.endswith('.db'):
@@ -110,6 +110,12 @@ def dump_codings_for_base_variant(object_loader, protocol_layer_data_list, proje
     # Only parse a .bv.db file
     if enum_converters.get_db_file_type(pool_id) != 'Base Variant':
         raise RuntimeError('A BASE-VARIANT database must be provided (.bv.db)')
+    
+    # Only UDS base variants are dumped; the protocol layers follow from the parent layers of the base variant
+    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id)
+    if protocol_layer_data_list is None:
+        object_printer.print_indented(debug_info_indentation_level, 'Not UDS')
+        return
     
     # Load the Object with ID '#RtGen_DB_PROJECT_DATA', which contains info about the ECU-VARIANTs included in the BASE-VARIANT
     db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
@@ -211,7 +217,7 @@ def dump_codings_for_base_variant(object_loader, protocol_layer_data_list, proje
                     object_printer.print_indented(0, '', ecu_variant_output_file)
 
 
-def dump_codings_for_all_base_variants_in_project(object_loader, protocol_layer_data, project_folder_path, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
+def dump_codings_for_all_base_variants_in_project(object_loader, project_folder_path, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
     # Go through each file (Pool) in the project folder
     for current_filename in os.listdir(project_folder_path):
         # The PoolID simply refers to the file's name (without extension)
@@ -230,7 +236,7 @@ def dump_codings_for_all_base_variants_in_project(object_loader, protocol_layer_
         object_printer.print_indented(debug_info_indentation_level, 'Dumping {}'.format(PoolID))
         
         # Dump the Coding with the other function
-        dump_codings_for_base_variant(object_loader, protocol_layer_data, project_folder_path, PoolID, output_folder_path, overwrite, debug_info_indentation_level + 1)
+        dump_codings_for_base_variant(object_loader, project_folder_path, PoolID, output_folder_path, overwrite, debug_info_indentation_level + 1)
 
 
 def dump_codings_for_all_base_variants_in_all_projects(project_folder_path, output_folder_path, debug_info_indentation_level = 0):
@@ -261,25 +267,13 @@ def dump_codings_for_all_base_variants_in_all_projects(project_folder_path, outp
         # The first parameter (instance of the PblRecordManager class) is needed here since PBL records will be handled "internally"
         object_loader = ObjectLoader(pbl_record_manager, string_storage)
         
-        # Some references will only specify the ObjectID (object name) and not the PoolID (file name)
-        # To resolve them, there are 3 maps that link an ObjectID with a PoolID: one for the ECU-VARIANT, one for the BASE-VARIANT, and one for the protocol
-        # Here, the layer data for the protocol must be loaded, since it's common for all BASE-VARIANTs in a project
-        # The rest will be loaded by the other module
-        
-        # The project must contain the UDS protocol definition
-        try:
-            protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_path)
-        except FileNotFoundError:
-            object_printer.print_indented(debug_info_indentation_level + 1, 'Not UDS project')
-            continue
-        
         # Create the project output folder if it doesn't exist
         project_output_folder_path = os.path.join(output_folder_path, project_name)
         if not os.path.isdir(project_output_folder_path):
             os.makedirs(project_output_folder_path)
         
         # Dump the Coding for each ECU-VARIANT in each BASE-VARIANT with the other function
-        dump_codings_for_all_base_variants_in_project(object_loader, protocol_layer_data_list, project_path, project_output_folder_path, False, debug_info_indentation_level + 1)
+        dump_codings_for_all_base_variants_in_project(object_loader, project_path, project_output_folder_path, False, debug_info_indentation_level + 1)
 
 
 def dumpCoding_basevariant(project_folder_path, base_variant_filename, output_folder_path):
@@ -310,11 +304,8 @@ def dumpCoding_basevariant(project_folder_path, base_variant_filename, output_fo
     # The ObjectID will be searched in them, in that order
     # The maps are contained in the "layer data" object of each database
     
-    # Since the protocol is common for all BASE-VARIANTS, it's better to load it only once for the whole project
-    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path)
-    
     # Run the app
-    dump_codings_for_base_variant(object_loader, protocol_layer_data_list, project_folder_path, base_variant_filename, project_output_folder_path, True)
+    dump_codings_for_base_variant(object_loader, project_folder_path, base_variant_filename, project_output_folder_path, True)
 
 
 def dumpCoding_project(project_folder_path, output_folder_path):
@@ -343,17 +334,10 @@ def dumpCoding_project(project_folder_path, output_folder_path):
     # Get the starting timestamp
     start_time = time.time()
     
-    # The project must contain the UDS protocol definition
-    try:
-        protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path)
-    except FileNotFoundError:
-        print('    Not UDS project')
-        sys.exit()
-    
     # Run the app
     # Catch any exceptions, so the elapsed time can be displayed even if an unpacking error occurs
     try:
-        dump_codings_for_all_base_variants_in_project(object_loader, protocol_layer_data_list, project_folder_path, project_output_folder_path)
+        dump_codings_for_all_base_variants_in_project(object_loader, project_folder_path, project_output_folder_path)
     except:
         print('Error:\n{}'.format(traceback.format_exc()))
     

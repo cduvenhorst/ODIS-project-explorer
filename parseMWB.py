@@ -1436,7 +1436,9 @@ def app_parseMWB(object_loader, long_name_translation, project_folder_path, base
     # To resolve them, there are 3(+) maps that link an ObjectID with a PoolID: one for the ECU-VARIANT, one for the BASE-VARIANT, and one (or more) for the protocol
     # The ObjectID will be searched in them, in that order
     # The maps are contained in the "layer data" object of each database
-    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path)
+    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id)
+    if protocol_layer_data_list is None:
+        raise RuntimeError('BASE-VARIANT {} is not UDS'.format(pool_id))
     
     # Load the Object with ID '#RtGen_DB_PROJECT_DATA', which contains info about the ECU-VARIANTs included in the BASE-VARIANT
     db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
