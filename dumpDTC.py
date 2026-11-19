@@ -8,7 +8,7 @@ from common_utils import enum_converters, object_printer
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
-from common_utils.layer_chain import is_uds_base_variant
+from common_utils.layer_chain import is_uds_base_variant, get_protocol_layer_data_list, get_inherited_dtc_dop_names
 from classes.LongNameTranslation import LongNameTranslation
 
 from dumpMWB import get_ecu_variant_map, get_ecu_variant_layer_data
@@ -52,6 +52,9 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
     # Load the layer data for the BASE-VARIANT, which is contained in the current file
     base_variant_layer_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_LAYER_DATA')
     
+    # The protocol layers are searched too when resolving the DOP references
+    protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id) or []
+    
     # Add the BASE-VARIANT at the front of the map to also get its MWBs
     if ecu_variant_map is not None:
         original_ecu_variant_map = ecu_variant_map
@@ -74,8 +77,8 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
         else:
             ecu_variant_layer_data = get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_map[ecu_variant_name])
         
-        # Get all DTC DOP names
-        dtc_dops = ecu_variant_layer_data['dtc_dop_names']
+        # Get all DTC DOP names, including the ones inherited from the parent layers
+        dtc_dops = get_inherited_dtc_dop_names(object_loader, project_folder_path, ecu_variant_layer_data)
         
         # If there are none, there is nothing left to do
         if len(dtc_dops) == 0:
@@ -98,7 +101,7 @@ def dump_dtcs_for_base_variant(object_loader, long_name_translation, project_fol
             else:
                 # Load the DOP, which is given without PoolID, so will be searched in a reference map
                 dummy_reference = {'object_id': dtc_dop, 'pool_id': None}
-                dtc_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, [ecu_variant_layer_data], dummy_reference)
+                dtc_dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, [ecu_variant_layer_data, base_variant_layer_data] + protocol_layer_data_list, dummy_reference)
                 
                 # Add each DTC definition to a list
                 dtcs_output_object = []

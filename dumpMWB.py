@@ -20,7 +20,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 # The protocol layers of a base variant come from the protocol type in its parent layer chain; the fixed VW pool
 # PR_UDSOnCAN still counts as UDS. The other scripts import the function from here.
-from common_utils.layer_chain import get_protocol_layer_data_list
+from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_diag_com_primitive_references
 
 
 # PBL is needed for parsing .key files, which will be done by the PblRecordManager class
@@ -1456,8 +1456,9 @@ def get_ecu_variant_layer_data(object_loader, project_folder_path, ecu_variant_r
 # Get the table (and its keys) necessary for MWBs
 def get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
     # Search for the DIAG-COMM reference with name 'DiagnServi_ReadDataByIdentMeasuValue' (might not exist)
+    # The services inherited from the parent layers are included
     diag_com_ref_RDBI = None
-    for diag_com_ref in ecu_variant_layer_data['diag_com_primitive_references']:
+    for diag_com_ref in get_inherited_diag_com_primitive_references(object_loader, project_folder_path, ecu_variant_layer_data):
         if diag_com_ref['map_key'] == 'DiagnServi_ReadDataByIdentMeasuValue':
             diag_com_ref_RDBI = diag_com_ref
             break

@@ -9,6 +9,7 @@ from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
+from common_utils.layer_chain import get_inherited_diag_com_primitive_references
 from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
 
 
@@ -21,8 +22,9 @@ pbl_record_manager = PblRecordManager(pbl_dll_path)
 # Get the table (and its keys) necessary for Adaptations
 def get_adaptation_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
     # Search for the DIAG-COMM reference with name 'DiagnServi_WriteDataByIdentCalibData' (might not exist)
+    # The services inherited from the parent layers are included
     diag_com_ref_WDBI = None
-    for diag_com_ref in ecu_variant_layer_data['diag_com_primitive_references']:
+    for diag_com_ref in get_inherited_diag_com_primitive_references(object_loader, project_folder_path, ecu_variant_layer_data):
         if diag_com_ref['map_key'] == 'DiagnServi_WriteDataByIdentCalibData':
             diag_com_ref_WDBI = diag_com_ref
             break

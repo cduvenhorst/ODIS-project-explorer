@@ -9,6 +9,7 @@ from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
+from common_utils.layer_chain import get_inherited_diag_com_primitive_references
 from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
 
 
@@ -18,13 +19,22 @@ pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
 
 
+# Names of the Coding service, in order of preference: the VW name and the Porsche name
+CODING_SERVICE_NAMES = ('DiagnServi_WriteDataByIdentVariaCodinTextu', 'CodingValue_Write')
+
+
 # Get the table (and its keys) necessary for Coding
 def get_coding_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
-    # Search for the DIAG-COMM reference with name 'DiagnServi_WriteDataByIdentVariaCodinTextu' (might not exist)
+    # Search for the DIAG-COMM reference with one of the Coding service names (might not exist)
+    # The services inherited from the parent layers are included, and the order of the names decides
+    diag_com_refs = get_inherited_diag_com_primitive_references(object_loader, project_folder_path, ecu_variant_layer_data)
     diag_com_ref_WDBI = None
-    for diag_com_ref in ecu_variant_layer_data['diag_com_primitive_references']:
-        if diag_com_ref['map_key'] == 'DiagnServi_WriteDataByIdentVariaCodinTextu':
-            diag_com_ref_WDBI = diag_com_ref
+    for service_name in CODING_SERVICE_NAMES:
+        for diag_com_ref in diag_com_refs:
+            if diag_com_ref['map_key'] == service_name:
+                diag_com_ref_WDBI = diag_com_ref
+                break
+        if diag_com_ref_WDBI is not None:
             break
     
     # Return None for ECU-VARIANTs which do not have the Coding service defined
