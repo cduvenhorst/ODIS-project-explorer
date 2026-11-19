@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import traceback
 import time
 
@@ -10,7 +11,10 @@ from dumpProject import app_dumpProject
 # Unpack and dump the contents of all MCD Projects to a folder for each
 ### project_folder_path = Projects path (folder with folders with .db and .key files)
 ### output_folder_path  = path of folder where to create Project folder and write Pool files (dumps of .db files)
-def app_dumpAllProjects(project_folder_path, output_folder_path):
+### returns False if an error occurred while dumping a Project, otherwise True
+def app_dumpAllProjects(project_folder_path, output_folder_path) -> bool:
+    success = True
+    
     # Go through each Project in the folder
     for project_name in os.listdir(project_folder_path):
         project_path = os.path.join(project_folder_path, project_name)
@@ -40,7 +44,14 @@ def app_dumpAllProjects(project_folder_path, output_folder_path):
         print('Unpacking {}'.format(project_name))
         
         # Dump the Project with the other module
-        app_dumpProject(string_storage, project_path, project_output_folder_path, False)
+        # A failing Project does not stop the others, but the run is reported as failed
+        try:
+            app_dumpProject(string_storage, project_path, project_output_folder_path, False)
+        except Exception:
+            print('Error:\n{}'.format(traceback.format_exc()))
+            success = False
+    
+    return success
 
 
 # Handle usage as script
@@ -64,9 +75,10 @@ if __name__ == '__main__':
     # Run the app
     # Catch any exceptions, so the elapsed time can be displayed even if an unpacking error occurs
     try:
-        app_dumpAllProjects(args.projects_folder_path, args.output_folder_path)
+        success = app_dumpAllProjects(args.projects_folder_path, args.output_folder_path)
     except:
         print('Error:\n{}'.format(traceback.format_exc()))
+        success = False
     
     # Get the elapsed time and split it into hours, minutes, seconds
     elapsed_seconds = time.time() - start_time
@@ -75,3 +87,7 @@ if __name__ == '__main__':
     
     # Display the time taken by the script to run
     print('\nElapsed: {:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds)))
+    
+    # Report failure to the caller
+    if not success:
+        sys.exit(1)
