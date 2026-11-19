@@ -183,6 +183,22 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     dummy_dop['#OBJECT_TYPE'] = 'DB_DOP_SIMPLE_BASE'
                     output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, dummy_dop)
                 
+                # NRC-CONST parameter: MCD-2D V2.2, NRC-CONST (list of the codes expected in a negative response)
+                case 'eNRC_CONST':
+                    output_object['parameter_type'] = 'NRC-CONST'
+                    
+                    # Store the expected codes (without the 'e' enum prefix of their data types)
+                    output_object['constants'] = [{'data_type': value['data_type'][1:], 'value': value['value']} for value in dop['nrc_constant_values'] or []]
+                    
+                    # A parameter of type NRC-CONST shouldn't reference any DOP
+                    if dop['dop_base_reference'] is not None:
+                        raise RuntimeError('NRC-CONST references DOP')
+                    
+                    # Instead, the DIAG-CODED-TYPE is included in the NRC-CONST PARAM's definition, as for CODED-CONST
+                    dummy_dop = dop
+                    dummy_dop['#OBJECT_TYPE'] = 'DB_DOP_SIMPLE_BASE'
+                    output_object['dop'] = parse_dop(object_loader, layer_data_objects, project_folder_path, dummy_dop)
+                
                 # PHYS-CONST parameter: MCD-2D V2.2 - page 79, paragraph 2
                 case 'ePHYS_CONST':
                     # PHYS-CONST is an alternative for CODED-CONST with the difference that the value is given in the physical representation
@@ -251,7 +267,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             # Some sanity checks...
             if diag_coded_type['is_condensed_bit_mask']:
                 raise RuntimeError('Parameter is CONDENSED')
-            if not diag_coded_type['base_data_type_as_mcd_data_type'].startswith('eA_'):
+            # upstream: a missing BASE-DATA-TYPE (None) raised AttributeError on startswith() instead of this RuntimeError
+            if diag_coded_type['base_data_type_as_mcd_data_type'] is None or not diag_coded_type['base_data_type_as_mcd_data_type'].startswith('eA_'):
                 raise RuntimeError('Strange BASE-DATA-TYPE: {}'.format(diag_coded_type['base_data_type_as_mcd_data_type']))
             
             # The coded value type inside the message is described by the member BASE-DATA-TYPE of the DIAG-CODED-TYPE
@@ -406,7 +423,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 physical_type = dop['physical_type']
                 
                 # Some sanity checks...
-                if not physical_type['base_data_type_as_mcd_data_type'].startswith('eA_'):
+                # upstream: a missing BASE-DATA-TYPE (None) raised AttributeError on startswith() instead of this RuntimeError
+                if physical_type['base_data_type_as_mcd_data_type'] is None or not physical_type['base_data_type_as_mcd_data_type'].startswith('eA_'):
                     raise RuntimeError('Strange PHYSICAL-TYPE BASE-DATA-TYPE: {}'.format(physical_type['base_data_type_as_mcd_data_type']))
                 
                 # The member BASE-DATA-TYPE of PHYSICAL-TYPE gives the type and encoding of the physical value
@@ -474,7 +492,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                         raise RuntimeError('IC should not be computed')
                     
                     # The LIMITs' data types should match the coded data type
-                    if internal_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type'] or internal_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                    # upstream: both halves of this check tested LOWER-LIMIT; the second half now tests UPPER-LIMIT
+                    if internal_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type'] or internal_constraint['interval']['upper_limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
                         raise RuntimeError('IC limit data types do not match coded type: {}, {} vs {}'.format(internal_constraint['interval']['lower_limit']['data_type'], internal_constraint['interval']['upper_limit']['data_type'], output_object['coded_base_data_type']))
                     
                     # Get the LIMITs
@@ -497,7 +516,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     output_object['internal_constraint']['scale_constraints'] = []
                     for scale_constraint in internal_constraint['scale_constraints']:
                         # The LIMITs' data types should match the coded data type
-                        if scale_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type'] or scale_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
+                        # upstream: both halves of this check tested LOWER-LIMIT; the second half now tests UPPER-LIMIT
+                        if scale_constraint['interval']['lower_limit']['data_type'] != 'e'+output_object['coded_base_data_type'] or scale_constraint['interval']['upper_limit']['data_type'] != 'e'+output_object['coded_base_data_type']:
                             raise RuntimeError('IC SCALE-CONSTR limit data types do not match coded type: {}, {} vs {}'.format(scale_constraint['interval']['lower_limit']['data_type'], scale_constraint['interval']['upper_limit']['data_type'], output_object['coded_base_data_type']))
                         
                         # Get the LIMITs
@@ -622,7 +642,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 # For all COMPU-METHODs, except those of categories IDENTICAL, TEXTTABLE and COMPUCODE, the calculation type (float or integer) is deduced from the type of the internal and physical values
                 # It has a decisive influence on the precision of the calculation
                 output_object['calculation_type'] = None
-                if compu_category not in ['eIDENTICAL', 'eTEXTTABLE']:
+                # upstream: the category was misspelled 'eTEXTTABLE' (the enum value is 'eTEXTTAB'), so TEXTTABLEs got a calculation type
+                if compu_category not in ['eIDENTICAL', 'eTEXTTAB']:
                     # In any other case, the calculation is of type A_INT32
                     output_object['calculation_type'] = 'A_INT32'
                     
@@ -1260,7 +1281,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
             physical_type = dop['physical_type']
             compu_method = dop['compu_method']
             if diag_coded_type['coded_type'] != 'eSTANDARD_LENGTH_TYPE':
-                raise RuntimeError('DTC DIAG-CODED-TYPE must be STANDARD-LENGTH-TYPE, not {}').format(diag_coded_type['coded_type'])
+                # upstream: .format() was called on the exception instead of the message, raising AttributeError
+                raise RuntimeError('DTC DIAG-CODED-TYPE must be STANDARD-LENGTH-TYPE, not {}'.format(diag_coded_type['coded_type']))
             if diag_coded_type['bit_length'] != 24:
                 raise RuntimeError('DTC BIT-LENGTH must be 24, not {}'.format(diag_coded_type['bit_length']))
             if diag_coded_type['bit_mask'] != bytearray():
@@ -1310,7 +1332,8 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                 
                 # The referenced DTC's trouble code must match the map key
                 if dtc['trouble_code'] != map_item['map_key']:
-                    raise 'Trouble code {:X} does not match map key {:X}'.format(dtc['trouble_code'], map_item['map_key'])
+                    # upstream: a plain string was raised, which fails with TypeError
+                    raise RuntimeError('Trouble code {:X} does not match map key {:X}'.format(dtc['trouble_code'], map_item['map_key']))
                 
                 dtc_output_object['label'] = dtc['unique_object_id']
                 dtc_output_object['short_name'] = dtc['short_name']
