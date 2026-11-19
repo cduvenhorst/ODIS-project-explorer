@@ -87,6 +87,13 @@ For each project it writes `DIR/<installation>-<project>.json` (installation is 
 
 ## Script info
 
+The scripts that work on `.bv` pools (`dumpMWB`, `parseMWB`, `dumpCoding`, `dumpAdaptations`, `dumpFreezeFrames`, `dumpDTC` and `dumpECUVariantPatterns`) check per base variant whether it is UDS.
+A base variant counts as UDS if a protocol layer in its parent layer chain has a `protocol_type` starting with `ISO_15765_3` or `ISO_14229`.
+A project that contains the protocol pool `0.0.0@PR_UDSOnCAN.pr` counts every base variant as UDS.
+Any other base variant prints `Not UDS` and is skipped.
+
+Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the base variant's own come first, then the nearest layer wins, and NOT-INHERITED lists are respected.
+
 ### `dumpProject` / `dumpAllProjects`
 
 These modules will dump every Object from every Pool (from every Project).
@@ -105,6 +112,10 @@ or unhandled fields in handled object types (which I hardcoded since they were t
 > ```powershell
 > python dumpAllProjects.py "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Projects"
 > ```
+
+Keys that are names, hash keys without a string (shown as `hash <n>`) and multi-part records are read too; inline flash data in a multi-part record is only dumped as its length.
+A pool that is missing from `rt_index.xml` is reported with the line `Pool <PoolID> is not listed in rt_index.xml`, and its `.c` file contains the line `Not listed in rt_index.xml`.
+`dumpAllProjects` continues after an error in one project and exits with code 1 if any project failed.
 
 ### `dumpECUVariantPatterns`
 
@@ -173,6 +184,7 @@ It will only dump the objects necessary for Calibration Data Writing (= values y
 
 This script will dump "Coding definitions".
 It will only dump the objects necessary for Variant Coding - service 0x2E, DID 0x0600.
+Both service names in `dumpCoding.CODING_SERVICE_NAMES` (`DiagnServi_WriteDataByIdentVariaCodinTextu` and `CodingValue_Write`) are accepted.
 
 > [!TIP]
 > ```powershell
