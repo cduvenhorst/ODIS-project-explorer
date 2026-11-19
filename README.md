@@ -92,7 +92,7 @@ A base variant counts as UDS if a protocol layer in its parent layer chain has a
 A project that contains the protocol pool `0.0.0@PR_UDSOnCAN.pr` counts every base variant as UDS.
 Any other base variant prints `Not UDS` and is skipped.
 
-Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the base variant's own come first, then the nearest layer wins, and NOT-INHERITED lists are respected.
+Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the variant's own entries come first, then those of its parent layers, where the nearest layer wins, and NOT-INHERITED lists are respected.
 
 ### `dumpProject` / `dumpAllProjects`
 
