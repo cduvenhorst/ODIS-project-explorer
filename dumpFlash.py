@@ -29,12 +29,22 @@ def is_inside(path, folder):
     # On case-insensitive file systems the spelling may differ, so compare every existing ancestor by identity
     current = os.path.abspath(path)
     while True:
-        if os.path.exists(current) and os.path.samefile(current, folder):
+        if os.path.exists(current) and os.path.exists(folder) and os.path.samefile(current, folder):
             return True
         parent = os.path.dirname(current)
         if parent == current:
             return False
         current = parent
+
+
+def overlaps_output(project_folder_path, output_folder_path):
+    # Folders written for this project: its copy of the project files, the flash export and the workspace export
+    project_name = os.path.basename(os.path.abspath(project_folder_path))
+    for name in (project_name, 'flash', 'mcr'):
+        written = os.path.join(output_folder_path, name)
+        if is_inside(written, project_folder_path) or is_inside(project_folder_path, written):
+            return True
+    return False
 
 
 def print_elapsed(start_time):
@@ -85,6 +95,9 @@ def dumpFlash_project(project_folder_path, output_folder_path, workspace_folder_
     # The output must not be written into the data being read
     if is_inside(output_folder_path, project_folder_path):
         print('Output folder must not be inside the source folder')
+        return 1
+    if overlaps_output(project_folder_path, output_folder_path):
+        print('Output folder must not overlap the source folder')
         return 1
     
     # The project name is the name of the project folder itself, also for '.' or '..' as path
@@ -138,6 +151,11 @@ def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folde
     if is_inside(output_folder_path, projects_folder_path):
         print('Output folder must not be inside the source folder')
         return 1
+    for project_name in sorted(os.listdir(projects_folder_path)):
+        project_path = os.path.join(projects_folder_path, project_name)
+        if os.path.isdir(project_path) and overlaps_output(project_path, output_folder_path):
+            print('Output folder must not overlap the source folder')
+            return 1
     
     if workspace_folder_path is not None:
         message = check_workspace(workspace_folder_path, output_folder_path)
@@ -186,13 +204,13 @@ def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folde
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Dump flash data, seed key programs and decoded flash containers as binary files')
+    parser = argparse.ArgumentParser(description='Dump flash data, seed key programs and decoded flash containers as binary files and copy the other project files unchanged')
     subparsers = parser.add_subparsers(dest='command', required=True)
     
     # All flash data of one project
     parser_project = subparsers.add_parser('project', help='Dump the flash data of a project')
     parser_project.add_argument('project_folder_path', help='MCD project (folder containing .db and .key files)')
-    parser_project.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for the project')
+    parser_project.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for the project, plus the other project files copied unchanged to <output>/<project>/')
     parser_project.add_argument('workspace_folder_path', nargs='?', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
     parser_project.add_argument('--hexdump', action='store_true', help='Also write a text hexdump next to each dumped file')
     parser_project.set_defaults(func=dumpFlash_project)
@@ -200,7 +218,7 @@ def main(argv=None):
     # All flash data of all projects
     parser_all_projects = subparsers.add_parser('projects', help='Dump the flash data of all projects')
     parser_all_projects.add_argument('projects_folder_path', help='MCD projects (folder containing folders containing .db and .key files)')
-    parser_all_projects.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for each project')
+    parser_all_projects.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for each project, plus the other project files copied unchanged to <output>/<project>/')
     parser_all_projects.add_argument('workspace_folder_path', nargs='?', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
     parser_all_projects.add_argument('--hexdump', action='store_true', help='Also write a text hexdump next to each dumped file')
     parser_all_projects.set_defaults(func=dumpFlash_projects)

@@ -149,6 +149,39 @@ class DumpFlashTest(unittest.TestCase):
         self.assertIn('Output folder must not be inside the source folder', text)
         self.assertFalse(os.path.exists(os.path.join(folder, 'out')))
 
+    def snapshot(self, folder):
+        result = {}
+        for current, _, names in os.walk(folder):
+            for name in names:
+                path = os.path.join(current, name)
+                with open(path, 'rb') as handle:
+                    result[path] = handle.read()
+        return result
+
+    def test_project_output_mapping_onto_source_is_refused(self):
+        folder = make_project(self.root, 'P1')
+        before = self.snapshot(folder)
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('project', folder, self.root)
+        self.assertEqual(code, 1)
+        self.assertIn('Output folder must not overlap the source folder', text)
+        self.assertEqual(self.snapshot(folder), before)
+        self.assertFalse(os.path.exists(os.path.join(self.root, 'flash')))
+        manager.assert_not_called()
+
+    def test_projects_output_mapping_onto_a_project_is_refused(self):
+        all_folder = os.path.join(self.root, 'All')
+        os.makedirs(all_folder)
+        folder = make_project(all_folder, 'All')
+        before = self.snapshot(folder)
+        with mock.patch('dumpFlash.PblRecordManager') as manager:
+            code, text = self.run_main('projects', all_folder, self.root)
+        self.assertEqual(code, 1)
+        self.assertIn('Output folder must not overlap the source folder', text)
+        self.assertEqual(self.snapshot(folder), before)
+        self.assertFalse(os.path.exists(os.path.join(self.root, 'flash')))
+        manager.assert_not_called()
+
     def test_sibling_with_same_prefix_is_accepted(self):
         folder = make_project(self.root, 'proj')
         self.assertFalse(dumpFlash.is_inside(os.path.join(self.root, 'proj2'), folder))

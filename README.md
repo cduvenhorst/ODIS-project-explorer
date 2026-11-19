@@ -202,10 +202,10 @@ Addresses are `0x%08X`, `method` is `0x%02X`, sizes are decimal bytes, and `note
 
 `--hexdump` additionally writes `<file>.hexdump.txt` next to every dumped file.
 
-Before anything is written, the needed space (contents, hexdumps and overview) is compared with the free space of the output drive.
+Before anything is written, the needed space (contents, hexdumps, overview and project files) is compared with the free space of the output drive.
 If it does not fit, nothing is written, not even a folder, and the exit code is 1.
-The output folder must not be inside the source folder; otherwise the script stops immediately with exit code 1.
-Read errors do not stop the run; they are noted in the overview and reported on stderr, and the exit code is 1.
+The output folder must not be inside the source folder, and none of the folders written for a project (`<output>/<project>`, `<output>/flash`, `<output>/mcr`) may contain or lie inside the project folder; otherwise the script stops immediately with exit code 1 (`Output folder must not overlap the source folder`).
+Read errors do not stop the run; they are noted in the overview and reported on stderr, and the exit code is 1. Errors when copying project files are only reported on stderr and counted (exit code 1); the overview does not mention them.
 
 Both commands accept a PIDT workspace folder as an optional third argument.
 Each sub folder of the workspace that contains `flash-data/flash-data` or `mcr-data` is a vehicle platform.

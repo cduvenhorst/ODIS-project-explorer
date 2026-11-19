@@ -255,6 +255,11 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         path = _disk_path(target_dir, target)
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
+            # A target that is its own source must never be removed by the cleanup below
+            if os.path.exists(path) and os.path.samefile(source, path):
+                errors += 1
+                print('error copying %s: SameFileError' % target, file=sys.stderr)
+                continue
             shutil.copyfile(source, path)
         except Exception as error:
             errors += 1

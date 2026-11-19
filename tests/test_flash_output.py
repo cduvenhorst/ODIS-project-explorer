@@ -290,6 +290,16 @@ class PlainFilesTests(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.target, 'P1', 'index.xml')))
         self.assertIn('error copying P1/index.xml: OSError', message)
 
+    def test_plain_target_that_is_its_own_source_is_kept(self):
+        src = os.path.join(self.target, 'P1', 'index.xml')
+        os.makedirs(os.path.dirname(src))
+        with open(src, 'wb') as handle:
+            handle.write(b'<CATALOG/>')
+        errors, message = self.export([PlainFile('P1/index.xml', src)])
+        self.assertEqual(errors, 1)
+        self.assertEqual(self.read('P1/index.xml'), b'<CATALOG/>')
+        self.assertIn('error copying P1/index.xml: SameFileError', message)
+
     def test_plain_target_colliding_with_flash_target_is_an_error(self):
         src = self.source('x', b'plain')
         errors, message = self.export([PlainFile('FLASH/P1/A.BIN', src)])
