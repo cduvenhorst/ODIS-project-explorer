@@ -20,6 +20,13 @@ OVERVIEW_COLUMNS = ['origin_kind', 'origin', 'source', 'ecu', 'part_number', 'se
 _UNSAFE = re.compile(r'[/\\:*?"<>|\x00-\x1f]')
 
 
+@dataclass(frozen=True)
+class PlainFile:
+    """A file copied unchanged: ``target`` is the relative '/'-path below the output, ``path`` the source file."""
+    target: str
+    path: str
+
+
 @dataclass
 class Occurrence:
     source_rank: int

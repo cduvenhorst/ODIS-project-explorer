@@ -213,8 +213,8 @@ def pool_chain_occurrences(object_loader, project_dir: str, project_name: str, i
 
 INTEL_HEX_CONTAINER_SUFFIXES = ('.daf', '.paf', '.obd', '.rdw', '.swd', '.x51', '.brd')
 CONTAINER_TEXT_SUFFIXES = ('.sgm', '.xml')
-_FLASH_FOLDER = 'flash-data'
-_CONFIG_FOLDER_PREFIX = 'ConfigData_'
+FLASH_FOLDER = 'flash-data'
+CONFIG_FOLDER_PREFIX = 'ConfigData_'
 
 
 def _suffix(path: str) -> str:
@@ -279,7 +279,7 @@ def file_occurrences(project_dir: str, project_name: str, index: dict[str, str],
     for path in sorted(index.values()):
         folders = path.split('/')[:-1]
         suffix = _suffix(path)
-        in_flash = _FLASH_FOLDER in folders
+        in_flash = FLASH_FOLDER in folders
         notes: list[str] = []
         if suffix in INTEL_HEX_CONTAINER_SUFFIXES or suffix in CONTAINER_TEXT_SUFFIXES:
             try:
@@ -309,7 +309,7 @@ def file_occurrences(project_dir: str, project_name: str, index: dict[str, str],
         if in_flash and path not in reached:
             row_note = '; '.join(['not referenced by any pool'] + notes)
         elif (suffix in ('.dll', '.exe') and not in_flash
-              and not any(folder.startswith(_CONFIG_FOLDER_PREFIX) for folder in folders)):
+              and not any(folder.startswith(CONFIG_FOLDER_PREFIX) for folder in folders)):
             row_note = 'seed key program'
         if row_note is not None:
             occurrences.append(Occurrence(source_rank=SOURCE_PROJECTS, origin_kind='project', origin=project_name,
