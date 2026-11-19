@@ -1,17 +1,9 @@
 import contextlib
 import io
 import os
-import sys
 import tempfile
 import unittest
 from unittest import mock
-
-try:
-    import jpype  # noqa: F401
-except ImportError:
-    # dumpDTC imports LongNameTranslation, which needs jpype; these tests never translate names
-    for stub_name in ('jpype', 'jpype.imports', 'jpype.types'):
-        sys.modules[stub_name] = mock.MagicMock()
 
 import dumpAdaptations
 import dumpCoding

@@ -1,18 +1,24 @@
-import jpype
-import jpype.imports
-from jpype.types import *
 import os
 
 
 class LongNameTranslation:
     def __init__(self, hsqldb_1_8_0_jar_path = None, didb_db_folder_path = None, language = None):
         self.__translations = {}
+        self.__started_jvm = False
         if hsqldb_1_8_0_jar_path is None or didb_db_folder_path is None or language is None:
             return
+        
+        # JPype is only needed (and only imported) when a translation is actually requested
+        try:
+            import jpype
+            import jpype.imports
+        except ImportError:
+            raise RuntimeError('Translation needs the Python package JPype1 (module jpype)') from None
         
         # Start the JVM
         if not jpype.isJVMStarted():
             jpype.startJVM(classpath=[hsqldb_1_8_0_jar_path])
+            self.__started_jvm = True
         
         
         # The DriverManager needs the JVM to be started beforehand
@@ -45,7 +51,11 @@ class LongNameTranslation:
     
     
     def __del__(self):
+        # Only shut down the JVM if this instance started it
+        if not getattr(self, '_LongNameTranslation__started_jvm', False):
+            return
         try:
+            import jpype
             jpype.shutdownJVM()
         except:
             pass

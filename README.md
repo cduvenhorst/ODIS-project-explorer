@@ -43,6 +43,8 @@ Therefore, JPype will need to be installed:
 pip install jpype1
 ```
 
+JPype1 is only needed for translations (the optional translation database and language arguments) and for `dumpHSQLDB.py`; all other scripts work without it.
+
 On macOS, `bin/pbl_macos.dylib` (universal arm64 + x86_64) is used automatically instead of `bin/pbl.dll`.
 It is built from the PBL sources in the `third_party/pbl` submodule; to rebuild it:
 ```

@@ -1,9 +1,14 @@
-import jpype
-import jpype.imports
-from jpype.types import *
 import argparse
 import os
+import sys
 import csv
+
+try:
+    import jpype
+    import jpype.imports
+except ImportError:
+    print('dumpHSQLDB.py needs the Python package JPype1 (module jpype)', file=sys.stderr)
+    sys.exit(1)
 
 # The file "hsqldb.jar" should be in the working directory, in the "bin" folder
 if not jpype.isJVMStarted():
