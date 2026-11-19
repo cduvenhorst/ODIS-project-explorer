@@ -8,6 +8,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
 from flash_export.output import InsufficientSpaceError, OutputFolderError, export, overview_path
+from flash_export.project_files import other_project_files
 from flash_export.project_sources import project_occurrences
 from flash_export.workspace_sources import (
     MAPPING_FILE, platforms_for_project, read_platform_mapping, workspace_occurrences, workspace_platforms)
@@ -44,9 +45,9 @@ def print_elapsed(start_time):
     print('\nElapsed: {:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds)))
 
 
-def finish(occurrences, errors, output_folder_path, hexdump, start_time):
+def finish(occurrences, errors, output_folder_path, hexdump, start_time, plain_files=None):
     try:
-        errors += export(occurrences, output_folder_path, hexdump)
+        errors += export(occurrences, output_folder_path, hexdump, plain_files=plain_files)
     except InsufficientSpaceError as error:
         print('Not enough free space in {}: needed {} bytes, free {} bytes'.format(output_folder_path, error.needed, error.free))
         print_elapsed(start_time)
@@ -123,7 +124,9 @@ def dumpFlash_project(project_folder_path, output_folder_path, workspace_folder_
     object_loader = ObjectLoader(pbl_record_manager, string_storage)
     occurrences, errors = project_occurrences(object_loader, project_folder_path, project_name)
     workspace_items, workspace_errors = collect_workspace(workspace_folder_path, platforms) if platforms else ([], 0)
-    return finish(occurrences + workspace_items, errors + workspace_errors, output_folder_path, hexdump, start_time)
+    plain_files = other_project_files(project_folder_path, project_name)
+    return finish(occurrences + workspace_items, errors + workspace_errors, output_folder_path, hexdump, start_time,
+                  plain_files)
 
 
 def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folder_path=None, hexdump=False, pbl_record_manager=None):
@@ -148,6 +151,7 @@ def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folde
     
     # All occurrences of all projects go into one export, so identical content is written once per run
     occurrences = []
+    plain_files = []
     errors = 0
     for project_name in sorted(os.listdir(projects_folder_path)):
         project_path = os.path.join(projects_folder_path, project_name)
@@ -171,13 +175,14 @@ def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folde
         project_items, project_errors = project_occurrences(object_loader, project_path, project_name)
         occurrences.extend(project_items)
         errors += project_errors
+        plain_files.extend(other_project_files(project_path, project_name))
     
     # Without a mapping every platform of the workspace is read
     if workspace_folder_path is not None:
         workspace_items, workspace_errors = collect_workspace(workspace_folder_path, workspace_platforms(workspace_folder_path))
         occurrences.extend(workspace_items)
         errors += workspace_errors
-    return finish(occurrences, errors, output_folder_path, hexdump, start_time)
+    return finish(occurrences, errors, output_folder_path, hexdump, start_time, plain_files)
 
 
 def main(argv=None):

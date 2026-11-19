@@ -21,6 +21,8 @@ def make_project(root, name, with_a=True):
     if with_a:
         put(folder, 'Dev/flash-data/a.bin', A_BYTES)
     put(folder, 'Tools/k.dll', b'seed-key')
+    put(folder, 'index.xml', b'<CATALOG/>')
+    put(folder, 'Common/DVR/s.odx', b'<ODX/>')
     put(folder, 'Dev/flash-data/c.sgm', container(sw_block('B1', 'AQID')))
     return folder
 
@@ -58,6 +60,42 @@ class DumpFlashTest(unittest.TestCase):
         self.assertIn('Collecting P1', text)
         self.assertIn('Overview: ', text)
         self.assertIn('Elapsed: ', text)
+
+    def test_project_copies_other_project_files(self):
+        folder = make_project(self.root, 'P1')
+        code, _ = self.run_main('project', folder, self.out, '--hexdump')
+        self.assertEqual(code, 0)
+        for relative, content in (('index.xml', b'<CATALOG/>'), ('Common/DVR/s.odx', b'<ODX/>')):
+            with open(os.path.join(self.out, 'P1', *relative.split('/')), 'rb') as handle:
+                self.assertEqual(handle.read(), content)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'P1', 'index.xml.hexdump.txt')))
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'P1', 'Tools', 'k.dll')))
+
+    def test_projects_copies_other_files_of_each_valid_project(self):
+        projects = os.path.join(self.root, 'all')
+        for name in ('P1', 'P2'):
+            make_project(projects, name)
+        bad = os.path.join(projects, 'bad')
+        os.makedirs(bad)
+        put(bad, 'index.xml', b'<CATALOG/>')
+        code, _ = self.run_main('projects', projects, self.out)
+        self.assertEqual(code, 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'P1', 'index.xml')))
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'P2', 'index.xml')))
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'bad')))
+
+    def test_second_run_copies_the_same_project_files(self):
+        folder = make_project(self.root, 'P1')
+
+        def files():
+            return sorted(os.path.relpath(os.path.join(base, name), os.path.join(self.out, 'P1'))
+                          for base, _, names in os.walk(os.path.join(self.out, 'P1')) for name in names)
+
+        self.assertEqual(self.run_main('project', folder, self.out)[0], 0)
+        first = files()
+        self.assertEqual(self.run_main('project', folder, self.out)[0], 0)
+        self.assertEqual(files(), first)
+        self.assertIn('index.xml', first)
 
     def test_second_run_gives_same_overview(self):
         folder = make_project(self.root, 'P1')

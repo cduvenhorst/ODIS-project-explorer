@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 from flash_export.hexdump import hexdump_lines
-from flash_export.output import (OVERVIEW_COLUMNS, InsufficientSpaceError, Occurrence, OutputFolderError, export, overview_path,
+from flash_export.output import (OVERVIEW_COLUMNS, InsufficientSpaceError, Occurrence, OutputFolderError, PlainFile, export, overview_path,
                                  sanitize_name)
 
 BIG = lambda p: 10 ** 12
@@ -213,6 +213,108 @@ class FlashOutputTests(unittest.TestCase):
             export([item, occ('b.bin', 'flash/P1/b.bin', b'y')], os.path.join(blocker, 'out'), free_space_of=BIG)
         self.assertIsInstance(ctx.exception, OSError)
         self.assertEqual(ctx.exception.path, os.path.join(blocker, 'out', 'flash'))
+
+
+class PlainFilesTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.target = os.path.join(self._tmp.name, 'out')
+        self.sources = os.path.join(self._tmp.name, 'src')
+        os.makedirs(self.sources)
+
+    def source(self, name, content):
+        path = os.path.join(self.sources, name)
+        with open(path, 'wb') as handle:
+            handle.write(content)
+        return path
+
+    def read(self, relative):
+        with open(os.path.join(self.target, *relative.split('/')), 'rb') as handle:
+            return handle.read()
+
+    def export(self, plain, occurrences=None, **kw):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            errors = export(occurrences if occurrences is not None else [occ('a.bin', 'flash/P1/a.bin', b'flash')],
+                            self.target, free_space_of=kw.pop('free_space_of', BIG), plain_files=plain, **kw)
+        return errors, stderr.getvalue()
+
+    def test_plain_files_are_copied_unchanged_without_overview_row(self):
+        src = self.source('i.xml', b'<CATALOG/>')
+        errors, _ = self.export([PlainFile('P1/index.xml', src)], hexdump=True)
+        self.assertEqual(errors, 0)
+        self.assertEqual(self.read('P1/index.xml'), b'<CATALOG/>')
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'P1', 'index.xml.hexdump.txt')))
+        self.assertEqual(len(read_overview(self.target)), 1)
+
+    def test_plain_files_count_in_space_check(self):
+        src = self.source('i.xml', b'<CATALOG/>')
+        with tempfile.TemporaryDirectory() as probe:
+            export([occ('a.bin', 'flash/P1/a.bin', b'flash')], probe, free_space_of=BIG)
+            base = os.path.getsize(overview_path(probe)) + 5
+        with self.assertRaises(InsufficientSpaceError):
+            self.export([PlainFile('P1/index.xml', src)], free_space_of=lambda p: base + 10 - 1)
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'P1')))
+        errors, _ = self.export([PlainFile('P1/index.xml', src)], free_space_of=lambda p: base + 10)
+        self.assertEqual(errors, 0)
+
+    def test_identical_plain_files_are_both_copied(self):
+        one = self.source('one.xml', b'same')
+        two = self.source('two.xml', b'same')
+        errors, _ = self.export([PlainFile('P1/index.xml', one), PlainFile('P2/index.xml', two)])
+        self.assertEqual(errors, 0)
+        self.assertEqual(self.read('P1/index.xml'), b'same')
+        self.assertEqual(self.read('P2/index.xml'), b'same')
+
+    def test_missing_plain_source_is_counted_and_others_are_copied(self):
+        good = self.source('good.xml', b'good')
+        errors, message = self.export([PlainFile('P1/missing.xml', os.path.join(self.sources, 'nope')),
+                                       PlainFile('P1/good.xml', good)])
+        self.assertEqual(errors, 1)
+        self.assertEqual(self.read('P1/good.xml'), b'good')
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'P1', 'missing.xml')))
+        self.assertIn('error copying P1/missing.xml: FileNotFoundError', message)
+
+    def test_plain_source_removed_before_copy_leaves_no_file(self):
+        src = self.source('i.xml', b'<CATALOG/>')
+
+        def broken(source, destination):
+            with open(destination, 'wb') as handle:
+                handle.write(b'part')
+            raise OSError('gone')
+
+        with mock.patch('flash_export.output.shutil.copyfile', broken):
+            errors, message = self.export([PlainFile('P1/index.xml', src)])
+        self.assertEqual(errors, 1)
+        self.assertFalse(os.path.exists(os.path.join(self.target, 'P1', 'index.xml')))
+        self.assertIn('error copying P1/index.xml: OSError', message)
+
+    def test_plain_target_colliding_with_flash_target_is_an_error(self):
+        src = self.source('x', b'plain')
+        errors, message = self.export([PlainFile('FLASH/P1/A.BIN', src)])
+        self.assertEqual(errors, 1)
+        self.assertEqual(self.read('flash/P1/a.bin'), b'flash')
+        self.assertIn('error copying FLASH/P1/A.BIN:', message)
+
+    def test_plain_target_colliding_with_overview_is_an_error(self):
+        src = self.source('x', b'plain')
+        errors, _ = self.export([PlainFile('flash/flash_overview.csv', src)])
+        self.assertEqual(errors, 1)
+        self.assertNotEqual(self.read('flash/flash_overview.csv'), b'plain')
+
+    def test_plain_targets_colliding_with_each_other_keep_the_first(self):
+        one = self.source('one', b'one')
+        two = self.source('two', b'two')
+        errors, _ = self.export([PlainFile('P1/x.xml', one), PlainFile('P1/X.XML', two)])
+        self.assertEqual(errors, 1)
+        self.assertEqual(self.read('P1/x.xml'), b'one')
+
+    def test_unsafe_plain_target_is_an_error(self):
+        src = self.source('x', b'plain')
+        errors, _ = self.export([PlainFile('../x', src)])
+        self.assertEqual(errors, 1)
+        self.assertFalse(os.path.exists(os.path.join(self._tmp.name, 'x')))
 
 
 if __name__ == '__main__':

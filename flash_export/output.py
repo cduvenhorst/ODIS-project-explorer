@@ -130,8 +130,11 @@ def _overview_text(rows: list[dict]) -> str:
 
 
 def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False,
-           free_space_of: Callable[[str], int] | None = None) -> int:
-    """Write every distinct content once and the overview; return the number of errors."""
+           free_space_of: Callable[[str], int] | None = None, plain_files: list[PlainFile] | None = None) -> int:
+    """Write every distinct content once and the overview; return the number of errors.
+
+    ``plain_files`` are copied unchanged: no deduplication, no overview row, no hexdump.
+    """
     if free_space_of is None:
         free_space_of = free_space
     ordered = sorted(occurrences, key=Occurrence.sort_key)
@@ -187,6 +190,23 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         row['duplicate'] = 'no'
         to_write.append((item, row, target, digest, len(data), dump_size))
 
+    # Plain files: check target and size before the space check, copy after the flash contents
+    to_copy = []  # (target, source path, size)
+    reserved = 'flash/flash_overview.csv'
+    for plain in plain_files or []:
+        try:
+            if not _is_safe_target(plain.target):
+                raise ValueError('unsafe target path')
+            if plain.target.lower() in used or plain.target.lower() == reserved:
+                raise ValueError('target already in use')
+            size = os.path.getsize(plain.path)
+        except Exception as error:
+            errors += 1
+            print('error copying %s: %s' % (plain.target, type(error).__name__), file=sys.stderr)
+            continue
+        used.add(plain.target.lower())
+        to_copy.append((plain.target, plain.path, size))
+
     overview = _overview_text(rows)
     overview_bytes = overview.encode('utf-8')
 
@@ -196,6 +216,8 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
         needed += _needs_space(path, size)
         if hexdump:
             needed += _needs_space(path + '.hexdump.txt', dump_size)
+    for target, _, size in to_copy:
+        needed += _needs_space(_disk_path(target_dir, target), size)
     free = free_space_of(target_dir)
     if needed > free:
         raise InsufficientSpaceError(needed, free)
@@ -229,6 +251,18 @@ def export(occurrences: list[Occurrence], target_dir: str, hexdump: bool = False
                 failed['written_file'] = ''
             print('error writing %s block %s: %s' % (item.source, item.block or item.block_index,
                                                       type(error).__name__), file=sys.stderr)
+    for target, source, _ in to_copy:
+        path = _disk_path(target_dir, target)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            shutil.copyfile(source, path)
+        except Exception as error:
+            errors += 1
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            print('error copying %s: %s' % (target, type(error).__name__), file=sys.stderr)
     overview = _overview_text(rows)
     with open(overview_path(target_dir), 'w', encoding='utf-8', newline='') as handle:
         handle.write(overview)

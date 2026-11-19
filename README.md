@@ -189,11 +189,13 @@ This script dumps the flash data of a project as binary files: data files refere
 Nothing is decrypted or decompressed; the only decoding is Base64 decoding of `SW-CNT` blocks.
 Flash contents are never printed to the console.
 
-Files are written below `<output>/flash/`, except the `mcr` entries of workspace packages (see below):
+Files are written below `<output>/flash/`, except the other project files (see below) and the `mcr` entries of workspace packages (see below):
 - Files from the project keep their relative path: `flash/<project>/<relative path>`.
 - Inline data is written to `flash/<project>/<pool ID>/<block short name>.bin`.
 - Decoded `SW-CNT` blocks are written to `flash/<project>/<container path without extension>/<block name>.bin`.
 - Identical content is written once per run; later occurrences only get a row in the overview that points to the first file.
+
+Besides the flash data, the script copies the other files of each project unchanged to `<output>/<project>/<relative path>`, beside `flash/`: every file except pools (`.db`/`.key`), string files (`AStringData*`, `UStringData*`), SDG files (`SDG_*`), files in `ConfigData_*` and `flash-data` folders, Java (`.jar`/`.class`), `.dll`/`.exe`, ZIP archives and files without extension. In MCD projects these are ODX sources, vehicle information (`.odx-v`), topology XML, `index.xml`, `rt_index.xml`, `MCD3D_CURR_PROJECT.INI` and `DatabaseVersionInfo.txt`. They are not deduplicated, get no row in the overview and no hexdump, but count in the space check.
 
 `flash/flash_overview.csv` lists every occurrence with the columns `origin_kind, origin, source, ecu, part_number, session, block, block_type, start_address, size, uncompressed_size, method, data_kind, written_file, duplicate, note`.
 Addresses are `0x%08X`, `method` is `0x%02X`, sizes are decimal bytes, and `note` collects remarks and errors separated by `; `.
