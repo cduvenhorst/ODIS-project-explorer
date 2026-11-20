@@ -117,7 +117,10 @@ def parse_dop(object_loader, layer_data_objects, project_folder_path, dop):
                     
                     # If not found (error in project), mimic the MCD error that is thrown on projects with this sort of problem
                     except:
-                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(dop['dop_base_reference']['object_id'])}
+                        # upstream: a VALUE without DOP reference made the error branch itself fail with TypeError
+                        reference = dop['dop_base_reference']
+                        reference_name = reference['object_id'] if reference is not None else None
+                        output_object['dop'] = {'#error': 'Access to database element failed - DOP with name: {}'.format(reference_name)}
                     
                     # The DOP is usually found
                     else:

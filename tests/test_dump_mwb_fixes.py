@@ -151,5 +151,12 @@ class DtcDopTest(unittest.TestCase):
             parse(dtc_dop(), {('POOL', 'object'): dtc})
 
 
+class ValueWithoutDopTest(unittest.TestCase):
+    def test_value_without_dop_reference_gets_error_marker(self):
+        result = parse(parameter(mcd_parameter_type='eVALUE', default_value=None,
+                                 dop_base_reference=None, nrc_constant_values=None))
+        self.assertEqual(result['dop'], {'#error': 'Access to database element failed - DOP with name: None'})
+
+
 if __name__ == '__main__':
     unittest.main()
