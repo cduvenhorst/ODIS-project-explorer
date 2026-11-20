@@ -95,7 +95,10 @@ Any other base variant prints `Not UDS` and is skipped.
 Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the variant's own entries come first, then those of each parent layer in turn (including what that parent inherits itself), where a name that is already present is skipped, and NOT-INHERITED lists are respected.
 
 Which services `dumpCoding`, `dumpMWB`, `dumpAdaptations` and `parseMWB` read is decided by name first and by layout second (all in `common_utils/table_entries.py`):
-  - If the variant has the VW service (`DiagnServi_ReadDataByIdentMeasuValue` for MWBs, `DiagnServi_WriteDataByIdentCalibData` for adaptations), only that service is used, and the output is the same as it always was.
+  - If the variant has the VW service (`DiagnServi_ReadDataByIdentMeasuValue` for MWBs, `DiagnServi_WriteDataByIdentCalibData` for adaptations), only that service is used.
+    For VW the entries and their order are unchanged, but some cases that used to abort now produce output: a row without DOP reference gets the structure `{"#error": ...}`, a row with a default value is accepted, and the fallback that reads a row whose name has spaces where the key text has underscores now also applies to coding and adaptations.
+    Coding additionally gets `flat_layout` and `VRC_<variant>.json` (see `dumpCoding`), and `parseMWB` now reports a missing row as `Failed to find table row for ...`.
+    The selection is by layout, with no switch on the manufacturer: an ECU variant that lacks the VW measurement or adaptation service name but has 0x22 or 0x2E services in the layout below now gets an `MWB_<variant>.json` or `ADP_<variant>.c` file, where it used to get none.
   - Otherwise every service is used whose request starts with the service ID (0x22 for MWBs, 0x2E for adaptations) at BYTE-POSITION 0 and that has exactly one table key at BYTE-POSITION 1 and exactly one table structure at BYTE-POSITION 3, both at byte edge.
     For 0x22, the key and structure are those of the one positive response; a service with a different number of positive responses, and references to objects that are no services, are skipped.
     The Coding services (see below) are never adaptations.
@@ -208,9 +211,11 @@ It will only dump the objects necessary for Variant Coding - service 0x2E, DID 0
 Both service names in `dumpCoding.CODING_SERVICE_NAMES` (`DiagnServi_WriteDataByIdentVariaCodinTextu` and `CodingValue_Write`) are accepted.
 
 Per ECU-VARIANT it writes `VRC_<variant>.c` (as before; every entry now also has a `flat_layout`) and `VRC_<variant>.json`, an array of `did`, `long_name`, `long_name_id`, `services` (not for VW) and `flat_layout`.
+The entries are sorted by DID and then by the first of their sorted service names (VW entries keep the order of the table).
 The flat layout is the coding as a list of fields, without the nesting of the structures:
+  - The top-level keys are `byte_length`, `note` and `fields`.
   - `byte_length` is the length of the coding in bytes (from the structure, or computed from its fields, or `null` with a `note` if it is not fixed or the structure is not available).
-  - Each field has `byte_position` (absolute: counted from the first byte after the DID, with the positions of the enclosing structures added up), `bit_position` and `bit_length` (the ODX bit position within that byte), `bit_mask`, `long_name`, `long_name_id`, `parameter_type`, `values` (for a text table, each with `lower_limit`, `upper_limit`, `text` and `text_id`), `default` (the default value, or the constant of a constant parameter) and `note`.
+  - Each field has `byte_position` (absolute: counted from the first byte after the DID, with the positions of the enclosing structures added up), `bit_position` and `bit_length` (the ODX bit position within that byte), `bit_mask` (the mask taken from the field's DOP, `null` if the DOP has none), `long_name`, `long_name_id`, `parameter_type`, `values` (for a text table, each with `lower_limit`, `upper_limit`, `text` and `text_id`), `default` (the default value, or the constant of a constant parameter) and `note`.
   - `note` explains what is missing: no BYTE-POSITION (the position is `null`; a parameter in the row itself without position starts at the beginning of the coding data), a parameter type that is not expected in a coding structure, or a DOP that is not available or not expanded.
 
 If the output file `VRC_<variant>.c` already exists, the variant is skipped (`Already done, skipping`) without looking at the `.json` file; to get the `.json` files for an older output folder, dump with overwrite (`basevariant` always overwrites).
@@ -231,6 +236,7 @@ If the output file `VRC_<variant>.c` already exists, the variant is skipped (`Al
 
 With the optional last argument `basevariant` dumps only that ECU-VARIANT (or the BASE-VARIANT, by its own name).
 Besides its coding entries, the file then also contains the coding table rows that the variant's other non-VW MWB and adaptation services address by row reference, so one file shows everything that is coded.
+These related rows are only added when the coding service is not the VW service and uses a row reference: they are the rows of the same coding table that the variant's measurement and adaptation services address.
 An unknown name prints `Available ECU-VARIANTs:` with the list, fails with a `RuntimeError` and writes nothing.
 
 ### `dumpFlash`
