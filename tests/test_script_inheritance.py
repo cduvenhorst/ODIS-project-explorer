@@ -5,31 +5,19 @@ import tempfile
 import unittest
 from unittest import mock
 
-import dumpAdaptations
 import dumpCoding
 import dumpDTC
-import dumpMWB
 from common_utils.layer_chain import load_layer_data
+from common_utils.table_entries import (CODING_SERVICE_NAMES, KIND_ADAPTATION, KIND_CODING, KIND_MWB,
+                                        TableEntryReader)
 from tests.script_support import FakeObjectLoader, layer
+from tests.table_fixtures import table_key_parameter, table_struct_parameter
 
 VW_CODING = 'DiagnServi_WriteDataByIdentVariaCodinTextu'
 PORSCHE_CODING = 'CodingValue_Write'
 ADAPTATION = 'DiagnServi_WriteDataByIdentCalibData'
 MWB = 'DiagnServi_ReadDataByIdentMeasuValue'
 UDS_TYPE = 'ISO_15765_3_on_ISO_15765_2'
-
-
-class ServiceLoaded(Exception):
-    """Raised by the loader as soon as a service is loaded; carries the reference."""
-
-    def __init__(self, reference):
-        super().__init__(reference)
-        self.reference = reference
-
-
-class SentinelLoader(FakeObjectLoader):
-    def load_object_by_reference(self, input_folder_path, reference):
-        raise ServiceLoaded(reference)
 
 
 def ref(name):
@@ -44,73 +32,77 @@ def blocked(parent, *names):
     return [{'map_key': parent, 'strings': list(names)}]
 
 
-def loaded_reference(function, ecu_variant_layer_data, objects=None):
-    """Call a get_*_keys_and_table function; return the reference of the service it loads, or None."""
-    loader = SentinelLoader(objects or {})
-    try:
-        result = function(loader, [], 'project', ecu_variant_layer_data)
-    except ServiceLoaded as loaded:
-        return loaded.reference
-    assert result is None, result
-    return None
+def service_objects(*names):
+    """Services with a request and a positive response that fit every kind, keyed as TableEntryReader loads them."""
+    key = table_key_parameter(ref('T'))
+    struct = table_struct_parameter(ref('T'))
+    objects = {}
+    for name in names:
+        objects[('POOL', 'service of ' + name)] = {
+            '#OBJECT_TYPE': 'MCD_DB_SERVICE', 'request_reference': ref('request of ' + name),
+            'positive_response_references': [{'map_key': 'r', 'reference': ref('response of ' + name)}]}
+        objects[('POOL', 'request of ' + name)] = {'request_parameters': [key, struct]}
+        objects[('POOL', 'response of ' + name)] = {'response_parameters': [key, struct]}
+    return objects
+
+
+def selected_names(kind, ecu_variant_layer_data, objects=None, *service_names):
+    """short_name of every service select_services picks for the kind."""
+    all_objects = dict(objects or {})
+    all_objects.update(service_objects(*service_names))
+    reader = TableEntryReader(FakeObjectLoader(all_objects), 'project')
+    return [selected.short_name for selected in reader.select_services(ecu_variant_layer_data, kind)]
 
 
 class ServiceLookupTest(unittest.TestCase):
     def setUp(self):
         load_layer_data.cache_clear()
 
-    def lookups(self):
-        return [(dumpCoding.get_coding_keys_and_table, VW_CODING),
-                (dumpAdaptations.get_adaptation_keys_and_table, ADAPTATION),
-                (dumpMWB.get_mwb_keys_and_table, MWB)]
+    def kinds(self):
+        return [(KIND_CODING, VW_CODING), (KIND_ADAPTATION, ADAPTATION), (KIND_MWB, MWB)]
 
-    def test_vw_coding_service_owned_by_variant_is_used(self):
-        for function, name in self.lookups():
-            with self.subTest(function=function.__name__):
+    def test_vw_service_owned_by_variant_is_used(self):
+        for kind, name in self.kinds():
+            with self.subTest(kind=kind):
                 ev = layer(name='EV', diag_com_primitive_references=[service('Other'), service(name)])
-                self.assertEqual(loaded_reference(function, ev), ref('service of ' + name))
+                self.assertEqual(selected_names(kind, ev, None, 'Other', name), [name])
 
     def test_vw_variant_without_any_service_has_none(self):
-        for function, _ in self.lookups():
-            with self.subTest(function=function.__name__):
-                ev = layer(name='EV', diag_com_primitive_references=[service('Other')])
-                self.assertIsNone(loaded_reference(function, ev))
+        for kind, _ in self.kinds():
+            with self.subTest(kind=kind):
+                ev = layer(name='EV', diag_com_primitive_references=[])
+                self.assertEqual(selected_names(kind, ev), [])
 
     def test_coding_service_names_lists_vw_name_first(self):
-        self.assertEqual(dumpCoding.CODING_SERVICE_NAMES, (VW_CODING, PORSCHE_CODING))
+        self.assertEqual(CODING_SERVICE_NAMES, (VW_CODING, PORSCHE_CODING))
+        self.assertEqual(dumpCoding.CODING_SERVICE_NAMES, CODING_SERVICE_NAMES)
 
     def test_coding_service_inherited_from_base_variant(self):
-        loader_objects = {('BV.bv', '#RtGen_DB_LAYER_DATA'):
-                          layer(name='BV', diag_com_primitive_references=[service(PORSCHE_CODING)])}
+        objects = {('BV.bv', '#RtGen_DB_LAYER_DATA'):
+                   layer(name='BV', diag_com_primitive_references=[service(PORSCHE_CODING)])}
         ev = layer(name='EV', parent_layers=['BV.bv'])
-        loader = SentinelLoader(loader_objects)
-        with self.assertRaises(ServiceLoaded) as raised:
-            dumpCoding.get_coding_keys_and_table(loader, [], 'project', ev)
-        self.assertEqual(raised.exception.reference, ref('service of ' + PORSCHE_CODING))
+        self.assertEqual(selected_names(KIND_CODING, ev, objects, PORSCHE_CODING), [PORSCHE_CODING])
 
     def test_coding_service_not_inherited_when_excluded(self):
-        loader = SentinelLoader({('BV.bv', '#RtGen_DB_LAYER_DATA'):
-                                 layer(name='BV', diag_com_primitive_references=[service(PORSCHE_CODING)])})
+        objects = {('BV.bv', '#RtGen_DB_LAYER_DATA'):
+                   layer(name='BV', diag_com_primitive_references=[service(PORSCHE_CODING)])}
         ev = layer(name='EV', parent_layers=['BV.bv'],
                    not_inherited_diag_com_primitives=blocked('BV.bv', PORSCHE_CODING))
-        self.assertIsNone(dumpCoding.get_coding_keys_and_table(loader, [], 'project', ev))
+        self.assertEqual(selected_names(KIND_CODING, ev, objects, PORSCHE_CODING), [])
 
     def test_vw_coding_name_wins_over_porsche_name(self):
         # the Porsche service comes first in the layer; the VW name still decides
         ev = layer(name='EV', diag_com_primitive_references=[service(PORSCHE_CODING), service(VW_CODING)])
-        self.assertEqual(loaded_reference(dumpCoding.get_coding_keys_and_table, ev), ref('service of ' + VW_CODING))
+        self.assertEqual(selected_names(KIND_CODING, ev, None, PORSCHE_CODING, VW_CODING), [VW_CODING])
 
     def test_mwb_and_adaptation_service_inherited_from_functional_group(self):
         fg = layer(name='FG', diag_com_primitive_references=[service(ADAPTATION), service(MWB)])
-        for function, name in [(dumpAdaptations.get_adaptation_keys_and_table, ADAPTATION),
-                               (dumpMWB.get_mwb_keys_and_table, MWB)]:
-            with self.subTest(function=function.__name__):
+        for kind, name in [(KIND_ADAPTATION, ADAPTATION), (KIND_MWB, MWB)]:
+            with self.subTest(kind=kind):
                 load_layer_data.cache_clear()
-                loader = SentinelLoader({('FG.fg', '#RtGen_DB_LAYER_DATA'): fg})
                 ev = layer(name='EV', parent_layers=['FG.fg'])
-                with self.assertRaises(ServiceLoaded) as raised:
-                    function(loader, [], 'project', ev)
-                self.assertEqual(raised.exception.reference, ref('service of ' + name))
+                self.assertEqual(selected_names(kind, ev, {('FG.fg', '#RtGen_DB_LAYER_DATA'): fg}, ADAPTATION, MWB),
+                                 [name])
 
 
 # Text written by the dumpDTC of the upstream state for a DTC DOP owned by the variant

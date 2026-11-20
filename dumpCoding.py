@@ -9,6 +9,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
 from common_utils.layer_chain import get_inherited_diag_com_primitive_references, load_layer_data
+from common_utils.table_entries import CODING_SERVICE_NAMES
 from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
 
 
@@ -16,10 +17,6 @@ from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_v
 # The file "pbl.dll" should be in the working directory, in the "bin" folder
 pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
-
-
-# Names of the Coding service, in order of preference: the VW name and the Porsche name
-CODING_SERVICE_NAMES = ('DiagnServi_WriteDataByIdentVariaCodinTextu', 'CodingValue_Write')
 
 
 # Get the table (and its keys) necessary for Coding
