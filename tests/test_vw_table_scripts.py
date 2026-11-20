@@ -131,6 +131,11 @@ class VwTableScriptTest(unittest.TestCase):
         self.dump_mwb()
         self.assertEqual(json.loads(self.read('MWB_EV.json')), EXPECTED_VW_MWB_LIST)
 
+    def test_vw_mwb_row_with_default_is_dumped(self):
+        self.loader.objects[('POOL', 'ROW mwb Row_A')]['default_value'] = {'data_type': 'eA_UINT32', 'value': 0}
+        self.dump_mwb()
+        self.assertEqual([e['did'] for e in json.loads(self.read('MWB_EV.json'))], [0x0102, 0x0101])
+
     def test_vw_adaptation_file_is_unchanged(self):
         self.dump_adaptations()
         self.assertEqual(self.read('ADP_EV.c'), EXPECTED_VW_ADAPTATION_FILE)

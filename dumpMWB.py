@@ -19,6 +19,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 # The protocol layers of a base variant come from the protocol type in its parent layer chain; the fixed VW pool
 # PR_UDSOnCAN still counts as UDS. The other scripts import the function from here.
+from common_utils.table_entries import KIND_MWB, TableEntryReader
 from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_diag_com_primitive_references, load_layer_data
 
 
@@ -1620,6 +1621,9 @@ def dump_mwbs_for_base_variant(object_loader, project_folder_path, base_variant_
     else:
         ecu_variant_map = {base_variant_name: None}
     
+    # One reader per BASE-VARIANT; it buffers the loaded services and responses across its ECU-VARIANTs
+    table_entry_reader = TableEntryReader(object_loader, project_folder_path)
+    
     # Go through each ECU-VARIANT referenced by the BASE-VARIANT (and the BASE-VARIANT itself)
     for ecu_variant_name in ecu_variant_map:
         if ecu_variant_name == base_variant_name:
@@ -1646,56 +1650,24 @@ def dump_mwbs_for_base_variant(object_loader, project_folder_path, base_variant_
             # These objects will be used (in this order) for solving references which don't specify a PoolID
             layer_data_objects = [ecu_variant_layer_data, base_variant_layer_data] + protocol_layer_data_list
             
-            # Get a map of all available MWBs = Measuring Value(s / Blocks)
-            mwb_keys_and_table_result = get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data)
+            # Get the services that deliver measurement values (the VW service, or every single-DID 0x22 service with
+            # the measurement layout)
+            services = table_entry_reader.select_services(ecu_variant_layer_data, KIND_MWB)
             
-            # Skip ECU-VARIANTs which do not have the MWB service defined (no file will be created)
-            if mwb_keys_and_table_result is None:
+            # Skip ECU-VARIANTs which do not have such a service (no file will be created)
+            if not services:
                 object_printer.print_indented(debug_info_indentation_level + 1, 'Has no MWBs')
                 continue
             
-            # Unpack the result
-            mwb_keys, mwb_table = mwb_keys_and_table_result
+            # Read the MWBs = Measuring Value(s / Blocks) before the file is opened, so a failure leaves no partial file
+            obj_list = table_entry_reader.get_entries(layer_data_objects, services)
             
             # Create the BASE-VARIANT's output folder if it doesn't exist
             if not os.path.isdir(base_variant_output_folder_path):
                 os.makedirs(base_variant_output_folder_path)
             
-            # Open the output file and dump the MWBs
+            # Open the output file and dump the MWBs as a JSON array
             with open(ecu_variant_output_file_path, 'w', encoding='utf-8') as ecu_variant_output_file:
-                # The MWBs will be written as a JSON array
-                obj_list = []
-                
-                for mwb_did in mwb_keys:
-                    # Get the definition for the current DID
-                    table_row_result = get_mwb_name_and_table_row_parameter_by_did(object_loader, project_folder_path, mwb_keys, mwb_table, mwb_did)
-                    if table_row_result is None:
-                        raise RuntimeError('Failed to find MWB table row')
-                    
-                    # Unpack the result
-                    mwb_long_name, mwb_long_name_id, mwb_table_row_parameter = table_row_result
-                    
-                    # Parse the parameter
-                    mwb_table_row_parameter_long_name, mwb_description, mwb_byte_position, mwb_bit_position = parse_mwb_table_row_parameter(mwb_table_row_parameter)
-                    
-                    # Get the object of type 'STRUCTURE'
-                    mwb_structure = get_mwb_structure(object_loader, project_folder_path, mwb_table_row_parameter)
-                    
-                    # Create an object (dictionary) with the fields retrieved from the table row and the parameter structure
-                    obj = {
-                        'did': mwb_did,
-                        'long_name': mwb_long_name,
-                        'long_name_id': mwb_long_name_id,
-                        'description': mwb_description,
-                        'byte_position': mwb_byte_position,
-                        'bit_position': mwb_bit_position,
-                        'structure': mwb_structure
-                    }
-                    
-                    # Add the object to the list
-                    obj_list.append(obj)
-                    
-                # Dump to the output file
                 json.dump(obj_list, ecu_variant_output_file, indent=2, cls=JSON_ByteArrayEncoder)
 
 
