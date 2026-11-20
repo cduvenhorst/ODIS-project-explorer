@@ -17,10 +17,10 @@ from common_utils import enum_converters, object_printer
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
+from common_utils.table_entries import KIND_MWB, TableEntryReader
 # The protocol layers of a base variant come from the protocol type in its parent layer chain; the fixed VW pool
 # PR_UDSOnCAN still counts as UDS. The other scripts import the function from here.
-from common_utils.table_entries import KIND_MWB, TableEntryReader
-from common_utils.layer_chain import get_protocol_layer_data_list, get_inherited_diag_com_primitive_references, load_layer_data
+from common_utils.layer_chain import get_protocol_layer_data_list, load_layer_data
 
 
 # PBL is needed for parsing .key files, which will be done by the PblRecordManager class

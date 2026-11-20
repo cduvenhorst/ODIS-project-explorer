@@ -214,7 +214,9 @@ class TableEntryReader:
     ### structure; entries that no VW table service delivers also carry services (sorted short names)
     ### Entries of VW table services come first, in their order; all others are sorted by (did, services[0])
     def get_entries(self, layer_data_objects, services):
-        # dumpMWB imports this module, so parse_dop is imported here to avoid a circular import
+        # dumpMWB imports this module, so parse_dop is imported here to avoid a circular import. When dumpMWB.py runs
+        # as a script, this loads it a second time; its top level only defines functions and loads the PBL library
+        # again (the argument parser sits under __main__), so that is harmless.
         from dumpMWB import parse_dop
 
         # Parsed objects depend on layer_data_objects, so they are only buffered within this call
