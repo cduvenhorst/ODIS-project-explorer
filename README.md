@@ -94,6 +94,26 @@ Any other base variant prints `Not UDS` and is skipped.
 
 Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the variant's own entries come first, then those of each parent layer in turn (including what that parent inherits itself), where a name that is already present is skipped, and NOT-INHERITED lists are respected.
 
+Which services `dumpCoding`, `dumpMWB`, `dumpAdaptations` and `parseMWB` read is decided by name first and by layout second (all in `common_utils/table_entries.py`):
+  - If the variant has the VW service (`DiagnServi_ReadDataByIdentMeasuValue` for MWBs, `DiagnServi_WriteDataByIdentCalibData` for adaptations), only that service is used, and the output is the same as it always was.
+  - Otherwise every service is used whose request starts with the service ID (0x22 for MWBs, 0x2E for adaptations) at BYTE-POSITION 0 and that has exactly one table key at BYTE-POSITION 1 and exactly one table structure at BYTE-POSITION 3, both at byte edge.
+    For 0x22, the key and structure are those of the one positive response; a service with a different number of positive responses, and references to objects that are no services, are skipped.
+    The Coding services (see below) are never adaptations.
+  - Coding is only selected by name (the first of these names that the variant has): `DiagnServi_WriteDataByIdentVariaCodinTextu` first, then `CodingValue_Write` (`CODING_SERVICE_NAMES`).
+
+A table is read in one of two ways:
+  - **Whole table** (VW services, or a key without row reference): every row of the table is read; for a name key the key's COMPU-SCALEs give the DIDs (as before), for a decimal key the numbers the rows are stored under.
+  - **Row reference** (the key parameter names one row of the table): one service gives one entry, the one for that row.
+
+Two kinds of table keys are understood: names (a text table whose entries are the row names; the DID comes from the key's COMPU-SCALEs) and decimal (a plain number; the DID is the number the row is stored under in the table).
+Any other key is an error.
+A referenced row that is missing in the table (message names the row and the service), or whose name matches no or more than one COMPU-SCALE of a name key, aborts the variant with a `RuntimeError`.
+
+Each entry has `did`, `long_name`, `long_name_id`, `description`, `byte_position`, `bit_position` and `structure`.
+Entries that no VW service delivers also have `services`, the sorted names of all services that deliver that row (several services can deliver the same row); VW entries never have it.
+VW entries come first, in their order; all other entries follow, sorted by DID and then by service name.
+A row whose DOP could not be found is not an error: its `structure` is `{"#error": ...}` (this used to fail for a row without DOP reference).
+
 ### `dumpProject` / `dumpAllProjects`
 
 These modules will dump every Object from every Pool (from every Project).
@@ -168,6 +188,7 @@ It will only dump the objects necessary for DTC extended data records - service 
 
 This script will dump "Adaptation definitions".
 It will only dump the objects necessary for Calibration Data Writing (= values you can change in the ECU) - service 0x2E.
+Besides the VW service, every other 0x2E service with the adaptation layout is dumped (see above), one entry per row, with the `services` field.
 
 > [!TIP]
 > ```powershell
@@ -186,6 +207,14 @@ This script will dump "Coding definitions".
 It will only dump the objects necessary for Variant Coding - service 0x2E, DID 0x0600.
 Both service names in `dumpCoding.CODING_SERVICE_NAMES` (`DiagnServi_WriteDataByIdentVariaCodinTextu` and `CodingValue_Write`) are accepted.
 
+Per ECU-VARIANT it writes `VRC_<variant>.c` (as before; every entry now also has a `flat_layout`) and `VRC_<variant>.json`, an array of `did`, `long_name`, `long_name_id`, `services` (not for VW) and `flat_layout`.
+The flat layout is the coding as a list of fields, without the nesting of the structures:
+  - `byte_length` is the length of the coding in bytes (from the structure, or computed from its fields, or `null` with a `note` if it is not fixed or the structure is not available).
+  - Each field has `byte_position` (absolute: counted from the first byte after the DID, with the positions of the enclosing structures added up), `bit_position` and `bit_length` (the ODX bit position within that byte), `bit_mask`, `long_name`, `long_name_id`, `parameter_type`, `values` (for a text table, each with `lower_limit`, `upper_limit`, `text` and `text_id`), `default` (the default value, or the constant of a constant parameter) and `note`.
+  - `note` explains what is missing: no BYTE-POSITION (the position is `null`; a parameter in the row itself without position starts at the beginning of the coding data), a parameter type that is not expected in a coding structure, or a DOP that is not available or not expanded.
+
+If the output file `VRC_<variant>.c` already exists, the variant is skipped (`Already done, skipping`) without looking at the `.json` file; to get the `.json` files for an older output folder, dump with overwrite (`basevariant` always overwrites).
+
 > [!TIP]
 > ```powershell
 > python dumpCoding.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/VRCs"
@@ -194,8 +223,15 @@ Both service names in `dumpCoding.CODING_SERVICE_NAMES` (`DiagnServi_WriteDataBy
 > python dumpCoding.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/VRCs"
 > ```
 > ```powershell
+> python dumpCoding.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/VRCs" EV_Example
+> ```
+> ```powershell
 > python dumpCoding.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/VRCs"
 > ```
+
+With the optional last argument `basevariant` dumps only that ECU-VARIANT (or the BASE-VARIANT, by its own name).
+Besides its coding entries, the file then also contains the coding table rows that the variant's other non-VW MWB and adaptation services address by row reference, so one file shows everything that is coded.
+An unknown name prints `Available ECU-VARIANTs:` with the list, fails with a `RuntimeError` and writes nothing.
 
 ### `dumpFlash`
 
@@ -249,6 +285,7 @@ For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` f
 
 This script will dump "MWB definitions".
 It will only dump the objects necessary for MWBs (= Messwertblöcke - Measuring blocks) - service 0x22.
+Besides the VW service, every other 0x22 service with the measurement layout is dumped (see above), one entry per row, with the `services` field.
 
 This is by far the most important and non-standardized part of UDS diagnostics, one of the main purposes of this project.
 
@@ -272,6 +309,10 @@ It probably took the most amount of work, apart from the object loaders.
 > ```powershell
 > python parseMWB.py "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_EnginContrModul1UDS.bv" "EV_ECM25TFS0118U0907404C_001" 0xF40C C0E4 "C:/ProgramData/OE/DIDB/db" en_US
 > ```
+
+A DID can be defined by several services; every entry of the DID is used to parse the response, and each is preceded by a `Services:` line (not for VW).
+The script reads all entries of the ECU-VARIANT before it looks for the DID, so one bad table row (for example a missing row or an unexpected key) aborts it for the whole variant, even if the requested DID is fine.
+A DID whose structure is not available (row without DOP) stops with `MWB structure not available`.
 
 A few more examples are provided in `docs/mwb_examples.txt`.
 
