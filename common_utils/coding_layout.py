@@ -74,8 +74,6 @@ def _flatten_structure(structure, base, fields):
                 field['default'] = parameter.get('default_value')
             else:
                 field['default'] = parameter.get('constant')
-            if field['byte_position'] is None:
-                field['note'] = NO_POSITION_NOTE
         if field['note'] is None and field['byte_position'] is None:
             field['note'] = NO_POSITION_NOTE
         fields.append(field)
