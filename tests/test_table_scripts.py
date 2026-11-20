@@ -10,6 +10,7 @@ from unittest import mock
 import dumpAdaptations
 import dumpCoding
 import dumpMWB
+import parseMWB
 from common_utils.layer_chain import load_layer_data
 from tests.script_support import FakeObjectLoader, layer
 from tests.table_fixtures import (POOL, base_variant_objects, diag_com, key_dop_decimal, ref, service_objects,
@@ -88,6 +89,62 @@ class PorscheMwbScriptTest(unittest.TestCase):
         # the VW table lists its DIDs in key-scale order, not in key-map order
         self.assertEqual([e['did'] for e in data], [0x0102, 0x0101])
         self.assertTrue(all('services' not in e for e in data))
+
+
+class PorscheParseMwbTest(unittest.TestCase):
+    def setUp(self):
+        load_layer_data.cache_clear()
+        self.objects = base_variant_objects()
+        self.objects.update(porsche_table_objects())
+        self.objects.update(read_service('S_A', 'Row_1'))
+        self.objects.update(read_service('S_B', 'Row_2'))
+        # S_D lists the same DID 0x0102 from another table, so the DID has two distinct entries
+        self.objects.update(second_table_objects())
+        self.objects.update(service_objects('S_D', [sid_parameter(0x22)],
+                                            [[sid_parameter(0x62),
+                                              table_key_parameter(ref('TABLE Q'), row_short_name='Row_2'),
+                                              table_struct_parameter(ref('TABLE Q'))]]))
+
+    def parse(self, did, response='2A', service_names=('S_A', 'S_B', 'S_D')):
+        ev_layer = layer(name='EV', parent_layers=['BV.bv'],
+                         diag_com_primitive_references=[diag_com(name) for name in service_names])
+        translation = mock.Mock()
+        translation.get_long_name_translation.side_effect = lambda long_name_id, long_name: long_name
+        console = io.StringIO()
+        try:
+            with mock.patch.object(parseMWB, 'get_ecu_variant_layer_data', return_value=ev_layer), \
+                    mock.patch.object(parseMWB, 'long_name_translation', translation, create=True), \
+                    contextlib.redirect_stdout(console):
+                parseMWB.app_parseMWB(FakeObjectLoader(self.objects), translation, 'project', 'BV.bv.db', 'EV',
+                                      did, response)
+        except RuntimeError as error:
+            return console.getvalue(), error
+        return console.getvalue(), None
+
+    def test_porsche_did_is_parsed_with_service_line(self):
+        output, error = self.parse('0101')
+        self.assertIsNone(error)
+        self.assertTrue(output.startswith('Services: S_A'))
+        self.assertIn('Field_1', output)
+
+    def test_duplicate_did_is_parsed_with_each_entry(self):
+        output, error = self.parse('0102')
+        self.assertIsNone(error)
+        self.assertEqual([line for line in output.splitlines() if line.startswith('Services:')],
+                         ['Services: S_B', 'Services: S_D'])
+        self.assertEqual(output.count('Field_1'), 2)
+
+    def test_unknown_did_lists_available_dids(self):
+        output, error = self.parse('0999')
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual(str(error), 'DID 0999 does not exist')
+        self.assertIn('Available DIDs:', output)
+        self.assertIn('0101', output)
+        self.assertIn('0102', output)
+
+    def test_variant_without_measurement_services_is_rejected(self):
+        output, error = self.parse('0101', service_names=())
+        self.assertEqual(str(error), 'ECU-VARIANT EV contains no MWBs')
 
 
 def write_service(name, table_name, row_short_name):

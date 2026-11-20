@@ -9,7 +9,8 @@ from classes.PblRecordManager import PblRecordManager
 from classes.ObjectLoader import ObjectLoader
 from classes.StringStorage import StringStorage
 from classes.LongNameTranslation import LongNameTranslation
-from dumpMWB import pbl_record_manager, get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, get_mwb_keys_and_table, get_mwb_name_and_table_row_parameter_by_did, get_mwb_structure, parse_dop
+from dumpMWB import pbl_record_manager, get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
+from common_utils.table_entries import KIND_MWB, TableEntryReader
 
 
 # Convert a bytearray to a formatted string (2 HEX digits per byte, separated by spaces)
@@ -1474,15 +1475,14 @@ def app_parseMWB(object_loader, long_name_translation, project_folder_path, base
     # These objects will be used (in this order) for solving references which don't specify a PoolID
     layer_data_objects = [ecu_variant_layer_data, base_variant_layer_data] + protocol_layer_data_list
     
-    # Get a map of available MWBs
-    get_mwb_keys_and_table_result = get_mwb_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data)
+    # Get the MWBs of the ECU-VARIANT: the VW service, or every single-DID 0x22 service with the measurement layout
+    table_entry_reader = TableEntryReader(object_loader, project_folder_path)
+    services = table_entry_reader.select_services(ecu_variant_layer_data, KIND_MWB)
     
     # If there are no MWBs, there is nothing to do
-    if get_mwb_keys_and_table_result is None:
+    if not services:
         raise RuntimeError('ECU-VARIANT {} contains no MWBs'.format(desired_ecu_variant))
-    else:
-        # Unpack the result
-        mwb_keys, mwb_table = get_mwb_keys_and_table_result
+    entries = table_entry_reader.get_entries(layer_data_objects, services)
     
     # If the DID was provided as a string, convert it to an integer, assuming it's in HEX format
     if isinstance(desired_did, str):
@@ -1491,31 +1491,26 @@ def app_parseMWB(object_loader, long_name_translation, project_folder_path, base
         desired_did = int(desired_did)
     
     # If the requested DID does not exist, print the list of available DIDs
-    if desired_did not in mwb_keys:
+    desired_entries = [entry for entry in entries if entry['did'] == desired_did]
+    if not desired_entries:
         object_printer.print_indented(0, 'Available DIDs:')
-        for did in sorted(mwb_keys):
+        for did in sorted({entry['did'] for entry in entries}):
             object_printer.print_indented(1, '{:04X}'.format(did))
         object_printer.print_indented(0, '')
         raise RuntimeError('DID {:04X} does not exist'.format(desired_did))
     
-    # Get the request MWB's name and corresponding table row parameter
-    table_row_result = get_mwb_name_and_table_row_parameter_by_did(object_loader, project_folder_path, mwb_keys, mwb_table, desired_did)
-    if table_row_result is None:
-        raise RuntimeError('Failed to find MWB table row')
-    else:
-        # Unpack the result
-        mwb_long_name, mwb_long_name_id, mwb_table_row_parameter = table_row_result
-    
-    # Get the corresponding STRUCTURE parameter of the requested MWB
-    mwb_structure = get_mwb_structure(object_loader, project_folder_path, mwb_table_row_parameter)
-    
     # Convert the response string to a bytearray
     response_bytes = bytearray.fromhex(response)
     
-    # Parse the response and display it
-    parsed_mwb_response = parse_mwb_response(mwb_long_name_id, mwb_long_name, mwb_structure, response_bytes)
-    processed_mwb_response = process_parsed_mwb_response(parsed_mwb_response)
-    dump_processed_mwb_response(processed_mwb_response)
+    # Parse the response with every entry of the DID (Porsche DIDs can be defined by several services) and display it
+    for entry in desired_entries:
+        if 'services' in entry:
+            object_printer.print_indented(0, 'Services: ' + ', '.join(entry['services']))
+        if '#error' in entry['structure']:
+            raise RuntimeError('MWB structure not available: {}'.format(entry['structure']['#error']))
+        parsed_mwb_response = parse_mwb_response(entry['long_name_id'], entry['long_name'], entry['structure'], response_bytes)
+        processed_mwb_response = process_parsed_mwb_response(parsed_mwb_response)
+        dump_processed_mwb_response(processed_mwb_response)
 
 
 # Handle usage as script
