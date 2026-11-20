@@ -127,6 +127,10 @@ class VwTableScriptTest(unittest.TestCase):
         self.dump_coding()
         self.assertEqual(self.read('VRC_EV.c'), EXPECTED_VW_CODING_FILE)
 
+    def test_vw_coding_json_file(self):
+        self.dump_coding()
+        self.assertEqual(json.loads(self.read('VRC_EV.json')), EXPECTED_VW_CODING_LIST)
+
     def test_vw_mwb_file_is_unchanged(self):
         self.dump_mwb()
         self.assertEqual(json.loads(self.read('MWB_EV.json')), EXPECTED_VW_MWB_LIST)
@@ -229,6 +233,56 @@ EXPECTED_VW_CODING_FILE = (
     '      }\n'
     '    }\n'
     '  }\n'
+    '  flat_layout {\n'
+    '    byte_length: 2\n'
+    '    note: None\n'
+    '    fields (2) {\n'
+    '      [0] {\n'
+    '        byte_position: 0\n'
+    '        bit_position: 0\n'
+    '        bit_length: 8\n'
+    '        bit_mask: None\n'
+    "        long_name: 'Field_1'\n"
+    "        long_name_id: 'ID_Field_1'\n"
+    "        parameter_type: 'VALUE'\n"
+    '        values (0) {\n'
+    '        }\n'
+    '        default: None\n'
+    '        note: None\n'
+    '      }\n'
+    '      [1] {\n'
+    '        byte_position: 1\n'
+    '        bit_position: 0\n'
+    '        bit_length: 8\n'
+    '        bit_mask: None\n'
+    "        long_name: 'Field_2'\n"
+    "        long_name_id: 'ID_Field_2'\n"
+    "        parameter_type: 'VALUE'\n"
+    '        values (3) {\n'
+    '          [0] {\n'
+    '            lower_limit: 0\n'
+    '            upper_limit: 0\n'
+    "            text: 'Off'\n"
+    "            text_id: 'ID_Off'\n"
+    '          }\n'
+    '          [1] {\n'
+    '            lower_limit: 1\n'
+    '            upper_limit: 1\n'
+    "            text: 'On'\n"
+    "            text_id: 'ID_On'\n"
+    '          }\n'
+    '          [2] {\n'
+    '            lower_limit: 2\n'
+    '            upper_limit: 2\n'
+    "            text: 'Error'\n"
+    "            text_id: 'ID_Error'\n"
+    '          }\n'
+    '        }\n'
+    '        default: None\n'
+    '        note: None\n'
+    '      }\n'
+    '    }\n'
+    '  }\n'
     '}\n'
     '\n'
     '0x0101: ID_Coding_A - Coding_A {\n'
@@ -315,8 +369,84 @@ EXPECTED_VW_CODING_FILE = (
     '      }\n'
     '    }\n'
     '  }\n'
+    '  flat_layout {\n'
+    '    byte_length: 2\n'
+    '    note: None\n'
+    '    fields (2) {\n'
+    '      [0] {\n'
+    '        byte_position: 0\n'
+    '        bit_position: 0\n'
+    '        bit_length: 8\n'
+    '        bit_mask: None\n'
+    "        long_name: 'Field_1'\n"
+    "        long_name_id: 'ID_Field_1'\n"
+    "        parameter_type: 'VALUE'\n"
+    '        values (0) {\n'
+    '        }\n'
+    '        default: None\n'
+    '        note: None\n'
+    '      }\n'
+    '      [1] {\n'
+    '        byte_position: 1\n'
+    '        bit_position: 0\n'
+    '        bit_length: 8\n'
+    '        bit_mask: None\n'
+    "        long_name: 'Field_2'\n"
+    "        long_name_id: 'ID_Field_2'\n"
+    "        parameter_type: 'VALUE'\n"
+    '        values (3) {\n'
+    '          [0] {\n'
+    '            lower_limit: 0\n'
+    '            upper_limit: 0\n'
+    "            text: 'Off'\n"
+    "            text_id: 'ID_Off'\n"
+    '          }\n'
+    '          [1] {\n'
+    '            lower_limit: 1\n'
+    '            upper_limit: 1\n'
+    "            text: 'On'\n"
+    "            text_id: 'ID_On'\n"
+    '          }\n'
+    '          [2] {\n'
+    '            lower_limit: 2\n'
+    '            upper_limit: 2\n'
+    "            text: 'Error'\n"
+    "            text_id: 'ID_Error'\n"
+    '          }\n'
+    '        }\n'
+    '        default: None\n'
+    '        note: None\n'
+    '      }\n'
+    '    }\n'
+    '  }\n'
     '}\n'
     '\n')
+
+EXPECTED_VW_CODING_LIST = [
+    {'did': 258, 'long_name': 'Coding_B', 'long_name_id': 'ID_Coding_B',
+     'flat_layout': {'byte_length': 2, 'note': None,
+                     'fields': [{'byte_position': 0, 'bit_position': 0, 'bit_length': 8, 'bit_mask': None,
+                                 'long_name': 'Field_1', 'long_name_id': 'ID_Field_1', 'parameter_type': 'VALUE',
+                                 'values': [], 'default': None, 'note': None},
+                                {'byte_position': 1, 'bit_position': 0, 'bit_length': 8, 'bit_mask': None,
+                                 'long_name': 'Field_2', 'long_name_id': 'ID_Field_2', 'parameter_type': 'VALUE',
+                                 'values': [{'lower_limit': 0, 'upper_limit': 0, 'text': 'Off', 'text_id': 'ID_Off'},
+                                            {'lower_limit': 1, 'upper_limit': 1, 'text': 'On', 'text_id': 'ID_On'},
+                                            {'lower_limit': 2, 'upper_limit': 2, 'text': 'Error',
+                                             'text_id': 'ID_Error'}],
+                                 'default': None, 'note': None}]}},
+    {'did': 257, 'long_name': 'Coding_A', 'long_name_id': 'ID_Coding_A',
+     'flat_layout': {'byte_length': 2, 'note': None,
+                     'fields': [{'byte_position': 0, 'bit_position': 0, 'bit_length': 8, 'bit_mask': None,
+                                 'long_name': 'Field_1', 'long_name_id': 'ID_Field_1', 'parameter_type': 'VALUE',
+                                 'values': [], 'default': None, 'note': None},
+                                {'byte_position': 1, 'bit_position': 0, 'bit_length': 8, 'bit_mask': None,
+                                 'long_name': 'Field_2', 'long_name_id': 'ID_Field_2', 'parameter_type': 'VALUE',
+                                 'values': [{'lower_limit': 0, 'upper_limit': 0, 'text': 'Off', 'text_id': 'ID_Off'},
+                                            {'lower_limit': 1, 'upper_limit': 1, 'text': 'On', 'text_id': 'ID_On'},
+                                            {'lower_limit': 2, 'upper_limit': 2, 'text': 'Error',
+                                             'text_id': 'ID_Error'}],
+                                 'default': None, 'note': None}]}}]
 
 EXPECTED_VW_MWB_LIST = [{'did': 258,
   'long_name': 'Meas_Plain',

@@ -260,3 +260,106 @@ class GetEntriesTest(unittest.TestCase):
         self.add_table('T', linear_key_dop(), [('257', 'Row_1', 'Row one')])
         with self.assertRaisesRegex(RuntimeError, 'Unexpected table key DOP: LINEAR A_UINT32 -> A_UINT32'):
             self.get_entries([self.service('S_A', 'T', 'Row_1')])
+
+
+def coding_table_objects(name, key_dop, rows):
+    """Objects of table 'TABLE <name>' with its rows; rows is a list of (map key, row short name)."""
+    objects = {(POOL, 'DOP u8'): uint_dop(8), (POOL, 'DOP key ' + name): key_dop}
+    key_map = []
+    for map_key, short_name in rows:
+        row_id = 'ROW {} {}'.format(name, short_name)
+        struct_id = 'STRUCT {} {}'.format(name, short_name)
+        objects[(POOL, row_id)] = table_row(short_name, map_key, map_key, ref(struct_id))
+        objects[(POOL, struct_id)] = structure('Struct_' + short_name,
+                                               [value_parameter('Field_1', 0, ref('DOP u8'))], byte_length=1)
+        key_map.append((map_key, ref(row_id)))
+    objects[(POOL, 'TABLE ' + name)] = table(ref('DOP key ' + name), key_map)
+    return objects
+
+
+def row_write_service(name, table_name, row_short_name):
+    """0x2E service whose request addresses one row of a table (or the whole table without row)."""
+    return service_objects(name, [sid_parameter(0x2E),
+                                  table_key_parameter(ref('TABLE ' + table_name), row_short_name=row_short_name),
+                                  table_struct_parameter(ref('TABLE ' + table_name))], [[]])
+
+
+def row_read_service(name, table_name, row_short_name):
+    """0x22 service whose positive response addresses one row of a table."""
+    return service_objects(name, [sid_parameter(0x22)],
+                           [[sid_parameter(0x62),
+                             table_key_parameter(ref('TABLE ' + table_name), row_short_name=row_short_name),
+                             table_struct_parameter(ref('TABLE ' + table_name))]])
+
+
+class RelatedCodingEntriesTest(unittest.TestCase):
+    def setUp(self):
+        load_layer_data.cache_clear()
+
+    @staticmethod
+    def porsche_objects():
+        objects = coding_table_objects('C', key_dop_decimal(), [('257', 'Row_1'), ('258', 'Row_2'), ('259', 'Row_3')])
+        objects.update(coding_table_objects('U', key_dop_decimal(), [('260', 'Row_X')]))
+        objects.update(row_write_service('CodingValue_Write', 'C', 'Row_1'))
+        return objects
+
+    @staticmethod
+    def related(objects, names):
+        variant = layer(name='EV', diag_com_primitive_references=[diag_com(name) for name in names])
+        reader = TableEntryReader(FakeObjectLoader(objects), 'project')
+        return reader.get_related_coding_entries([], variant)
+
+    def test_rows_addressed_by_other_services_are_added(self):
+        objects = self.porsche_objects()
+        objects.update(row_read_service('S_M', 'C', 'Row_2'))
+        entries = self.related(objects, ['CodingValue_Write', 'S_M'])
+        self.assertEqual([(e['did'], e['services']) for e in entries],
+                         [(0x0101, ['CodingValue_Write']), (0x0102, ['S_M'])])
+
+    def test_adaptation_services_on_the_coding_table_are_added(self):
+        objects = self.porsche_objects()
+        objects.update(row_write_service('S_W', 'C', 'Row_3'))
+        entries = self.related(objects, ['CodingValue_Write', 'S_W'])
+        self.assertEqual([(e['did'], e['services']) for e in entries],
+                         [(0x0101, ['CodingValue_Write']), (0x0103, ['S_W'])])
+
+    def test_services_on_other_tables_are_ignored(self):
+        objects = self.porsche_objects()
+        objects.update(row_read_service('S_M', 'U', 'Row_X'))
+        objects.update(row_write_service('S_W', 'U', 'Row_X'))
+        entries = self.related(objects, ['CodingValue_Write', 'S_M', 'S_W'])
+        self.assertEqual([(e['did'], e['services']) for e in entries], [(0x0101, ['CodingValue_Write'])])
+
+    def test_coding_service_without_row_reference_reads_whole_table_only(self):
+        objects = self.porsche_objects()
+        objects.update(row_write_service('CodingValue_Write', 'C', None))
+        objects.update(row_read_service('S_M', 'C', 'Row_2'))
+        entries = self.related(objects, ['CodingValue_Write', 'S_M'])
+        self.assertEqual([(e['did'], e['services']) for e in entries],
+                         [(0x0101, ['CodingValue_Write']), (0x0102, ['CodingValue_Write']),
+                          (0x0103, ['CodingValue_Write'])])
+
+    def test_variant_without_coding_service_gives_none(self):
+        objects = self.porsche_objects()
+        objects.update(row_read_service('S_M', 'C', 'Row_2'))
+        self.assertIsNone(self.related(objects, ['S_M']))
+
+    @staticmethod
+    def vw_objects():
+        objects = coding_table_objects('N', key_dop_names([(0x0102, 'Coding_B'), (0x0101, 'Coding_A')]),
+                                       [('Coding_A', 'Row_A'), ('Coding_B', 'Row_B')])
+        objects.update(row_write_service(CODING_SERVICE_NAMES[0], 'N', 'Row_A'))
+        objects.update(row_read_service('S_M', 'N', 'Row_B'))
+        return objects
+
+    def test_vw_coding_service_reads_whole_table_only(self):
+        entries = self.related(self.vw_objects(), [CODING_SERVICE_NAMES[0], 'S_M'])
+        # parse_dop changes some parameter objects in place, so the comparison reads fresh objects
+        reference_objects = self.vw_objects()
+        request = reference_objects[(POOL, 'request ' + CODING_SERVICE_NAMES[0])]
+        vw_service = SelectedService(CODING_SERVICE_NAMES[0], request['request_parameters'][1],
+                                     request['request_parameters'][2], True)
+        expected = TableEntryReader(FakeObjectLoader(reference_objects), 'project').get_entries([], [vw_service])
+        self.assertEqual(entries, expected)
+        self.assertEqual([e['did'] for e in entries], [0x0102, 0x0101])
+        self.assertTrue(all('services' not in e for e in entries))

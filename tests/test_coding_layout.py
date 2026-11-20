@@ -63,6 +63,12 @@ class FlattenCodingEntryTest(unittest.TestCase):
         result = flatten_coding_entry(entry(structure([param('A', 0)], byte_size=6)))
         self.assertEqual(result['byte_length'], 6)
 
+    def test_fields_have_only_the_documented_keys_with_byte_size(self):
+        result = flatten_coding_entry(entry(structure([param('A', 0)], byte_size=6)))
+        self.assertEqual(list(result['fields'][0]), ['byte_position', 'bit_position', 'bit_length', 'bit_mask',
+                                                     'long_name', 'long_name_id', 'parameter_type', 'values',
+                                                     'default', 'note'])
+
     def test_texttable_values_and_default(self):
         scales = [{'lower_limit': 0, 'upper_limit': 0, 'long_name': 'Off', 'long_name_id': 'ID_Off'},
                   {'lower_limit': 1, 'upper_limit': 3, 'long_name': 'On', 'long_name_id': 'ID_On'}]

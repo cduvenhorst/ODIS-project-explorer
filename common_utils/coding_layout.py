@@ -21,6 +21,9 @@ def flatten_coding_entry(entry):
         byte_length = _computed_length(fields)
         if byte_length is None:
             note = 'Length is not fixed'
+    # The helper key is only needed for the computed length; it is removed in every case
+    for field in fields:
+        del field['_standard_length']
     return {'byte_length': byte_length, 'note': note, 'fields': fields}
 
 
@@ -87,6 +90,4 @@ def _computed_length(fields):
             break
         end = field['byte_position'] + (field['bit_position'] + field['bit_length'] + 7) // 8
         length = max(length, end)
-    for field in fields:
-        del field['_standard_length']
     return length

@@ -8,6 +8,7 @@ import unittest
 from unittest import mock
 
 import dumpAdaptations
+import dumpCoding
 import dumpMWB
 from common_utils.layer_chain import load_layer_data
 from tests.script_support import FakeObjectLoader, layer
@@ -149,3 +150,84 @@ class PorscheAdaptationScriptTest(unittest.TestCase):
         console = self.dump_adaptations([])
         self.assertIn('Has no Adaptations', console)
         self.assertFalse(os.path.exists(self.adaptation_path()))
+
+
+class PorscheCodingScriptTest(unittest.TestCase):
+    def setUp(self):
+        load_layer_data.cache_clear()
+        holder = tempfile.TemporaryDirectory()
+        self.addCleanup(holder.cleanup)
+        self.out = os.path.join(holder.name, 'out')
+        self.service_names = ['CodingValue_Write', 'S_M']
+        self.objects = base_variant_objects(
+            ecu_variants=('EV1', 'EV2'),
+            base_variant_layer=layer(name='BV', parent_layers=['PR.pr'],
+                                     diag_com_primitive_references=[diag_com(n) for n in self.service_names]))
+        self.objects.update(porsche_table_objects())
+        # the coding service addresses Row_1, the measurement service Row_2 of the same table
+        self.objects.update(write_service('CodingValue_Write', 'TABLE P', 'Row_1'))
+        self.objects.update(read_service('S_M', 'Row_2'))
+
+    def dump_coding(self, desired_ecu_variant=None):
+        layers = {name + '-reference': layer(name=name, parent_layers=['BV.bv'],
+                                             diag_com_primitive_references=[diag_com(n) for n in self.service_names])
+                  for name in ('EV1', 'EV2')}
+        console = io.StringIO()
+        with mock.patch.object(dumpCoding, 'get_ecu_variant_layer_data',
+                               side_effect=lambda loader, path, reference: layers[reference]), \
+                contextlib.redirect_stdout(console):
+            dumpCoding.dump_codings_for_base_variant(FakeObjectLoader(self.objects), 'project', 'BV.bv.db',
+                                                     self.out, desired_ecu_variant=desired_ecu_variant)
+        return console.getvalue()
+
+    def path(self, name):
+        return os.path.join(self.out, 'BV', name)
+
+    def read(self, name):
+        with open(self.path(name), encoding='utf-8') as file:
+            return file.read()
+
+    @staticmethod
+    def titles(text):
+        return [line for line in text.splitlines() if line.startswith('0x')]
+
+    def test_without_variant_only_coding_service_entry(self):
+        self.dump_coding()
+        text = self.read('VRC_EV1.c')
+        self.assertEqual(self.titles(text), ['0x0101: ID_Row Row_1 - Row Row_1 {'])
+        self.assertIn("  services (1) {\n    [0]: 'CodingValue_Write'\n  }\n  flat_layout {\n", text)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.out, 'BV'))),
+                         ['VRC_BV.c', 'VRC_BV.json', 'VRC_EV1.c', 'VRC_EV1.json', 'VRC_EV2.c', 'VRC_EV2.json'])
+
+    def test_with_variant_adds_related_rows_and_only_that_variant(self):
+        console = self.dump_coding('EV1')
+        self.assertEqual(sorted(os.listdir(os.path.join(self.out, 'BV'))), ['VRC_EV1.c', 'VRC_EV1.json'])
+        self.assertEqual([title.split(':')[0] for title in self.titles(self.read('VRC_EV1.c'))],
+                         ['0x0101', '0x0102'])
+        with open(self.path('VRC_EV1.json'), encoding='utf-8') as file:
+            data = json.load(file)
+        self.assertEqual([(e['did'], e['services']) for e in data],
+                         [(0x0101, ['CodingValue_Write']), (0x0102, ['S_M'])])
+        self.assertEqual(console, 'ECU-VARIANT EV1\n')
+
+    def test_base_variant_name_can_be_given(self):
+        self.dump_coding('BV')
+        self.assertEqual(sorted(os.listdir(os.path.join(self.out, 'BV'))), ['VRC_BV.c', 'VRC_BV.json'])
+        self.assertEqual(len(self.titles(self.read('VRC_BV.c'))), 2)
+
+    def test_unknown_variant_lists_variants_and_raises(self):
+        console = io.StringIO()
+        with contextlib.redirect_stdout(console), \
+                self.assertRaisesRegex(RuntimeError, '^Could not find ECU-VARIANT NOPE$'):
+            dumpCoding.dump_codings_for_base_variant(FakeObjectLoader(self.objects), 'project', 'BV.bv.db',
+                                                     self.out, desired_ecu_variant='NOPE')
+        self.assertEqual(console.getvalue(), 'Available ECU-VARIANTs:\n  BV\n  EV1\n  EV2\n\n')
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_json_file_has_flat_layout(self):
+        self.dump_coding()
+        with open(self.path('VRC_EV1.json'), encoding='utf-8') as file:
+            data = json.load(file)
+        self.assertEqual(list(data[0]), ['did', 'long_name', 'long_name_id', 'services', 'flat_layout'])
+        self.assertEqual(data[0]['flat_layout']['fields'][0]['byte_position'], 0)
+        self.assertEqual(data[0]['flat_layout']['byte_length'], 1)

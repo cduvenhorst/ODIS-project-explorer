@@ -243,6 +243,27 @@ class TableEntryReader:
         other_entries.sort(key=lambda entry: (entry['did'], entry['services'][0]))
         return vw_entries + other_entries
 
+    # Read the coding entries of an ECU variant together with the rows of its coding table that other services
+    # address: the measurement value and adaptation services that are no VW table services and reference one row of
+    # the same table as the coding service
+    ### returns None if the variant has no coding service; a VW coding service or one without row reference reads
+    ### its whole table and nothing else
+    def get_related_coding_entries(self, layer_data_objects, ecu_variant_layer_data):
+        coding_services = self.select_services(ecu_variant_layer_data, KIND_CODING)
+        if not coding_services:
+            return None
+        coding_service = coding_services[0]
+        if coding_service.is_vw_table_service or not coding_service.key_parameter['is_table_row_reference']:
+            return self.get_entries(layer_data_objects, coding_services)
+        coding_table_key = _table_key(coding_service.key_parameter['table_reference'])
+        related_services = []
+        for kind in (KIND_MWB, KIND_ADAPTATION):
+            for service in self.select_services(ecu_variant_layer_data, kind):
+                if (not service.is_vw_table_service and service.key_parameter['is_table_row_reference']
+                        and _table_key(service.key_parameter['table_reference']) == coding_table_key):
+                    related_services.append(service)
+        return self.get_entries(layer_data_objects, coding_services + related_services)
+
     def _row_map(self, table_key, table):
         if table_key not in self._row_maps:
             self._row_maps[table_key] = {self._load(item['reference'])['short_name']: (item['map_key'], item['reference'])
