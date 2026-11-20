@@ -142,6 +142,12 @@ class PorscheParseMwbTest(unittest.TestCase):
         self.assertIn('0101', output)
         self.assertIn('0102', output)
 
+    def test_row_without_dop_gives_structure_error(self):
+        self.objects[(POOL, 'ROW Row_1')]['dop_base_reference'] = None
+        output, error = self.parse('0101', service_names=('S_A',))
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual(str(error), 'MWB structure not available: Access to database element failed - DOP with name: None')
+
     def test_variant_without_measurement_services_is_rejected(self):
         output, error = self.parse('0101', service_names=())
         self.assertEqual(str(error), 'ECU-VARIANT EV contains no MWBs')

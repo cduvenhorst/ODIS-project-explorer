@@ -46,9 +46,20 @@ class SelectServicesTest(unittest.TestCase):
 
     def test_reference_to_non_service_object_is_skipped(self):
         job = {(POOL, 'service S_J'): {'#OBJECT_TYPE': 'MCD_DB_SINGLE_ECU_JOB'}}
-        for kind in (KIND_MWB, KIND_ADAPTATION, KIND_CODING):
+        for kind in (KIND_MWB, KIND_ADAPTATION):
             with self.subTest(kind=kind):
                 self.assertEqual(self.select(kind, ['S_J'], job), [])
+
+    def test_adaptation_service_with_key_at_wrong_byte_is_skipped(self):
+        self.assertEqual(self.select(KIND_ADAPTATION, ['S_W'], write_service('S_W', key_byte=2)), [])
+
+    def test_read_service_is_not_selected_as_adaptation(self):
+        self.assertEqual(self.select(KIND_ADAPTATION, ['S_R'], write_service('S_R', sid=0x22)), [])
+
+    def test_adaptation_service_with_two_table_keys_is_skipped(self):
+        objects = service_objects('S_W', [sid_parameter(0x2E), table_key_parameter(ref('T')),
+                                          table_key_parameter(ref('T')), table_struct_parameter(ref('T'))], [[]])
+        self.assertEqual(self.select(KIND_ADAPTATION, ['S_W'], objects), [])
 
     def test_vw_mwb_service_wins_over_structural_services(self):
         result = self.select(KIND_MWB, ['S_A', VW_MWB_SERVICE_NAME], mwb_service('S_A'),
@@ -173,6 +184,19 @@ class GetEntriesTest(unittest.TestCase):
         self.add_table('T', key_dop_names([(0x0101, 'Meas_Other')]), [('Meas Value', 'Row_A', 'Meas Value')])
         with self.assertRaisesRegex(RuntimeError, 'Failed to find table row for Meas_Other'):
             self.get_entries([self.service(VW_MWB_SERVICE_NAME, 'T', 'Row_A', is_vw=True)])
+
+    def test_non_vw_service_without_row_reference_reads_whole_name_table(self):
+        self.add_table('T', key_dop_names([(0x0600, 'Coding_B'), (0x0100, 'Coding_A')]),
+                       [('Coding_A', 'Row_A', 'Coding_A'), ('Coding_B', 'Row_B', 'Coding_B')])
+        entries = self.get_entries([self.service('S_A', 'T')])
+        self.assertEqual([(e['did'], e['services']) for e in entries], [(0x0100, ['S_A']), (0x0600, ['S_A'])])
+
+    def test_row_of_whole_name_table_and_row_reference_appears_once(self):
+        self.add_table('T', key_dop_names([(0x0600, 'Coding_B'), (0x0100, 'Coding_A')]),
+                       [('Coding_A', 'Row_A', 'Coding_A'), ('Coding_B', 'Row_B', 'Coding_B')])
+        entries = self.get_entries([self.service('S_A', 'T'), self.service('S_B', 'T', 'Row_B')])
+        self.assertEqual([(e['did'], e['services']) for e in entries],
+                         [(0x0100, ['S_A']), (0x0600, ['S_A', 'S_B'])])
 
     def test_row_reference_decimal_family(self):
         self.add_decimal_table()
