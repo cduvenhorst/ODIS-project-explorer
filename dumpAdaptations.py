@@ -8,98 +8,15 @@ from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
-from common_utils.layer_chain import get_inherited_diag_com_primitive_references, load_layer_data
-from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
+from common_utils.layer_chain import load_layer_data
+from common_utils.table_entries import KIND_ADAPTATION, TableEntryReader
+from dumpMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data
 
 
 # PBL is needed for parsing .key files, which will be done by the PblRecordManager class
 # The file "pbl.dll" should be in the working directory, in the "bin" folder
 pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
-
-
-# Get the table (and its keys) necessary for Adaptations
-def get_adaptation_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data):
-    # Search for the DIAG-COMM reference with name 'DiagnServi_WriteDataByIdentCalibData' (might not exist)
-    # The services inherited from the parent layers are included
-    diag_com_ref_WDBI = None
-    for diag_com_ref in get_inherited_diag_com_primitive_references(object_loader, project_folder_path, ecu_variant_layer_data):
-        if diag_com_ref['map_key'] == 'DiagnServi_WriteDataByIdentCalibData':
-            diag_com_ref_WDBI = diag_com_ref
-            break
-    
-    # Return None for ECU-VARIANTs which do not have the Adaptation service defined
-    if diag_com_ref_WDBI is None:
-        return None
-            
-    # Load the DIAG-SERVICE object from its reference
-    wdbi_service = object_loader.load_object_by_reference(project_folder_path, diag_com_ref_WDBI['reference'])
-    
-    # Load the request from its reference in the service
-    request = object_loader.load_object_by_reference(project_folder_path, wdbi_service['request_reference'])
-    
-    # One parameter will be the table key (DID) and the other one will be the table structure (Adaptation data)
-    data_record_table_key_parameter = None
-    data_record_table_struct_parameter = None
-    for request_parameter in request['request_parameters']:
-        if request_parameter['#OBJECT_TYPE'] == 'MCD_DB_PARAMETER_TABLE_KEY':
-            data_record_table_key_parameter = request_parameter
-        if request_parameter['#OBJECT_TYPE'] == 'MCD_DB_PARAMETER_TABLESTRUCT':
-            data_record_table_struct_parameter = request_parameter
-    
-    # The request parameters must have been found
-    if data_record_table_key_parameter is None:
-        raise RuntimeError('Could not find table key request parameter')
-    if data_record_table_struct_parameter is None:
-        raise RuntimeError('Could not find table struct request parameter')
-    
-    # In a service 0x2E request, the DID is expected at BYTE-POSITION 1 and the Adaptation data at BYTE-POSITION 3 (both at byte edge)
-    if data_record_table_key_parameter['byte_position'] != 1 or data_record_table_key_parameter['bit_position'] != 0:
-        raise RuntimeError('Expected BYTE-POSITION 1 and BIT-POSITION 0 for Adaptation table key, not {} and {}'.format(data_record_table_key_parameter['byte_position'], data_record_table_key_parameter['bit_position']))
-    #if data_record_table_struct_parameter['byte_position'] != 3 or data_record_table_struct_parameter['bit_position'] != 0:
-    #    raise RuntimeError('Expected BYTE-POSITION 3 and BIT-POSITION 0 for Adaptation table struct, not {} and {}'.format(data_record_table_struct_parameter['byte_position'], data_record_table_struct_parameter['bit_position']))
-    
-    # Parse the table keys and table structure
-    parsed_table_keys = parse_dop(object_loader, layer_data_objects, project_folder_path, data_record_table_key_parameter)
-    parsed_table_struct = parse_dop(object_loader, layer_data_objects, project_folder_path, data_record_table_struct_parameter)
-    
-    # Convert the keys to a dictionary where a DID resolves to a LONG-NAME and LONG-NAME-ID
-    adaptation_keys = {x['key_value']: {'long_name': x['long_name'], 'long_name_id': x['long_name_id']} for x in parsed_table_keys['keys']}
-    # Convert the structure to a dictionary where a LONG-NAME resolves to a STRUCTURE
-    adaptation_table = {x['long_name']: x for x in parsed_table_struct['table_rows']}
-    return (adaptation_keys, adaptation_table)
-
-
-# Resolve a DID to its corresponding Adaptation (name and table row parameter)
-def get_adaptation_name_and_table_row_parameter_by_did(object_loader, project_folder_path, adaptation_keys, adaptation_table, desired_did):
-    # adaptation_keys: keyed by DID, resolves to {long_name, long_name_id}
-    adaptation_long_name_and_id = adaptation_keys[desired_did]
-    adaptation_long_name = adaptation_long_name_and_id['long_name']
-    adaptation_long_name_id = adaptation_long_name_and_id['long_name_id']
-    
-    # adaptation_table: keyed by long_name, resolves to parsed row parameter
-    # The key for the DID map is the Adaptation's long name directly
-    
-    # Return the parameter and its name
-    return (adaptation_long_name, adaptation_long_name_id, adaptation_table[adaptation_long_name])
-
-
-# Get the important fields of an Adaptation table row parameter
-def parse_adaptation_table_row_parameter(adaptation_table_row_parameter):
-    # Some sanity checks...
-    if adaptation_table_row_parameter['default_value'] is not None:
-        raise RuntimeError('Table row parameter has default')
-    if adaptation_table_row_parameter['parameter_type'] != 'VALUE':
-        raise RuntimeError('Wrong parameter type for table row parameter: {}'.format(adaptation_table_row_parameter['parameter_type']))
-    # Return the important fields
-    return (adaptation_table_row_parameter['long_name'], adaptation_table_row_parameter['description'], adaptation_table_row_parameter['byte_position'], adaptation_table_row_parameter['bit_position'])
-
-
-# Get the structure referenced by an Adaptation table row parameter
-def get_adaptation_structure(object_loader, project_folder_path, adaptation_table_row_parameter):
-    if adaptation_table_row_parameter['dop']['type'] != 'STRUCTURE':
-        raise RuntimeError('Wrong data type for parameter structure: {}'.format(adaptation_table_row_parameter['dop']['type']))
-    return adaptation_table_row_parameter['dop']
 
 
 def dump_adaptations_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
@@ -143,6 +60,9 @@ def dump_adaptations_for_base_variant(object_loader, project_folder_path, base_v
     else:
         ecu_variant_map = {base_variant_name: None}
     
+    # One reader per BASE-VARIANT; it buffers the loaded services and responses across its ECU-VARIANTs
+    table_entry_reader = TableEntryReader(object_loader, project_folder_path)
+    
     # Go through each ECU-VARIANT referenced by the BASE-VARIANT (and the BASE-VARIANT itself)
     for ecu_variant_name in ecu_variant_map:
         if ecu_variant_name == base_variant_name:
@@ -170,16 +90,17 @@ def dump_adaptations_for_base_variant(object_loader, project_folder_path, base_v
             # These objects will be used (in this order) for solving references which don't specify a PoolID
             layer_data_objects = [ecu_variant_layer_data, base_variant_layer_data] + protocol_layer_data_list
             
-            # Get a map of all available Adaptations = calibration data
-            adaptation_keys_and_table_result = get_adaptation_keys_and_table(object_loader, layer_data_objects, project_folder_path, ecu_variant_layer_data)
+            # Get the services that write adaptations (the VW service, or every single-DID 0x2E service with the
+            # adaptation layout)
+            services = table_entry_reader.select_services(ecu_variant_layer_data, KIND_ADAPTATION)
             
-            # Skip ECU-VARIANTs which do not have the Adaptation service defined (no file will be created)
-            if adaptation_keys_and_table_result is None:
+            # Skip ECU-VARIANTs which do not have such a service (no file will be created)
+            if not services:
                 object_printer.print_indented(debug_info_indentation_level + 1, 'Has no Adaptations')
                 continue
             
-            # Unpack the result
-            adaptation_keys, adaptation_table = adaptation_keys_and_table_result
+            # Read the Adaptations = calibration data before the file is opened, so a failure leaves no partial file
+            entries = table_entry_reader.get_entries(layer_data_objects, services)
             
             # Create the BASE-VARIANT's output folder if it doesn't exist
             if not os.path.isdir(base_variant_output_folder_path):
@@ -187,34 +108,8 @@ def dump_adaptations_for_base_variant(object_loader, project_folder_path, base_v
             
             # Open the output file and dump the Adaptations
             with open(ecu_variant_output_file_path, 'w', encoding='utf-8') as ecu_variant_output_file:
-                for adaptation_did in adaptation_keys:
-                    # Get the definition for the current DID
-                    table_row_result = get_adaptation_name_and_table_row_parameter_by_did(object_loader, project_folder_path, adaptation_keys, adaptation_table, adaptation_did)
-                    if table_row_result is None:
-                        raise RuntimeError('Failed to find Adaptation table row')
-                    
-                    # Unpack the result
-                    adaptation_long_name, adaptation_long_name_id, adaptation_table_row_parameter = table_row_result
-                    
-                    # Parse the parameter
-                    adaptation_table_row_parameter_long_name, adaptation_description, adaptation_byte_position, adaptation_bit_position = parse_adaptation_table_row_parameter(adaptation_table_row_parameter)
-                    
-                    # Get the object of type 'STRUCTURE'
-                    adaptation_structure = get_adaptation_structure(object_loader, project_folder_path, adaptation_table_row_parameter)
-                    
-                    # Create an object (dictionary) with the fields retrieved from the table row and the parameter structure
-                    obj = {
-                        'did': adaptation_did,
-                        'long_name': adaptation_long_name,
-                        'long_name_id': adaptation_long_name_id,
-                        'description': adaptation_description,
-                        'byte_position': adaptation_byte_position,
-                        'bit_position': adaptation_bit_position,
-                        'structure': adaptation_structure
-                    }
-                    
-                    # Dump to the output file
-                    object_printer.print_object(obj, '0x{:04X}: {} - {}'.format(adaptation_did, adaptation_long_name_id, adaptation_long_name), 0, ecu_variant_output_file, False)
+                for entry in entries:
+                    object_printer.print_object(entry, '0x{:04X}: {} - {}'.format(entry['did'], entry['long_name_id'], entry['long_name']), 0, ecu_variant_output_file, False)
                     object_printer.print_indented(0, '', ecu_variant_output_file)
 
 

@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+import dumpAdaptations
 import dumpMWB
 from common_utils.layer_chain import load_layer_data
 from tests.script_support import FakeObjectLoader, layer
@@ -86,3 +87,65 @@ class PorscheMwbScriptTest(unittest.TestCase):
         # the VW table lists its DIDs in key-scale order, not in key-map order
         self.assertEqual([e['did'] for e in data], [0x0102, 0x0101])
         self.assertTrue(all('services' not in e for e in data))
+
+
+def write_service(name, table_name, row_short_name):
+    """Single-DID 0x2E service whose request references one row of the table."""
+    return service_objects(name, [sid_parameter(0x2E),
+                                  table_key_parameter(ref(table_name), row_short_name=row_short_name),
+                                  table_struct_parameter(ref(table_name))], [[]])
+
+
+def second_table_objects():
+    """Decimal table 'TABLE Q' with one row Row_2 that has the same key 258 as Row_2 of 'TABLE P'."""
+    return {(POOL, 'DOP key Q'): key_dop_decimal(),
+            (POOL, 'ROW Q Row_2'): table_row('Row_2', 'Other Row_2', '258', ref('STRUCT Q Row_2')),
+            (POOL, 'STRUCT Q Row_2'): structure('Struct_Q_Row_2', [value_parameter('Field_1', 0, ref('DOP u8'))],
+                                                byte_length=1),
+            (POOL, 'TABLE Q'): table(ref('DOP key Q'), [('258', ref('ROW Q Row_2'))])}
+
+
+class PorscheAdaptationScriptTest(unittest.TestCase):
+    def setUp(self):
+        load_layer_data.cache_clear()
+        holder = tempfile.TemporaryDirectory()
+        self.addCleanup(holder.cleanup)
+        self.out = os.path.join(holder.name, 'out')
+        self.objects = base_variant_objects()
+        self.objects.update(porsche_table_objects())
+        self.objects.update(second_table_objects())
+        self.objects.update(write_service('S_W', 'TABLE P', 'Row_2'))
+        self.objects.update(write_service('S_X', 'TABLE Q', 'Row_2'))
+
+    def dump_adaptations(self, service_names):
+        ev_layer = layer(name='EV', parent_layers=['BV.bv'],
+                         diag_com_primitive_references=[diag_com(name) for name in service_names])
+        console = io.StringIO()
+        with mock.patch.object(dumpAdaptations, 'get_ecu_variant_layer_data', return_value=ev_layer), \
+                contextlib.redirect_stdout(console):
+            dumpAdaptations.dump_adaptations_for_base_variant(FakeObjectLoader(self.objects), 'project',
+                                                              'BV.bv.db', self.out)
+        return console.getvalue()
+
+    def adaptation_path(self):
+        return os.path.join(self.out, 'BV', 'ADP_EV.c')
+
+    def read_adaptations(self):
+        with open(self.adaptation_path(), encoding='utf-8') as file:
+            return file.read()
+
+    def test_porsche_adaptation_file_has_entry_with_services(self):
+        self.dump_adaptations(['S_W'])
+        text = self.read_adaptations()
+        self.assertIn('0x0102: ', text)
+        self.assertIn("  services (1) {\n    [0]: 'S_W'\n  }\n}\n", text)
+
+    def test_duplicate_adaptation_did_gives_two_entries(self):
+        self.dump_adaptations(['S_W', 'S_X'])
+        titles = [line for line in self.read_adaptations().splitlines() if line.startswith('0x0102: ')]
+        self.assertEqual(len(titles), 2)
+
+    def test_variant_without_adaptation_services_has_no_file(self):
+        console = self.dump_adaptations([])
+        self.assertIn('Has no Adaptations', console)
+        self.assertFalse(os.path.exists(self.adaptation_path()))
