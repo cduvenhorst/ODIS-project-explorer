@@ -72,6 +72,13 @@ class ConfigDataResolverTests(unittest.TestCase):
                          obj['configuration_data_files'])
         self.assertEqual({'CD_X'}, self.resolver.configuration_data_short_names)
 
+    def test_configuration_data_without_short_name_is_not_resolvable(self):
+        obj = {'#OBJECT_TYPE': 'MCD_DB_CONFIGURATION_DATA', 'short_name': None}
+        self.resolver.resolve_object(obj, 'A.sd')
+        self.assertEqual(NOT_RESOLVABLE, obj['configuration_data_files'])
+        self.assertEqual('configuration_data_files', list(obj)[-1])
+        self.assertEqual(set(), self.resolver.configuration_data_short_names)
+
     def test_data_record_lists_only_matching_files(self):
         obj = self.resolve('REC', 'CD_X', '*.bin')
         self.assertEqual('configuration_data_files', list(obj)[-1])

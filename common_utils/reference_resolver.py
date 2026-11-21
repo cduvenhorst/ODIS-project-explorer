@@ -85,7 +85,9 @@ class ReferenceResolver:
                 insert_after(obj, 'table_row', 'table_short_name', table_short_name)
                 insert_after(obj, 'table_short_name', 'table_row_key', row_key)
         elif object_type == 'MCD_DB_CONFIGURATION_DATA':
-            if obj.get('short_name') is not None:
+            if obj.get('short_name') is None:
+                obj['configuration_data_files'] = NOT_RESOLVABLE
+            else:
                 self.configuration_data_short_names.add(obj['short_name'])
                 obj['configuration_data_files'] = config_data.list_config_data_files(
                     self.__project_folder_path, config_data.CONFIG_DATA_PREFIX + obj['short_name'])
