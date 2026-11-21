@@ -437,3 +437,34 @@ def configuration_data_body(short_name, sdg_numbers=()):
     else:
         body.u8(0)
     return body.u32(0).u32(0).u32(0).flag(False).u8(0)
+
+
+def sdg_element_body(text_id='', content='', semantic_information=''):
+    """Body of a valid MCD_DB_SPECIAL_DATA_ELEMENT; an empty text is a word without the top bit."""
+    body = ObjectBytes()
+    for text in (text_id, content, semantic_information):
+        if text:
+            body.native_ascii(text)
+        else:
+            body.u32(0)
+    return body
+
+
+def sdg_group_body(items=(), caption=None, semantic_information=''):
+    """Body of a valid MCD_DB_SPECIAL_DATA_GROUP; items are (type name, body) or None."""
+    body = ObjectBytes().u32(len(items))
+    for item in items:
+        if item is None:
+            body.absent()
+        else:
+            body.nested(*item)
+    if caption is None:
+        body.u8(0)
+    else:
+        object_key, pool_name = caption
+        body.u8(1).u32(object_key).ascii(pool_name)
+    if semantic_information:
+        body.native_ascii(semantic_information)
+    else:
+        body.u32(0)
+    return body

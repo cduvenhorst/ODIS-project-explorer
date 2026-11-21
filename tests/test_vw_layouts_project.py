@@ -1071,7 +1071,8 @@ class AudienceTests(unittest.TestCase):
 LAYOUT_TEST_MODULES = ['tests.test_vw_layouts_compu', 'tests.test_vw_layouts_services',
                        'tests.test_vw_layouts_project', 'tests.test_layouts_coding_data',
                        'tests.test_layouts_state_charts',
-                       'tests.test_layouts_flash', 'tests.test_layouts_sub_component']
+                       'tests.test_layouts_flash', 'tests.test_layouts_sub_component',
+                       'tests.test_layouts_special_data']
 
 
 def layout_test_names():
