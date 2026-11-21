@@ -43,9 +43,19 @@ def pattern_project(ecu_variants):
 EXPECTED_EV_A_FILE = (
     "'EV_A' {\n  name: 'Long EV_A'\n  description: 'Description of EV_A'\n  matching_patterns (2) {\n"
     "    [0] {\n      odx_file_identifier: 'EV_A'\n      odx_file_version: '001'\n"
-    "      subsystem_part_number: None\n    }\n"
+    "      subsystem_part_number: None\n"
+    "      matching_parameters (2) {\n"
+    "        [0] {\n          service: 'DiagnServi_ReadDataByIdentASAMODXFileIdent'\n"
+    "          response_parameter: 'P'\n          expected_value: 'EV_A'\n        }\n"
+    "        [1] {\n          service: 'DiagnServi_ReadDataByIdentASAMODXFileVersi'\n"
+    "          response_parameter: 'P'\n          expected_value: '001'\n        }\n"
+    "      }\n    }\n"
     "    [1] {\n      odx_file_identifier: None\n      odx_file_version: None\n"
-    "      subsystem_part_number: '1K0907'\n    }\n  }\n}\n\n")
+    "      subsystem_part_number: '1K0907'\n"
+    "      matching_parameters (1) {\n"
+    "        [0] {\n          service: 'DS_ReadDataByIdentSubsySpeciDiagnSpeciPartNumbe'\n"
+    "          response_parameter: 'P'\n          expected_value: '1K0907'\n        }\n"
+    "      }\n    }\n  }\n}\n\n")
 
 
 class VwVariantPatternTest(unittest.TestCase):
@@ -76,6 +86,36 @@ class VwVariantPatternTest(unittest.TestCase):
         loader = pattern_project({'EV_A': [[matching_parameter('MB_Identification_Read', 'X')]]})
         output = self.run_dump(loader)
         self.assertIn('Not for UDS', output)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'BV', 'PAT_EV_A.c')))
+
+    def test_matching_parameters_list_every_parameter_in_order(self):
+        pattern = dumpECUVariantPatterns.get_matching_pattern(
+            [matching_parameter('S_A', 'X', name='P_1'), matching_parameter('S_B', 'Y', path='P.Q')])
+        self.assertEqual(pattern['matching_parameters'], [
+            {'service': 'S_A', 'response_parameter': 'P_1', 'expected_value': 'X'},
+            {'service': 'S_B', 'response_parameter': 'P.Q', 'expected_value': 'Y'}])
+        self.assertEqual(list(pattern), ['odx_file_identifier', 'odx_file_version',
+                                         'subsystem_part_number', 'matching_parameters'])
+        self.assertIsNone(pattern['odx_file_identifier'])
+        self.assertIsNone(pattern['odx_file_version'])
+        self.assertIsNone(pattern['subsystem_part_number'])
+
+    def test_unknown_service_raises_no_error(self):
+        self.run_dump(pattern_project({'EV_A': [[matching_parameter('S_A', 'X')]]}))
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'BV', 'PAT_EV_A.c')))
+
+    def test_repeated_service_is_kept_and_last_value_fills_old_field(self):
+        pattern = dumpECUVariantPatterns.get_matching_pattern(
+            [matching_parameter(FILE_IDENT, 'EV_A'), matching_parameter(FILE_IDENT, 'EV_B')])
+        self.assertEqual(len(pattern['matching_parameters']), 2)
+        self.assertEqual(pattern['odx_file_identifier'], 'EV_B')
+
+    def test_kwp_pattern_skips_only_this_variant(self):
+        loader = pattern_project({'EV_A': [[matching_parameter('MB_Identification_Read', 'X')]],
+                                  'EV_B': [[matching_parameter(FILE_IDENT, 'EV_B')]]})
+        output = self.run_dump(loader)
+        self.assertIn('Not for UDS', output)
+        self.assertTrue(os.path.isfile(os.path.join(self.out, 'BV', 'PAT_EV_B.c')))
         self.assertFalse(os.path.exists(os.path.join(self.out, 'BV', 'PAT_EV_A.c')))
 
 

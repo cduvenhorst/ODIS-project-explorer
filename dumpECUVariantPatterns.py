@@ -18,6 +18,67 @@ pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
 
 
+# These ones are used for KWP2000 ECU-VARIANT selection
+KWP_MATCHING_SERVICES = ('MB_Identification_Read', 'DCX_Identification_Read', 'ActiveDiagnosticInformation_Read')
+
+
+# Build the output of one matching pattern from its matching parameters
+# Returns None if the pattern is used for KWP2000 ECU-VARIANT selection
+def get_matching_pattern(matching_parameters):
+    # Style 1: 2 parameters are used:
+    # - the "ODX File Identifier" (DID 0xF19E: ASCII (ISO-8859-1) string with length 3-25 and 0x00 termination, starting with 'EV_')
+    # - the "ODX File Version" (DID 0xF1A2: 3/6 character string, out of which only the first 3 characters are used)
+    file_identifier = None
+    file_version = None
+    
+    # Style 2: using a subsystem part number (DID 0xF110)
+    # It is an ASCII (ISO-8859-1) string with length 0-655535 without termination
+    subsystem_part_number = None
+    
+    # Every parameter is listed, in the order of the database
+    output_parameters = []
+    
+    # Get the parameters
+    for matching_parameter in matching_parameters:
+        service = matching_parameter['diag_com_primitive_reference']['object_id']
+        
+        if service in KWP_MATCHING_SERVICES:
+            return None
+        
+        # The last value of a repeated service fills the fields of the first two styles
+        match service:
+            # ODX File Identifier
+            case 'DiagnServi_ReadDataByIdentASAMODXFileIdent':
+                file_identifier = matching_parameter['expected_value_string']
+            
+            # ODX File Version
+            case 'DiagnServi_ReadDataByIdentASAMODXFileVersi':
+                file_version = matching_parameter['expected_value_string']
+            
+            # Subsystem Specific Diagnostic Specification Part Number
+            case 'DS_ReadDataByIdentSubsySpeciDiagnSpeciPartNumbe':
+                subsystem_part_number = matching_parameter['expected_value_string']
+        
+        # kernel: the response parameter is named by its short name path if it has one
+        if matching_parameter['response_parameter_is_short_name_path']:
+            response_parameter = matching_parameter['response_parameter_short_name_path']
+        else:
+            response_parameter = matching_parameter['response_parameter_name']
+        output_parameters.append({
+            'service': service,
+            'response_parameter': response_parameter,
+            'expected_value': matching_parameter['expected_value_string']
+        })
+    
+    # The pattern object contains the Identifier and Version, if defined, and all parameters
+    return {
+        'odx_file_identifier': file_identifier,
+        'odx_file_version': file_version,
+        'subsystem_part_number': subsystem_part_number,
+        'matching_parameters': output_parameters
+    }
+
+
 def dump_patterns_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
     # The PoolID simply refers to the file's name (without extension)
     pool_id = base_variant_filename
@@ -73,52 +134,23 @@ def dump_patterns_for_base_variant(object_loader, project_folder_path, base_vari
             output_object['matching_patterns'] = []
             
             # Go through each matching pattern of the ECU-VARIANT
+            is_kwp_variant = False
             for matching_pattern in ecu_variant['variant_patterns']:
                 # The "matching parameters" are the values requested from the ECU and checked against known constants
-                matching_parameters = matching_pattern['matching_parameters']
+                output_matching_parameters = get_matching_pattern(matching_pattern['matching_parameters'])
                 
-                # Style 1: 2 parameters are used:
-                # - the "ODX File Identifier" (DID 0xF19E: ASCII (ISO-8859-1) string with length 3-25 and 0x00 termination, starting with 'EV_')
-                # - the "ODX File Version" (DID 0xF1A2: 3/6 character string, out of which only the first 3 characters are used)
-                file_identifier = None
-                file_version = None
-                
-                # Style 2: using a subsystem part number (DID 0xF110)
-                # It is an ASCII (ISO-8859-1) string with length 0-655535 without termination
-                subsystem_part_number = None
-                
-                # Get the parameters
-                for matching_parameter in matching_parameters:
-                    match matching_parameter['diag_com_primitive_reference']['object_id']:
-                        # ODX File Identifier
-                        case 'DiagnServi_ReadDataByIdentASAMODXFileIdent':
-                            file_identifier = matching_parameter['expected_value_string']
-                        
-                        # ODX File Version
-                        case 'DiagnServi_ReadDataByIdentASAMODXFileVersi':
-                            file_version = matching_parameter['expected_value_string']
-                        
-                        # Subsystem Specific Diagnostic Specification Part Number
-                        case 'DS_ReadDataByIdentSubsySpeciDiagnSpeciPartNumbe':
-                            subsystem_part_number = matching_parameter['expected_value_string']
-                        
-                        # These ones are used for KWP2000 ECU-VARIANT selection
-                        case 'MB_Identification_Read' | 'DCX_Identification_Read' | 'ActiveDiagnosticInformation_Read':
-                            object_printer.print_indented(debug_info_indentation_level + 1, 'Not for UDS')
-                            return
-                        
-                        case _:
-                            raise RuntimeError('Unknown matching parameter: {}'.format(matching_parameter['diag_com_primitive_reference']['object_id']))
-                
-                # The pattern object contains the Identifier and Version, if defined
-                output_matching_parameters = {
-                    'odx_file_identifier': file_identifier,
-                    'odx_file_version': file_version,
-                    'subsystem_part_number': subsystem_part_number
-                }
+                # KWP2000 ECU-VARIANTs are not dumped
+                if output_matching_parameters is None:
+                    is_kwp_variant = True
+                    break
                 
                 # Add the matching pattern to the list
                 output_object['matching_patterns'].append(output_matching_parameters)
+            
+            # upstream: returned and skipped all remaining ECU-VARIANTs of the base variant
+            if is_kwp_variant:
+                object_printer.print_indented(debug_info_indentation_level + 1, 'Not for UDS')
+                continue
             
             
             # Create the BASE-VARIANT's output folder if it doesn't exist

@@ -143,6 +143,9 @@ A pool that is missing from `rt_index.xml` is reported with the line `Pool <Pool
 ### `dumpECUVariantPatterns`
 
 This script will dump "ECU-VARIANT matching patterns", necessary for the "variant identification" procedure (selecting the appropriate file for an ECU).
+Each pattern has `odx_file_identifier`, `odx_file_version` and `subsystem_part_number` (`None` if the pattern does not use them; if a service is repeated, its last value is used) and `matching_parameters`, which lists every matching parameter of the pattern in database order, with `service`, `response_parameter` (the short name path if the parameter has one, else its name) and `expected_value`.
+Repeated and unknown services are kept in `matching_parameters`.
+An ECU variant with a KWP2000 pattern (`MB_Identification_Read`, `DCX_Identification_Read` or `ActiveDiagnosticInformation_Read`) prints `Not for UDS` and gets no file; the other variants of the base variant are still dumped (upstream stopped at the first such variant).
 
 > [!TIP]
 > ```powershell
