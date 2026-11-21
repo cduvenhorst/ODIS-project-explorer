@@ -4,8 +4,8 @@ import unittest
 
 from common_utils.layer_chain import (
     get_inherited_diag_com_primitive_references, get_inherited_dtc_dop_names,
-    get_parent_layer_chain, get_protocol_layer_data_list, has_vw_uds_protocol,
-    is_uds_base_variant, is_uds_protocol_type, load_layer_data)
+    get_inherited_env_data_descs, get_parent_layer_chain, get_protocol_layer_data_list,
+    has_vw_uds_protocol, is_uds_base_variant, is_uds_protocol_type, load_layer_data)
 from tests.script_support import FakeObjectLoader, layer, vector_map
 
 UDS_TYPE = 'ISO_15765_3_on_ISO_15765_2'
@@ -22,6 +22,10 @@ def names(layer_data_list):
 
 def service(key, source):
     return {'map_key': key, 'reference': {'pool_id': source, 'object_id': key + '@' + source}}
+
+
+def env_data_desc(key, source):
+    return {'map_key': key, 'env_data_desc': {'source': source}}
 
 
 class TempProjectCase(unittest.TestCase):
@@ -205,6 +209,25 @@ class InheritanceTests(TempProjectCase):
             'FG.fg': layer(dtc_dop_names=['D', 'B'])})
         ev = layer(dtc_dop_names=['A'], parent_layers=['BV.bv'], not_inherited_dops=vector_map({'BV.bv': ['C']}))
         self.assertEqual(get_inherited_dtc_dop_names(loader, self.tmp, ev), ['A', 'B', 'D'])
+
+    def test_inherited_env_data_descs_own_first_then_parents_minus_not_inherited(self):
+        loader = make_loader({
+            'BV.bv': layer(env_data_descs=[env_data_desc('EDD_B', 'BV'), env_data_desc('EDD_C', 'BV')],
+                           parent_layers=['FG.fg']),
+            'FG.fg': layer(env_data_descs=[env_data_desc('EDD_D', 'FG')])})
+        ev = layer(env_data_descs=[env_data_desc('EDD_A', 'EV')], parent_layers=['BV.bv'],
+                   not_inherited_dops=vector_map({'BV.bv': ['EDD_C']}))
+        self.assertEqual(self.keys(get_inherited_env_data_descs(loader, self.tmp, ev)),
+                         ['EDD_A', 'EDD_B', 'EDD_D'])
+
+    def test_inherited_env_data_descs_own_entry_wins_over_parent_entry_of_same_name(self):
+        own = env_data_desc('EDD_A', 'EV')
+        loader = make_loader({
+            'BV.bv': layer(env_data_descs=[env_data_desc('EDD_A', 'BV')])})
+        ev = layer(env_data_descs=[own], parent_layers=['BV.bv'])
+        result = get_inherited_env_data_descs(loader, self.tmp, ev)
+        self.assertEqual(len(result), 1)
+        self.assertIs(result[0]['env_data_desc'], own['env_data_desc'])
 
 
 if __name__ == '__main__':

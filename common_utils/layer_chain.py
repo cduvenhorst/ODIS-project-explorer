@@ -1,5 +1,5 @@
 # Helpers for the layer hierarchy of a project: the parent layer chain, the UDS check per base variant
-# and the inheritance of services and DTC DOPs.
+# and the inheritance of services, DTC DOPs and environment data descriptions.
 #
 # The inheritance rule follows ODX: a layer inherits what its parent layers offer (PARENT-REF), minus the
 # names listed in the NOT-INHERITED-... elements of that parent reference. What a layer defines itself comes first.
@@ -137,3 +137,13 @@ def get_inherited_diag_com_primitive_references(object_loader, project_folder_pa
 def get_inherited_dtc_dop_names(object_loader, project_folder_path, layer_data):
     return _collect_inherited(object_loader, project_folder_path, layer_data,
                               'dtc_dop_names', 'not_inherited_dops', lambda name: name, frozenset())
+
+
+# Get the environment data descriptions of a layer including the inherited ones, without the ones hidden by
+# not_inherited_dops; for the order see _collect_inherited
+### layer_data = layer data object of the layer (its own PoolID is not needed)
+### returns entries shaped like layer_data['env_data_descs']
+def get_inherited_env_data_descs(object_loader, project_folder_path, layer_data):
+    return _collect_inherited(object_loader, project_folder_path, layer_data,
+                              'env_data_descs', 'not_inherited_dops', lambda entry: entry['map_key'],
+                              frozenset())
