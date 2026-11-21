@@ -21,6 +21,12 @@ class SpecialDataLayoutTests(unittest.TestCase):
         self.assertEqual((result['text_id'], result['content'], result['semantic_information']),
                          ('', '', ''))
 
+    def test_special_data_element_content_with_cp1252_undefined_byte(self):
+        raw = b'a\x81b'
+        body = ObjectBytes().u32(0).u32(0x80000000 | len(raw)).raw(raw).u32(0)
+        result = support.load('MCD_DB_SPECIAL_DATA_ELEMENT', body, strict=True)
+        self.assertEqual(result['content'], 'a\x81b')
+
     def test_special_data_group_with_caption_and_nested_group(self):
         nested = ('MCD_DB_SPECIAL_DATA_GROUP',
                   sdg_group_body(items=(('MCD_DB_SPECIAL_DATA_ELEMENT',

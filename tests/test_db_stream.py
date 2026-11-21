@@ -126,6 +126,16 @@ class DbStreamTests(unittest.TestCase):
             self.assertEqual(getattr(stream, load)(), '')
             self.assertEqual(stream.read(4), b'tail')
 
+    def test_native_ascii_keeps_bytes_cp1252_leaves_undefined(self):
+        raw = b'A\x81B\x8d\x8f\x90\x9d\x80'
+        stream = open_stream(support.ObjectBytes().u32(0x80000000 | len(raw)).raw(raw))
+        self.assertEqual(stream.loadNativeAsciiString(), 'A\x81B\x8d\x8f\x90\x9d\u20ac')
+
+    def test_native_ascii_defined_cp1252_bytes_are_unchanged(self):
+        raw = 'Gr\u00fc\u00dfe \u20ac \u201cx\u201d'.encode('cp1252')
+        stream = open_stream(support.ObjectBytes().u32(0x80000000 | len(raw)).raw(raw))
+        self.assertEqual(stream.loadNativeAsciiString(), 'Gr\u00fc\u00dfe \u20ac \u201cx\u201d')
+
     def test_native_unicode_keeps_leading_byte_order_mark(self):
         text = '\ufeffA'
         stream = open_stream(support.ObjectBytes().u32(0x80000002).raw(text.encode('utf-16-le')))

@@ -1,5 +1,17 @@
+import codecs
 import struct
 from classes.StringStorage import StringStorage
+
+
+### Error handler for decoding cp1252: the five bytes cp1252 leaves undefined (0x81, 0x8D, 0x8F, 0x90, 0x9D)
+### are kept as the code point of the same value, so no byte is lost and nothing raises
+def __keep_undefined_cp1252_byte(error):
+    if not isinstance(error, UnicodeDecodeError):
+        raise error
+    return ''.join(chr(b) for b in error.object[error.start:error.end]), error.end
+
+
+codecs.register_error('keep_undefined_cp1252_byte', __keep_undefined_cp1252_byte)
 
 
 class DbStream:
@@ -138,16 +150,16 @@ class DbStream:
     # Load a string stored in the object itself, introduced by a 4-byte word
     # * kernel: a set top bit makes the low 31 bits the length (in bytes per unit, see below) and the string follows;
     #   without the top bit the string is empty and nothing more is read, whatever the remaining bits are
-    def __load_native_string(self, bytes_per_unit, encoding):
+    def __load_native_string(self, bytes_per_unit, encoding, errors='strict'):
         word = self.loadNumericType(4)
         if word & 0x80000000:
-            return self.read(bytes_per_unit * (word & 0x7FFFFFFF)).decode(encoding)
+            return self.read(bytes_per_unit * (word & 0x7FFFFFFF)).decode(encoding, errors)
         return ''
     
     
-    # Load a native ASCII string (length in bytes)
+    # Load a native ASCII string (length in bytes), decoded as cp1252; undefined bytes are kept (see above)
     def loadNativeAsciiString(self):
-        return self.__load_native_string(1, 'cp1252')
+        return self.__load_native_string(1, 'cp1252', 'keep_undefined_cp1252_byte')
     
     
     # Load a native Unicode string (length in UTF-16 code units); a leading byte order mark is kept
