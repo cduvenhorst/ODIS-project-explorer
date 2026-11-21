@@ -67,6 +67,9 @@ The scripts which have the option of text translation (`dumpDTC` and `parseMWB`)
 If you do not provide such a database, for `dumpDTC` you will not have the "more detailed description",
 and for `parseMWB` everything will use its default LONG-NAME from ODX.
 
+Text IDs in projects of other manufacturers (for example Porsche) are not translated: no known source maps them to text.
+The DIDB path described above is unchanged.
+
 ## Strict reading
 
 Loading is lenient by default: bytes left over after an object is parsed, and content that is recognised but not read, are reported on the console.
@@ -139,6 +142,20 @@ or unhandled fields in handled object types (which I hardcoded since they were t
 Keys that are names, hash keys without a string (shown as `hash <n>`) and multi-part records are read too; inline flash data in a multi-part record is only dumped as its length.
 A pool that is missing from `rt_index.xml` is reported with the line `Pool <PoolID> is not listed in rt_index.xml`, and its `.c` file contains the line `Not listed in rt_index.xml`.
 `dumpAllProjects` continues after an error in one project and exits with code 1 if any project failed.
+
+References are resolved beside the references they come from; the original fields are kept.
+Anything that cannot be found is shown as `not resolvable`.
+
+Special data groups: next to `special_data_group_references`, an object gets `special_data_groups`, read from `SDG_<Pool>.kix.gz` and `SDG_<Pool>.dix.gz` of the object's pool.
+Each group has `items` (nested groups are resolved the same way), `caption_reference` (`object_key`, `pool_id`), `caption` (looked up in the group's own pool) and `semantic_information`; each element has `text_id`, `content` and `semantic_information`, named as in the kernel.
+
+State charts and sub-components: a transition has `source_state_short_name` and `target_state_short_name`, a state transition action has `diag_com_primitive_short_name`, and a table row connector has `table_short_name` and `table_row_key`.
+A state chart also gets `transitions`, a list with `transition`, `source_state`, `target_state` and `services` (the short names of the services of that transition).
+A reference with an empty pool ID is looked up in the pool of the object that holds it.
+
+ConfigData: the files of every `ConfigData_*` folder of the project are copied to the output folder under the same relative path (an existing file is only replaced if overwriting is on).
+A configuration data object gets `configuration_data_files`, listing all files (name and size) of its folder; a data record gets the files of its parent's folder whose name matches the file name pattern of its coding data, as the kernel does.
+A `ConfigData_*` folder with files that no configuration data object refers to is reported with `ConfigData folder <name> is not referenced by any object`; this is not reported if a pool was skipped, because the reference might be in that pool.
 
 ### `dumpECUVariantPatterns`
 
