@@ -121,6 +121,19 @@ class DumpProjectTest(unittest.TestCase):
         self.assertEqual(EXPECTED_STATE_AND_CONFIGURATION, tree['B.sd.c'])
         self.assertEqual('', stdout)
 
+    def test_dump_shows_special_data_groups_beside_references(self):
+        data = support.configuration_data_body('CD_X', sdg_numbers=(1,))
+        element = support.sdg_element_body('TXT', 'Content')
+        group = support.sdg_group_body([('MCD_DB_SPECIAL_DATA_ELEMENT', element)]).build('MCD_DB_SPECIAL_DATA_GROUP')
+        write_project(self.folder, {'B.sd': {'CD_X': data.build('MCD_DB_CONFIGURATION_DATA')}},
+                      data.ascii_strings, data.unicode_strings)
+        support.write_sdg_file(self.folder, 'B.sd', [group])
+        files, _ = dump(self.folder)
+        text = files['B.sd.c']
+        references = "  special_data_group_references (1) {\n    [0] {\n      object_id: 0x1\n    }\n  }\n"
+        self.assertIn(references + "  special_data_groups (1) {\n", text)
+        self.assertIn("content: 'Content'", text)
+
     def raw_project(self, entries, pool='A.sd', ascii_strings=()):
         write_strings(self.folder, ascii_strings)
         write_raw_pool(self.folder, pool, entries)

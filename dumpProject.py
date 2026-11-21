@@ -4,6 +4,7 @@ import struct
 import xml.etree.ElementTree as ET
 
 from common_utils import enum_converters, object_printer
+from common_utils.reference_resolver import ReferenceResolver
 from classes.PblRecordManager import PblRecordManager
 from classes.ObjectLoader import ObjectLoader
 from classes.StringStorage import StringStorage
@@ -53,6 +54,9 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
     # An instance of the ObjectLoader class is used for loading Objects from Pools
     # The first parameter (instance of the PblRecordManager class) is not needed since we will extract the PBL records "manually"
     object_loader = ObjectLoader(None, string_storage)
+    
+    # Resolves references between Objects (e.g. special data groups) before an Object is dumped
+    resolver = ReferenceResolver(project_folder_path, string_storage, pbl_record_manager)
     
     # Pools missing from rt_index.xml (none if the file is missing or invalid)
     unlisted_pools = pools_not_in_rt_index(project_folder_path) or set()
@@ -120,6 +124,9 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
                                 # Load the Object
                                 # This will either return dictionary (most common), or a list (for Objects with "plural" types)
                                 obj = object_loader.load_object_by_parts(object_parts)
+                            
+                                # Add the resolved references beside the references
+                                resolver.resolve_object(obj, PoolID)
                             
                                 # Dump the Object to the output file
                                 object_printer.print_indented(0, '', output_pool_file)
