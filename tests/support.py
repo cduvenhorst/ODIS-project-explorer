@@ -3,6 +3,7 @@
 Everything here is invented data; the formats follow the readers in classes/.
 """
 import ctypes
+import gzip
 import os
 import struct
 import tempfile
@@ -177,6 +178,19 @@ def string_storage(ascii_strings, unicode_strings, database_version=None):
         if database_version is not None:
             version_file(folder, ['PRODIS_MCD_DatabaseVersionInfo="%s"' % database_version])
         return StringStorage(folder)
+
+
+def write_sdg_file(folder, pool_id, records):
+    """Write SDG_<pool_id>.kix.gz / .dix.gz: records back to back, one 8-byte key entry each."""
+    keys = bytearray()
+    data = bytearray()
+    for record in records:
+        keys += struct.pack('<II', len(data), len(record))
+        data += record
+    with gzip.open(os.path.join(folder, 'SDG_%s.kix.gz' % pool_id), 'wb') as handle:
+        handle.write(bytes(keys))
+    with gzip.open(os.path.join(folder, 'SDG_%s.dix.gz' % pool_id), 'wb') as handle:
+        handle.write(bytes(data))
 
 
 def load(type_name, body, strict=True, database_version=None):
