@@ -111,6 +111,17 @@ class ReferenceResolverTests(unittest.TestCase):
         self.assertEqual('CAP_A', group['caption']['short_name'])
         self.assertEqual('B.sd', group['caption_reference']['pool_id'])
 
+    def test_caption_key_of_type_without_loader_is_not_resolvable(self):
+        pool = {'CAP_A': support.ObjectBytes().build('DB_DOP_STRUCT'), 'UNIT_ONE': unit_body().build('MCD_DB_UNIT')}
+        resolver = self.make_project(pool_objects=pool, sdg_records=[group_record((CAPTION_KEY, None))])
+        obj = self.resolve(resolver, {'special_data_group_references': [{'object_id': 1}]})
+        self.assertEqual(NOT_RESOLVABLE, obj['special_data_groups'][0]['caption'])
+
+    def test_caption_reference_outside_special_data_group_is_left_alone(self):
+        resolver = self.make_project()
+        other = {'#OBJECT_TYPE': 'MCD_DB_UNIT', 'caption_reference': {'object_key': CAPTION_KEY, 'pool_id': None}}
+        self.assertEqual(['#OBJECT_TYPE', 'caption_reference'], list(self.resolve(resolver, other)))
+
     def test_empty_sdg_references_add_nothing(self):
         resolver = self.make_project(sdg_records=[group_record()])
         obj = self.resolve(resolver, {'special_data_group_references': [], 'other': [1, {'x': 2}]})

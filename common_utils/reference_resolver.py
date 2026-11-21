@@ -1,8 +1,10 @@
 """Resolves references between objects of a project, to be shown beside the references."""
 import os
+import struct
 
 from classes import DbObject
 from classes.ObjectLoader import ObjectLoader
+from common_utils import enum_converters
 from common_utils.sdg_files import SdgFile
 
 NOT_RESOLVABLE = 'not resolvable'
@@ -55,7 +57,7 @@ class ReferenceResolver:
             insert_after(obj, 'special_data_group_references', 'special_data_groups', groups)
         
         # The caption of every special data group, also of nested ones
-        if 'caption_reference' in obj and 'caption' not in obj:
+        if obj.get('#OBJECT_TYPE') == 'MCD_DB_SPECIAL_DATA_GROUP' and 'caption_reference' in obj and 'caption' not in obj:
             insert_after(obj, 'caption_reference', 'caption', self.__load_caption(obj['caption_reference'], pool_id))
     
     
@@ -65,6 +67,13 @@ class ReferenceResolver:
     ### current_pool_id = Pool of the Object which holds the reference
     ### returns None if the Pool's files or the Object are missing
     def load_object(self, pool_id, object_id, current_pool_id):
+        parts = self.__load_parts(pool_id, object_id, current_pool_id)
+        if parts is None:
+            return None
+        return self.__object_loader.load_object_by_parts(parts)
+    
+    
+    def __load_parts(self, pool_id, object_id, current_pool_id):
         if not pool_id:
             pool_id = current_pool_id
         records = self.__get_pbl_records(pool_id)
@@ -82,8 +91,7 @@ class ReferenceResolver:
         if pbl_data is None:
             return None
         
-        parts = ObjectLoader.get_object_parts_from_db_file(pbl_data, self.__project_folder_path, pool_id)
-        return self.__object_loader.load_object_by_parts(parts)
+        return ObjectLoader.get_object_parts_from_db_file(pbl_data, self.__project_folder_path, pool_id)
     
     
     def __get_pbl_records(self, pool_id):
@@ -115,8 +123,14 @@ class ReferenceResolver:
     def __load_caption(self, caption_reference, pool_id):
         if caption_reference is None:
             return None
-        # kernel: the caption is resolved in the Pool of the group, caption_reference['pool_id'] is informational
-        caption = self.load_object(pool_id, caption_reference['object_key'], pool_id)
-        if not isinstance(caption, dict) or caption.get('#OBJECT_TYPE') != 'MCD_DB_SPECIAL_DATA_GROUP_CAPTION':
+        # The caption is looked up in the group's own Pool, the pool word of the reference is kept as read
+        # (every caption in the surveyed data resolves there)
+        parts = self.__load_parts(pool_id, caption_reference['object_key'], pool_id)
+        if parts is None:
             return NOT_RESOLVABLE
-        return caption
+        
+        # Check the type before loading: an Object of a type without a loader must not raise
+        object_type = enum_converters.object_types.get(struct.unpack('<H', parts[0][:2])[0])
+        if object_type != 'MCD_DB_SPECIAL_DATA_GROUP_CAPTION':
+            return NOT_RESOLVABLE
+        return self.__object_loader.load_object_by_parts(parts)
