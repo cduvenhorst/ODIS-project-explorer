@@ -39,7 +39,7 @@ def layer(**fields):
     result = {'parent_layers': [], 'protocol_type': None,
               'diag_com_primitive_references': [], 'not_inherited_diag_com_primitives': [],
               'dtc_dop_names': [], 'not_inherited_dops': [], 'dop_references': [],
-              'location_type': None}
+              'location_type': None, 'env_data_descs': []}
     result.update(fields)
     return result
 
