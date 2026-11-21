@@ -32,11 +32,12 @@ class ReferenceResolverTests(unittest.TestCase):
         self.folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.folder)
 
-    def make_project(self, pool_objects=None, sdg_records=None):
+    def make_project(self, pool_objects=None, sdg_records=None, extra_pools=None, ascii_strings=()):
         pools = {'A.sd': {'CAP_A': caption_record(), 'UNIT_ONE': unit_body().build('MCD_DB_UNIT')}}
         if pool_objects is not None:
             pools['A.sd'] = pool_objects
-        support.write_project(self.folder, pools, [], [])
+        pools.update(extra_pools or {})
+        support.write_project(self.folder, pools, list(ascii_strings), [])
         if sdg_records is not None:
             support.write_sdg_file(self.folder, 'A.sd', sdg_records)
         return ReferenceResolver(self.folder, StringStorage(self.folder), PblRecordManager(LIBRARY))
@@ -100,6 +101,15 @@ class ReferenceResolverTests(unittest.TestCase):
         resolver = self.make_project(sdg_records=[group_record(missing), group_record(other_type)])
         obj = self.resolve(resolver, {'special_data_group_references': [{'object_id': 1}, {'object_id': 2}]})
         self.assertEqual([NOT_RESOLVABLE, NOT_RESOLVABLE], [group['caption'] for group in obj['special_data_groups']])
+
+    def test_caption_is_looked_up_in_own_pool_whatever_pool_id_says(self):
+        resolver = self.make_project(sdg_records=[group_record((CAPTION_KEY, 'B.sd'))],
+                                     ascii_strings=['B.sd'],
+                                     extra_pools={'B.sd': {'UNIT_ONE': unit_body().build('MCD_DB_UNIT')}})
+        obj = self.resolve(resolver, {'special_data_group_references': [{'object_id': 1}]})
+        group = obj['special_data_groups'][0]
+        self.assertEqual('CAP_A', group['caption']['short_name'])
+        self.assertEqual('B.sd', group['caption_reference']['pool_id'])
 
     def test_empty_sdg_references_add_nothing(self):
         resolver = self.make_project(sdg_records=[group_record()])

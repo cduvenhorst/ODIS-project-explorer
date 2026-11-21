@@ -115,7 +115,8 @@ class ReferenceResolver:
     def __load_caption(self, caption_reference, pool_id):
         if caption_reference is None:
             return None
-        caption = self.load_object(caption_reference['pool_id'], caption_reference['object_key'], pool_id)
+        # kernel: the caption is resolved in the Pool of the group, caption_reference['pool_id'] is informational
+        caption = self.load_object(pool_id, caption_reference['object_key'], pool_id)
         if not isinstance(caption, dict) or caption.get('#OBJECT_TYPE') != 'MCD_DB_SPECIAL_DATA_GROUP_CAPTION':
             return NOT_RESOLVABLE
         return caption
