@@ -5,13 +5,13 @@ from classes.StringStorage import StringStorage
 
 ### Error handler for decoding cp1252: the five bytes cp1252 leaves undefined (0x81, 0x8D, 0x8F, 0x90, 0x9D)
 ### are kept as the code point of the same value, so no byte is lost and nothing raises
-def __keep_undefined_cp1252_byte(error):
+def _keep_undefined_cp1252_byte(error):
     if not isinstance(error, UnicodeDecodeError):
         raise error
     return ''.join(chr(b) for b in error.object[error.start:error.end]), error.end
 
 
-codecs.register_error('keep_undefined_cp1252_byte', __keep_undefined_cp1252_byte)
+codecs.register_error('keep_undefined_cp1252_byte', _keep_undefined_cp1252_byte)
 
 
 class DbStream:

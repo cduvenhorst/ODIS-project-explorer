@@ -48,6 +48,27 @@ class ConfigDataFilesTests(unittest.TestCase):
         files = [{'name': 'a.bin', 'size': 1}, {'name': 'b.BIN', 'size': 1}, {'name': 'c.xml', 'size': 1}]
         self.assertEqual([{'name': 'a.bin', 'size': 1}], config_data.matching_config_data_files(files, '*.bin'))
 
+    def test_copy_without_overwrite_copies_missing_target_and_keeps_existing(self):
+        output = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, output)
+        write_file(self.folder, 'ConfigData_CD_X/a.bin', b'new')
+        write_file(self.folder, 'ConfigData_CD_X/b.bin', b'new')
+        write_file(output, 'ConfigData_CD_X/a.bin', b'old')
+        config_data.copy_config_data(self.folder, output, False)
+        with open(os.path.join(output, 'ConfigData_CD_X', 'a.bin'), 'rb') as handle:
+            self.assertEqual(b'old', handle.read())
+        with open(os.path.join(output, 'ConfigData_CD_X', 'b.bin'), 'rb') as handle:
+            self.assertEqual(b'new', handle.read())
+
+    def test_copy_with_overwrite_replaces_existing_target(self):
+        output = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, output)
+        write_file(self.folder, 'ConfigData_CD_X/a.bin', b'new')
+        write_file(output, 'ConfigData_CD_X/a.bin', b'old')
+        config_data.copy_config_data(self.folder, output, True)
+        with open(os.path.join(output, 'ConfigData_CD_X', 'a.bin'), 'rb') as handle:
+            self.assertEqual(b'new', handle.read())
+
 
 class ConfigDataResolverTests(unittest.TestCase):
     def setUp(self):
@@ -73,11 +94,13 @@ class ConfigDataResolverTests(unittest.TestCase):
         self.assertEqual({'CD_X'}, self.resolver.configuration_data_short_names)
 
     def test_configuration_data_without_short_name_is_not_resolvable(self):
-        obj = {'#OBJECT_TYPE': 'MCD_DB_CONFIGURATION_DATA', 'short_name': None}
-        self.resolver.resolve_object(obj, 'A.sd')
-        self.assertEqual(NOT_RESOLVABLE, obj['configuration_data_files'])
-        self.assertEqual('configuration_data_files', list(obj)[-1])
-        self.assertEqual(set(), self.resolver.configuration_data_short_names)
+        for short_name in (None, ''):
+            with self.subTest(short_name=short_name):
+                obj = {'#OBJECT_TYPE': 'MCD_DB_CONFIGURATION_DATA', 'short_name': short_name}
+                self.resolver.resolve_object(obj, 'A.sd')
+                self.assertEqual(NOT_RESOLVABLE, obj['configuration_data_files'])
+                self.assertEqual('configuration_data_files', list(obj)[-1])
+                self.assertEqual(set(), self.resolver.configuration_data_short_names)
 
     def test_data_record_lists_only_matching_files(self):
         obj = self.resolve('REC', 'CD_X', '*.bin')

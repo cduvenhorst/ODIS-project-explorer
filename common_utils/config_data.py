@@ -28,6 +28,8 @@ def list_config_data_files(project_folder_path: str, folder_name: str) -> list[d
 
 
 # Files whose name matches the wildcard pattern (case sensitive)
+### files   = dictionaries as returned by list_config_data_files
+### pattern = wildcard pattern, matched against the relative path
 def matching_config_data_files(files: list[dict], pattern: str) -> list[dict]:
     # kernel: MCDDbDataRecordImpl::getMatchingFileNames uses the coding data file name as a wildcard pattern
     return [file for file in files if fnmatch.fnmatchcase(file['name'], pattern)]

@@ -85,7 +85,7 @@ class ReferenceResolver:
                 insert_after(obj, 'table_row', 'table_short_name', table_short_name)
                 insert_after(obj, 'table_short_name', 'table_row_key', row_key)
         elif object_type == 'MCD_DB_CONFIGURATION_DATA':
-            if obj.get('short_name') is None:
+            if not obj.get('short_name'):
                 obj['configuration_data_files'] = NOT_RESOLVABLE
             else:
                 self.configuration_data_short_names.add(obj['short_name'])
@@ -234,7 +234,7 @@ class ReferenceResolver:
         # A row reference with an empty pool_id is resolved in the Pool of the table
         for entry in table.get('table_key_map', []):
             row = self.__row(entry['reference'], table_pool_id)
-            if row[0] == row_short_name:
+            if row[0] is not None and row[0] == row_short_name:
                 return (table_short_name, row[1])
         return (table_short_name, NOT_RESOLVABLE)
     

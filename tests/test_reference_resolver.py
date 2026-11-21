@@ -297,6 +297,13 @@ class StateAndTableTests(unittest.TestCase):
         obj = self.resolve(self.connector_object('ROW_9'))
         self.assertEqual(('TAB_A', NOT_RESOLVABLE), (obj['table_short_name'], obj['table_row_key']))
 
+    def test_row_connector_without_row_name_does_not_match_unloadable_row(self):
+        self.add('A.sd', 'TAB_A', 'MCD_DB_TABLE', support.table_body('TAB_A', [('GONE', 'GONE', '')]))
+        obj = self.connector_object()
+        obj['table_row'] = None
+        obj = self.resolve(obj)
+        self.assertEqual(('TAB_A', NOT_RESOLVABLE), (obj['table_short_name'], obj['table_row_key']))
+
     def test_row_connector_with_missing_table_is_not_resolvable(self):
         self.add_table()
         obj = self.resolve(self.connector_object(table_pool='Z.sd'))
