@@ -5,16 +5,11 @@ Upstream has no loaders for these types; every body follows the kernel read orde
 import unittest
 
 from tests import support
-from tests.support import NAMED_ATTRIBUTED_REFS, ObjectBytes, typed
+from tests.support import NAMED_ATTRIBUTED_REFS, ObjectBytes, map_body, name_block_body, request_part, typed
 
 
 def load(type_name, body, database_version=None):
     return support.load(type_name, body, database_version=database_version)
-
-
-def request_part(body, short_name_path):
-    body.unicode('V').flag(short_name_path).ascii('P')
-    return body
 
 
 def action_body(short_name_path=False, with_strings=False):
@@ -46,14 +41,6 @@ def precondition(diag_com=True, short_name_path=False, with_strings=False):
         result['diag_com_primitive'] = None
     result['table_parameter'] = None
     return result
-
-
-def name_block_body(body, filled=False):
-    """Name block in the read order of MCD_DB_ENV_DATA_DESC."""
-    if filled:
-        return (body.unicode('Desc').unicode('Long').ascii('Short').ascii('DescId')
-                .ascii('LongId').ascii('UID'))
-    return body.unicode(None).unicode(None).ascii(None).ascii(None).ascii(None).ascii(None)
 
 
 def name_block(filled=False):
@@ -210,19 +197,6 @@ def table_ref_body(body, number):
 
 def table_ref(number):
     return {'object_id': 'ROW%d' % number, 'pool_id': 'POOL', 'object_id2': 'Row%d' % number}
-
-
-def map_body(body, entries):
-    """One map of DB_STATE_CHART_DATA; entries is a list of (key, [element body or None])."""
-    body.u16(len(entries))
-    for key, elements in entries:
-        body.ascii(key).u16(len(elements))
-        for element in elements:
-            if element is None:
-                body.absent()
-            else:
-                body.nested(element[0], element[1])
-    return body
 
 
 ACTION = 'MCD_DB_STATE_TRANSITION_ACTION'

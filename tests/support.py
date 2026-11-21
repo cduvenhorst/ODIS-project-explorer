@@ -365,8 +365,8 @@ def named_refs(entries=()):
             for name, object_id, pool_id in entries]
 
 
-def attributed_ref_body(body, strings=()):
-    body.ascii('OBJ').ascii('POOL').u8(len(strings))
+def attributed_ref_body(body, strings=(), object_id='OBJ', pool_id='POOL'):
+    body.ascii(object_id).ascii(pool_id).u8(len(strings))
     for text in strings:
         body.ascii(text)
     return body
@@ -391,9 +391,9 @@ def named_attributed_refs(entries=()):
     return [{'name': name, 'reference': attributed_ref(strings)} for name, strings in entries]
 
 
-def diag_com_ref_body(body, with_strings):
+def diag_com_ref_body(body, with_strings, object_id='OBJ', pool_id='POOL'):
     """DbDiagComObjectReference, type eMCDAUDIENCE."""
-    attributed_ref_body(body, ['A1'] if with_strings else [])
+    attributed_ref_body(body, ['A1'] if with_strings else [], object_id, pool_id)
     body.u8(3).u16(0x0DAC).u8(1 if with_strings else 0)
     if with_strings:
         body.u16(2).ascii('V1').ascii('V2')
@@ -429,10 +429,36 @@ def audience():
                                   'after_market': True})
 
 
+def request_part(body, short_name_path):
+    """Value and request parameter part of a state transition action or precondition definition."""
+    body.unicode('V').flag(short_name_path).ascii('P')
+    return body
+
+
+def name_block_body(body, filled=False, short_name=None):
+    """Name block in the read order of MCD_DB_ENV_DATA_DESC; short_name fills only the short name."""
+    if filled:
+        return (body.unicode('Desc').unicode('Long').ascii('Short').ascii('DescId')
+                .ascii('LongId').ascii('UID'))
+    return body.unicode(None).unicode(None).ascii(short_name).ascii(None).ascii(None).ascii(None)
+
+
+def map_body(body, entries):
+    """One map of DB_STATE_CHART_DATA; entries is a list of (key, [element body or None])."""
+    body.u16(len(entries))
+    for key, elements in entries:
+        body.ascii(key).u16(len(elements))
+        for element in elements:
+            if element is None:
+                body.absent()
+            else:
+                body.nested(element[0], element[1])
+    return body
+
+
 def ecu_state_body(short_name, transitions=()):
     """Body of an MCD_DB_ECU_STATE; transitions are (name, object id, pool id)."""
-    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
-            .ascii(None).ascii(None))
+    body = name_block_body(ObjectBytes(), short_name=short_name)
     body.u16(len(transitions))
     for name, object_id, pool_id in transitions:
         body.ascii(name).ascii(object_id).ascii(pool_id).u8(0)
@@ -441,8 +467,7 @@ def ecu_state_body(short_name, transitions=()):
 
 def state_transition_body(short_name, source=None, target=None):
     """Body of an MCD_DB_ECU_STATE_TRANSITION; source and target are (object id, pool id) or None."""
-    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
-            .ascii(None).ascii(None))
+    body = name_block_body(ObjectBytes(), short_name=short_name)
     for state in (source, target):
         object_id, pool_id = state or (None, None)
         body.ascii(object_id).ascii(pool_id).u8(0)
@@ -451,8 +476,7 @@ def state_transition_body(short_name, source=None, target=None):
 
 def state_chart_body(short_name, semantic, transitions=()):
     """Body of an MCD_DB_ECU_STATE_CHART without states; transitions are (name, object id, pool id)."""
-    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
-            .ascii(None).ascii(None).ascii(semantic).u16(0).ascii(None))
+    body = name_block_body(ObjectBytes(), short_name=short_name).ascii(semantic).u16(0).ascii(None)
     body.u16(len(transitions))
     for name, object_id, pool_id in transitions:
         body.ascii(name).ascii(object_id).ascii(pool_id).u8(0)
@@ -461,18 +485,14 @@ def state_chart_body(short_name, semantic, transitions=()):
 
 def state_transition_action_body(service_id=None, pool_id=None):
     """Body of an MCD_DB_STATE_TRANSITION_ACTION; without service_id the DiagCom reference is empty."""
-    body = ObjectBytes().ascii(service_id).ascii(pool_id).u8(0).u8(3).u16(0x0DAC).u8(0)
-    return body.unicode('V').flag(False).ascii('P')
+    return request_part(diag_com_ref_body(ObjectBytes(), False, service_id, pool_id), False)
 
 
 def state_chart_data_body(actions=()):
     """Body of a DB_STATE_CHART_DATA; actions are (transition short name, [action bodies])."""
-    body = ObjectBytes().u16(len(actions))
-    for transition, action_bodies in actions:
-        body.ascii(transition).u16(len(action_bodies))
-        for action_body in action_bodies:
-            body.nested('MCD_DB_STATE_TRANSITION_ACTION', action_body)
-    return body.u16(0)
+    entries = [(transition, [('MCD_DB_STATE_TRANSITION_ACTION', action_body) for action_body in action_bodies])
+               for transition, action_bodies in actions]
+    return map_body(map_body(ObjectBytes(), entries), [])
 
 
 def table_row_body(short_name, key):

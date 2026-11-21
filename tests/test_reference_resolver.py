@@ -281,10 +281,16 @@ class StateAndTableTests(unittest.TestCase):
         self.assertEqual(['#OBJECT_TYPE', 'table_row', 'table_short_name', 'table_row_key', 'table_reference', 'table'],
                          list(obj))
 
-    def test_row_connector_with_empty_pool_ids_resolves_in_pool_of_table(self):
+    def test_row_connector_with_empty_row_pool_ids_resolves_rows_in_pool_of_table(self):
         self.add_table(pool='B.sd')
         obj = self.resolve(self.connector_object(table_pool='B.sd'), pool='A.sd')
         self.assertEqual(('TAB_A', 'F190'), (obj['table_short_name'], obj['table_row_key']))
+
+    def test_row_connector_with_empty_table_pool_id_resolves_table_in_own_pool(self):
+        self.add_table()
+        for empty in ('', None):
+            obj = self.resolve(self.connector_object(table_pool=empty))
+            self.assertEqual(('TAB_A', 'F190'), (obj['table_short_name'], obj['table_row_key']))
 
     def test_row_connector_with_missing_row_is_not_resolvable(self):
         self.add_table()
