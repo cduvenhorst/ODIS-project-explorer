@@ -29,6 +29,28 @@ def dump(project_folder, overwrite=True):
     return files, stdout.getvalue()
 
 
+def dump_tree(project_folder, overwrite=True):
+    """Like dump(), but also report folders: keys are relative paths with '/'.
+
+    A folder without files is listed as 'name/' with the value ''.
+    """
+    storage = StringStorage(project_folder)
+    with tempfile.TemporaryDirectory() as output_folder:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            dumpProject.app_dumpProject(storage, project_folder, output_folder, overwrite)
+        tree = {}
+        for directory, folders, names in os.walk(output_folder):
+            relative = os.path.relpath(directory, output_folder)
+            prefix = '' if relative == '.' else relative.replace(os.sep, '/') + '/'
+            if not names and not folders and prefix:
+                tree[prefix] = ''
+            for name in names:
+                with open(os.path.join(directory, name), encoding='utf-8') as handle:
+                    tree[prefix + name] = handle.read()
+    return dict(sorted(tree.items())), stdout.getvalue()
+
+
 def unit_record():
     return unit_body().build('MCD_DB_UNIT')
 
@@ -46,6 +68,28 @@ EXPECTED_A = "ECU Shared Data\n\n'UNIT_ONE' {\n  #OBJECT_TYPE: 'MCD_DB_UNIT'\n  
 EXPECTED_B = "ECU Shared Data\n\n'UNIT_TWO' {\n  #OBJECT_TYPE: 'MCD_DB_UNIT'\n  short_name: 'U_km'\n  long_name: 'Kilometer'\n  description: None\n  unique_object_id: 'UID'\n  long_name_id: None\n  description_id: None\n  display_name: 'km'\n  factor_si_to_unit: 1000.0\n  offset_si_to_unit: 0.0\n  physical_dimension: None\n  unit_group_references (0) {\n  }\n}\n"
 
 
+# Text of B.sd.c for a state without transitions and a ConfigData without SDG references
+EXPECTED_STATE_AND_CONFIGURATION = "ECU Shared Data\n\n'CD_X' {\n  #OBJECT_TYPE: 'MCD_DB_CONFIGURATION_DATA'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  description: None\n  long_name: None\n  short_name: 'CD_X'\n  configuration_record_references (0) {\n  }\n  base_variant_to_case_map (0) {\n  }\n  special_data_group_references (0) {\n  }\n  major: 0x0\n  minor: 0x0\n  revision: 0x0\n  is_revision_label_available: False\n  additional_audiences (0) {\n  }\n}\n\n'ST_A' {\n  #OBJECT_TYPE: 'MCD_DB_ECU_STATE'\n  description: None\n  long_name: None\n  short_name: 'ST_A'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  ecu_state_transitions (0) {\n  }\n}\n"
+
+
+class BuilderTest(unittest.TestCase):
+    def test_ecu_state_body_loads(self):
+        loaded = support.load('MCD_DB_ECU_STATE', support.ecu_state_body('ST_A', (('TR_AB', 'OBJ', 'B.sd'), ('TR_AC', 'OBJ2', None))), strict=True)
+        self.assertEqual('ST_A', loaded['short_name'])
+        self.assertEqual([{'name': 'TR_AB', 'reference': {'object_id': 'OBJ', 'pool_id': 'B.sd', 'attributes': []}},
+                          {'name': 'TR_AC', 'reference': {'object_id': 'OBJ2', 'pool_id': None, 'attributes': []}}],
+                         loaded['ecu_state_transitions'])
+        self.assertEqual([], support.load('MCD_DB_ECU_STATE', support.ecu_state_body('ST_B'), strict=True)['ecu_state_transitions'])
+
+    def test_configuration_data_body_loads(self):
+        loaded = support.load('MCD_DB_CONFIGURATION_DATA', support.configuration_data_body('CD_X', (3, 7)), strict=True)
+        self.assertEqual('CD_X', loaded['short_name'])
+        self.assertEqual([{'object_id': 3}, {'object_id': 7}], loaded['special_data_group_references'])
+        empty = support.load('MCD_DB_CONFIGURATION_DATA', support.configuration_data_body('CD_X'), strict=True)
+        self.assertEqual([], empty['special_data_group_references'])
+        self.assertEqual([], empty['base_variant_to_case_map'])
+
+
 class DumpProjectTest(unittest.TestCase):
     def setUp(self):
         self.folder_handle = tempfile.TemporaryDirectory()
@@ -58,6 +102,23 @@ class DumpProjectTest(unittest.TestCase):
                       unit.ascii_strings, unit.unicode_strings)
         files, stdout = dump(self.folder)
         self.assertEqual({'A.sd.c': EXPECTED_A, 'B.sd.c': EXPECTED_B}, files)
+        self.assertEqual('', stdout)
+
+    def test_objects_without_references_dump_as_before(self):
+        unit = unit_body()
+        state = support.ecu_state_body('ST_A')
+        data = support.configuration_data_body('CD_X')
+        ascii_strings = unit.ascii_strings + state.ascii_strings + data.ascii_strings
+        write_project(self.folder,
+                      {'A.sd': {'UNIT_ONE': unit_record()},
+                       'B.sd': {'ST_A': state.build('MCD_DB_ECU_STATE'),
+                                'CD_X': data.build('MCD_DB_CONFIGURATION_DATA')}},
+                      ascii_strings, unit.unicode_strings)
+        os.mkdir(os.path.join(self.folder, 'ConfigData_CD_Y'))
+        tree, stdout = dump_tree(self.folder)
+        self.assertEqual({'A.sd.c', 'B.sd.c'}, set(tree))
+        self.assertEqual(EXPECTED_A, tree['A.sd.c'])
+        self.assertEqual(EXPECTED_STATE_AND_CONFIGURATION, tree['B.sd.c'])
         self.assertEqual('', stdout)
 
     def raw_project(self, entries, pool='A.sd', ascii_strings=()):

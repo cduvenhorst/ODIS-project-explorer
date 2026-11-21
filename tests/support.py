@@ -413,3 +413,27 @@ def audience():
     return typed('MCD_AUDIENCE', {'supplier': True, 'development': False,
                                   'manufacturing': True, 'after_sales': False,
                                   'after_market': True})
+
+
+def ecu_state_body(short_name, transitions=()):
+    """Body of an MCD_DB_ECU_STATE; transitions are (name, object id, pool id)."""
+    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
+            .ascii(None).ascii(None))
+    body.u16(len(transitions))
+    for name, object_id, pool_id in transitions:
+        body.ascii(name).ascii(object_id).ascii(pool_id).u8(0)
+    return body
+
+
+def configuration_data_body(short_name, sdg_numbers=()):
+    """Body of an MCD_DB_CONFIGURATION_DATA with empty collections (newest layout)."""
+    body = (ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None)
+            .ascii(short_name))
+    body.u16(0).u32(0)
+    if sdg_numbers:
+        body.u8(1).u16(len(sdg_numbers))
+        for number in sdg_numbers:
+            body.u32(number)
+    else:
+        body.u8(0)
+    return body.u32(0).u32(0).u32(0).flag(False).u8(0)
