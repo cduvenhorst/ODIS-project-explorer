@@ -175,6 +175,9 @@ It will only dump the objects necessary for DTCs (= diagnostic trouble codes) - 
 
 This script will dump "Freeze Frame definitions".
 It will only dump the objects necessary for DTC extended data records - service 0x19, mode 0x06.
+Besides the VW Freeze Frame multiplexer (`MUX_DTCExtenDataRecor`), the environment data descriptions of each variant are dumped, including those inherited along the parent layers (own ones first, NOT-INHERITED lists respected).
+They are written after the multiplexer cases, one block per description, with `long_name`, `description`, `all_value_env_data` (the environment data valid for every DTC, or `None`), `env_data` (the environment data specific to some DTCs, each with `short_name`, `long_name`, `description`, `byte_length`, `parameters` and its `dtc_values`) and `dtc_env_data` (the `dtc` to `env_data` assignments).
+A variant with neither a multiplexer nor an environment data description gets no file.
 
 > [!TIP]
 > ```powershell

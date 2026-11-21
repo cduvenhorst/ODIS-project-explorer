@@ -7,7 +7,7 @@ from common_utils import enum_converters, object_printer
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
-from common_utils.layer_chain import load_layer_data
+from common_utils.layer_chain import get_inherited_env_data_descs, load_layer_data
 
 from parseMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data, parse_dop
 
@@ -16,6 +16,47 @@ from parseMWB import get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_
 # The file "pbl.dll" should be in the working directory, in the "bin" folder
 pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
+
+
+def parse_env_data_parameter(object_loader, layer_data_objects, project_folder_path, env_data_parameter):
+    # The parameter refers to a DOP without PoolID, which is solved through the layer data objects
+    dop = object_loader.load_DOP_by_reference_without_PoolID(project_folder_path, layer_data_objects, env_data_parameter['dop_base_reference'])
+    if dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_ENV_DATA':
+        raise RuntimeError('Environment data DOP must be MCD_DB_PARAMETER_ENV_DATA, not {}'.format(dop['#OBJECT_TYPE']))
+    
+    # parse_dop doesn't know the environment data envelope, so its child parameters are parsed one by one
+    return {
+        'short_name': env_data_parameter['short_name'],
+        'long_name': env_data_parameter['long_name'],
+        'description': env_data_parameter['description'],
+        'byte_length': dop['byte_length'],
+        'parameters': [parse_dop(object_loader, layer_data_objects, project_folder_path, parameter) for parameter in dop['parameters'] or []]
+    }
+
+
+def get_env_data_desc_output(object_loader, layer_data_objects, project_folder_path, env_data_desc):
+    # The environment data valid for every DTC, if there is any
+    all_value_env_data = None
+    if env_data_desc['all_value_env_data_parameter'] is not None:
+        all_value_env_data = parse_env_data_parameter(object_loader, layer_data_objects, project_folder_path, env_data_desc['all_value_env_data_parameter'])
+    
+    # The environment data specific to some DTCs, in database order, with the DTCs it applies to
+    env_data = []
+    for information in env_data_desc['env_data_information_map']:
+        parsed_env_data = parse_env_data_parameter(object_loader, layer_data_objects, project_folder_path, information['env_data_parameter'])
+        parsed_env_data['dtc_values'] = information['dtc_values']
+        env_data.append(parsed_env_data)
+    
+    # The environment data assigned to each DTC
+    dtc_env_data = [{'dtc': entry['map_key'], 'env_data': entry['value']} for entry in env_data_desc['env_data_parameter_map']]
+    
+    return {
+        'long_name': env_data_desc['long_name'],
+        'description': env_data_desc['description'],
+        'all_value_env_data': all_value_env_data,
+        'env_data': env_data,
+        'dtc_env_data': dtc_env_data
+    }
 
 
 def dump_freezeframes_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
@@ -88,8 +129,11 @@ def dump_freezeframes_for_base_variant(object_loader, project_folder_path, base_
                     freeze_frame_dop = object_loader.load_object_by_reference(project_folder_path, dop_ref_entry['reference'])
                     break
             
-            # If it's not found, there is nothing more to do
-            if freeze_frame_dop is None:
+            # kernel: the environment data descriptions hang on the layer data (own ones first, the rest inherited like DOPs)
+            env_data_descs = get_inherited_env_data_descs(object_loader, project_folder_path, ecu_variant_layer_data)
+            
+            # If there is neither a Multiplexer nor an environment data description, there is nothing more to do
+            if freeze_frame_dop is None and not env_data_descs:
                 object_printer.print_indented(debug_info_indentation_level + 1, 'Has no special Freeze Frames')
                 continue
             
@@ -100,23 +144,24 @@ def dump_freezeframes_for_base_variant(object_loader, project_folder_path, base_
             # These objects will be used (in this order) for solving references which don't specify a PoolID
             layer_data_objects = [ecu_variant_layer_data, base_variant_layer_data] + protocol_layer_data_list
             
-            # The object must be a MUX  
-            if freeze_frame_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_MULTIPLEXER':
-                raise RuntimeError('Freeze Frame DOP must be MUX, not {}'.format(freeze_frame_dop['#OBJECT_TYPE']))
-            
-            # The SWITCH-KEY should start at the edge of the first byte
-            if freeze_frame_dop['switch_key']['bit_position'] != 0 or freeze_frame_dop['switch_key']['byte_position'] != 0:
-                raise RuntimeError('Expected BYTE- and BIT-POSITION of Freeze Frame MUX SWITCH-KEY to be 0, not {} and {}'.format(freeze_frame_dop['switch_key']['bit_position'], freeze_frame_dop['switch_key']['byte_position']))
-            
-            # The SWITCH-KEY should take 8 bits
-            mux_switch_key_dop = object_loader.load_object_by_reference(project_folder_path, freeze_frame_dop['switch_key']['dop_base_reference'])
-            if mux_switch_key_dop['diag_coded_type']['bit_length'] != 8:
-                raise RuntimeError('Expected Freeze Frame MUX SWITCH-KEY to take 8 bytes, not {}'.format(mux_switch_key_dop['diag_coded_type']['bit_length']))
+            if freeze_frame_dop is not None:
+                # The object must be a MUX  
+                if freeze_frame_dop['#OBJECT_TYPE'] != 'MCD_DB_PARAMETER_MULTIPLEXER':
+                    raise RuntimeError('Freeze Frame DOP must be MUX, not {}'.format(freeze_frame_dop['#OBJECT_TYPE']))
+                
+                # The SWITCH-KEY should start at the edge of the first byte
+                if freeze_frame_dop['switch_key']['bit_position'] != 0 or freeze_frame_dop['switch_key']['byte_position'] != 0:
+                    raise RuntimeError('Expected BYTE- and BIT-POSITION of Freeze Frame MUX SWITCH-KEY to be 0, not {} and {}'.format(freeze_frame_dop['switch_key']['bit_position'], freeze_frame_dop['switch_key']['byte_position']))
+                
+                # The SWITCH-KEY should take 8 bits
+                mux_switch_key_dop = object_loader.load_object_by_reference(project_folder_path, freeze_frame_dop['switch_key']['dop_base_reference'])
+                if mux_switch_key_dop['diag_coded_type']['bit_length'] != 8:
+                    raise RuntimeError('Expected Freeze Frame MUX SWITCH-KEY to take 8 bytes, not {}'.format(mux_switch_key_dop['diag_coded_type']['bit_length']))
             
             # Open the output file and dump the Freeze Frames
             with open(ecu_variant_output_file_path, 'w', encoding='utf-8') as ecu_variant_output_file:
-                # Go through each CASE of the MUX
-                for case in freeze_frame_dop['cases']:
+                # Go through each CASE of the MUX (if there is one)
+                for case in (freeze_frame_dop['cases'] if freeze_frame_dop is not None else []):
                     # Both CASE limits should be CLOSED
                     if case['lower_limit']['limit_type'] != 'eLIMIT_CLOSED' or case['upper_limit']['limit_type'] != 'eLIMIT_CLOSED':
                         raise RuntimeError('Expected Freeze Frame MUX CASE LOWER- and UPPER-LIMIT types to be closed, not {} and {}'.format(case['lower_limit']['limit_type'] != 'eLIMIT_CLOSED', case['upper_limit']['limit_type'] != 'eLIMIT_CLOSED'))
@@ -150,6 +195,11 @@ def dump_freezeframes_for_base_variant(object_loader, project_folder_path, base_
                     
                     # Dump to the output file
                     object_printer.print_object(obj, '\'{}\''.format(case['long_name']), 0, ecu_variant_output_file, False)
+                    object_printer.print_indented(0, '', ecu_variant_output_file)
+                
+                # Dump each environment data description after the MUX cases
+                for env_data_desc in env_data_descs:
+                    object_printer.print_object(get_env_data_desc_output(object_loader, layer_data_objects, project_folder_path, env_data_desc['env_data_desc']), '\'{}\''.format(env_data_desc['env_data_desc']['short_name']), 0, ecu_variant_output_file, False)
                     object_printer.print_indented(0, '', ecu_variant_output_file)
 
 
