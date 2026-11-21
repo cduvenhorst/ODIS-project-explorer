@@ -439,6 +439,58 @@ def ecu_state_body(short_name, transitions=()):
     return body
 
 
+def state_transition_body(short_name, source=None, target=None):
+    """Body of an MCD_DB_ECU_STATE_TRANSITION; source and target are (object id, pool id) or None."""
+    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
+            .ascii(None).ascii(None))
+    for state in (source, target):
+        object_id, pool_id = state or (None, None)
+        body.ascii(object_id).ascii(pool_id).u8(0)
+    return body.u8(0)
+
+
+def state_chart_body(short_name, semantic, transitions=()):
+    """Body of an MCD_DB_ECU_STATE_CHART without states; transitions are (name, object id, pool id)."""
+    body = (ObjectBytes().unicode(None).unicode(None).ascii(short_name).ascii(None)
+            .ascii(None).ascii(None).ascii(semantic).u16(0).ascii(None))
+    body.u16(len(transitions))
+    for name, object_id, pool_id in transitions:
+        body.ascii(name).ascii(object_id).ascii(pool_id).u8(0)
+    return body
+
+
+def state_transition_action_body(service_id=None, pool_id=None):
+    """Body of an MCD_DB_STATE_TRANSITION_ACTION; without service_id the DiagCom reference is empty."""
+    body = ObjectBytes().ascii(service_id).ascii(pool_id).u8(0).u8(3).u16(0x0DAC).u8(0)
+    return body.unicode('V').flag(False).ascii('P')
+
+
+def state_chart_data_body(actions=()):
+    """Body of a DB_STATE_CHART_DATA; actions are (transition short name, [action bodies])."""
+    body = ObjectBytes().u16(len(actions))
+    for transition, action_bodies in actions:
+        body.ascii(transition).u16(len(action_bodies))
+        for action_body in action_bodies:
+            body.nested('MCD_DB_STATE_TRANSITION_ACTION', action_body)
+    return body.u16(0)
+
+
+def table_row_body(short_name, key):
+    """Body of an MCD_DB_TABLE_PARAMETER (a table row) with the given key."""
+    body = ObjectBytes().unicode(key).absent().u8(0).u8(0)
+    body.unicode(None).unicode(None).ascii(short_name).ascii(None).ascii(None).ascii(None)
+    return body.u8(0).u32(0).u8(0).u32(0).ascii(None).u8(1).u8(0xFF)
+
+
+def table_body(short_name, rows=()):
+    """Body of an MCD_DB_TABLE; rows are (map key, object id, pool id)."""
+    body = (ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None)
+            .ascii(short_name).u32(len(rows)))
+    for map_key, object_id, pool_id in rows:
+        body.unicode(map_key).ascii(object_id).ascii(pool_id).ascii(None)
+    return body.ascii(None).u16(0).u8(0).u8(0)
+
+
 def configuration_data_body(short_name, sdg_numbers=()):
     """Body of an MCD_DB_CONFIGURATION_DATA with empty collections (newest layout)."""
     body = (ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None)

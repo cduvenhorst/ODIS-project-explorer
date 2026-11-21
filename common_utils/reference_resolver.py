@@ -34,6 +34,10 @@ class ReferenceResolver:
         # Per pool: PBL records (None if the pool has no key or data file) and SDG file (None if missing)
         self.__pbl_records = {}
         self.__sdg_files = {}
+        
+        # Short names (and row keys) per (pool, object)
+        self.__short_names = {}
+        self.__row_keys = {}
     
     
     # Walk an object (dictionaries and lists of any depth) and add the resolved references in place
@@ -59,6 +63,24 @@ class ReferenceResolver:
         # The caption of every special data group, also of nested ones
         if obj.get('#OBJECT_TYPE') == 'MCD_DB_SPECIAL_DATA_GROUP' and 'caption_reference' in obj and 'caption' not in obj:
             insert_after(obj, 'caption_reference', 'caption', self.__load_caption(obj['caption_reference'], pool_id))
+        
+        object_type = obj.get('#OBJECT_TYPE')
+        if object_type == 'MCD_DB_ECU_STATE_TRANSITION':
+            for key in ('source_state', 'target_state'):
+                if key in obj:
+                    insert_after(obj, key, key + '_short_name', self.__short_name(obj[key], pool_id))
+        elif object_type == 'MCD_DB_STATE_TRANSITION_ACTION':
+            if obj.get('diag_com_primitive'):
+                insert_after(obj, 'diag_com_primitive', 'diag_com_primitive_short_name',
+                             self.__short_name(obj['diag_com_primitive'], pool_id))
+        elif object_type == 'MCD_DB_ECU_STATE_CHART':
+            if 'ecu_state_transitions' in obj:
+                insert_after(obj, 'ecu_state_transitions', 'transitions', self.__chart_transitions(obj, pool_id))
+        elif object_type == 'MCD_DB_TABLE_ROW_CONNECTOR':
+            if obj.get('table_reference') and 'table_row' in obj:
+                (table_short_name, row_key) = self.__table_row(obj['table_reference'], obj['table_row'], pool_id)
+                insert_after(obj, 'table_row', 'table_short_name', table_short_name)
+                insert_after(obj, 'table_short_name', 'table_row_key', row_key)
     
     
     # Load an Object of a Pool
@@ -134,3 +156,81 @@ class ReferenceResolver:
         if object_type != 'MCD_DB_SPECIAL_DATA_GROUP_CAPTION':
             return NOT_RESOLVABLE
         return self.__object_loader.load_object_by_parts(parts)
+    
+    
+    # Short name of the Object a reference points to, NOT_RESOLVABLE if it cannot be loaded
+    ### reference       = dictionary with object_id and pool_id (an empty pool_id stands for current_pool_id)
+    ### current_pool_id = Pool of the Object which holds the reference
+    def __short_name(self, reference, current_pool_id):
+        if not reference or not reference.get('object_id'):
+            return NOT_RESOLVABLE
+        key = (reference.get('pool_id') or current_pool_id, reference['object_id'])
+        if key not in self.__short_names:
+            loaded = self.load_object(key[0], key[1], current_pool_id)
+            short_name = loaded.get('short_name') if isinstance(loaded, dict) else None
+            self.__short_names[key] = short_name if short_name is not None else NOT_RESOLVABLE
+        return self.__short_names[key]
+    
+    
+    def __chart_transitions(self, chart, pool_id):
+        services = self.__chart_services(chart, pool_id)
+        transitions = []
+        for entry in chart['ecu_state_transitions']:
+            reference = entry['reference']
+            transition = self.load_object(reference.get('pool_id'), reference['object_id'], pool_id)
+            if not isinstance(transition, dict):
+                transitions.append({'transition': NOT_RESOLVABLE, 'source_state': NOT_RESOLVABLE,
+                                    'target_state': NOT_RESOLVABLE, 'services': []})
+                continue
+            # A reference with an empty pool_id is resolved in the Pool of the chart, which is where the transition was loaded from
+            transition_pool_id = reference.get('pool_id') or pool_id
+            name = transition.get('short_name')
+            transitions.append({
+                'transition': name if name is not None else NOT_RESOLVABLE,
+                'source_state': self.__short_name(transition.get('source_state'), transition_pool_id),
+                'target_state': self.__short_name(transition.get('target_state'), transition_pool_id),
+                'services': services.get(name, [])})
+        return transitions
+    
+    
+    # Service short names per transition short name, from the DbStateChartData object of the chart's semantic
+    def __chart_services(self, chart, pool_id):
+        semantic = chart.get('semantic')
+        if not semantic:
+            return {}
+        data = self.load_object(pool_id, 'DbStateChartData' + semantic, pool_id)
+        if not isinstance(data, dict):
+            return {}
+        services = {}
+        for entry in data.get('state_transition_transition_actions_map', []):
+            services[entry['map_key']] = [
+                self.__short_name(action.get('diag_com_primitive'), pool_id) if isinstance(action, dict) else NOT_RESOLVABLE
+                for action in entry['items']]
+        return services
+    
+    
+    # Short name of the table and key of the row with the short name row_short_name, NOT_RESOLVABLE for what is not found
+    def __table_row(self, table_reference, row_short_name, current_pool_id):
+        table_pool_id = table_reference.get('pool_id') or current_pool_id
+        table = self.load_object(table_pool_id, table_reference['object_id'], current_pool_id)
+        if not isinstance(table, dict):
+            return (NOT_RESOLVABLE, NOT_RESOLVABLE)
+        table_short_name = table.get('short_name')
+        if table_short_name is None:
+            table_short_name = NOT_RESOLVABLE
+        
+        # A row reference with an empty pool_id is resolved in the Pool of the table
+        for entry in table.get('table_key_map', []):
+            row = self.__row(entry['reference'], table_pool_id)
+            if row[0] == row_short_name:
+                return (table_short_name, row[1])
+        return (table_short_name, NOT_RESOLVABLE)
+    
+    
+    # (short name, key) of a table row
+    def __row(self, reference, table_pool_id):
+        key = (reference.get('pool_id') or table_pool_id, reference['object_id'])
+        if key not in self.__row_keys:
+            row = self.load_object(key[0], key[1], table_pool_id)
+            self.__row_keys[key] = (row.get('short_name'), row.get('key')) if isinstance(row, dict) else (None, None)
+        return self.__row_keys[key]

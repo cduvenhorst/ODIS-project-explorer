@@ -136,5 +136,171 @@ class ReferenceResolverTests(unittest.TestCase):
         self.assertIsNone(resolver.load_object('Z.sd', 'CAP_A', 'A.sd'))
 
 
+class StateAndTableTests(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.folder)
+        self.pools = {}
+        self.ascii_strings = []
+        self.unicode_strings = []
+        self._resolver = None
+
+    def add(self, pool, name, type_name, body):
+        self.pools.setdefault(pool, {})[name] = body.build(type_name)
+        self.ascii_strings += body.ascii_strings + [name, pool]
+        self.unicode_strings += body.unicode_strings
+
+    def add_state(self, name, pool='A.sd', object_name=None):
+        self.add(pool, object_name or name, 'MCD_DB_ECU_STATE', support.ecu_state_body(name))
+
+    def add_service(self, name, pool='A.sd'):
+        # any object with a short name serves as a service here
+        self.add(pool, name, 'MCD_DB_ECU_STATE', support.ecu_state_body(name))
+
+    def add_transition(self, name, source, target, pool='A.sd'):
+        self.add(pool, name, 'MCD_DB_ECU_STATE_TRANSITION', support.state_transition_body(name, source, target))
+
+    def resolver(self):
+        # The project is written on first use, so objects are added before the first resolve
+        if self._resolver is None:
+            support.write_project(self.folder, self.pools, self.ascii_strings, self.unicode_strings)
+            self._resolver = ReferenceResolver(self.folder, StringStorage(self.folder), PblRecordManager(LIBRARY))
+        return self._resolver
+
+    def resolve(self, obj, pool='A.sd'):
+        self.resolver().resolve_object(obj, pool)
+        return obj
+
+    def transition_object(self, **fields):
+        obj = {'#OBJECT_TYPE': 'MCD_DB_ECU_STATE_TRANSITION', 'short_name': 'TR_AB',
+               'source_state': {'object_id': 'ST_A', 'pool_id': 'A.sd', 'attributes': []},
+               'target_state': {'object_id': 'ST_B', 'pool_id': 'A.sd', 'attributes': []}}
+        obj.update(fields)
+        return obj
+
+    def test_transition_gets_state_short_names(self):
+        self.add_state('ST_A')
+        self.add_state('ST_B', pool='B.sd')
+        obj = self.transition_object()
+        obj['target_state']['pool_id'] = 'B.sd'
+        self.resolve(obj)
+        self.assertEqual(['#OBJECT_TYPE', 'short_name', 'source_state', 'source_state_short_name',
+                          'target_state', 'target_state_short_name'], list(obj))
+        self.assertEqual('ST_A', obj['source_state_short_name'])
+        self.assertEqual('ST_B', obj['target_state_short_name'])
+
+    def test_transition_with_empty_pool_id_resolves_in_own_pool(self):
+        self.add_state('ST_A')
+        self.add_state('ST_B')
+        obj = self.transition_object()
+        obj['source_state']['pool_id'] = ''
+        obj['target_state']['pool_id'] = None
+        self.resolve(obj)
+        self.assertEqual(['ST_A', 'ST_B'], [obj['source_state_short_name'], obj['target_state_short_name']])
+
+    def test_transition_with_missing_state_is_not_resolvable(self):
+        self.add_state('ST_A')
+        obj = self.transition_object()
+        obj['target_state']['pool_id'] = 'Z.sd'
+        self.resolve(obj)
+        self.assertEqual('ST_A', obj['source_state_short_name'])
+        self.assertEqual(NOT_RESOLVABLE, obj['target_state_short_name'])
+
+    def test_action_gets_service_short_name(self):
+        self.add_service('SVC_X')
+        self.add_service('SVC_Y', pool='B.sd')
+        obj = [{'#OBJECT_TYPE': 'MCD_DB_STATE_TRANSITION_ACTION', 'diag_com_primitive': {'object_id': 'SVC_X', 'pool_id': ''}},
+               {'#OBJECT_TYPE': 'MCD_DB_STATE_TRANSITION_ACTION', 'diag_com_primitive': {'object_id': 'SVC_Y', 'pool_id': 'B.sd'}},
+               {'#OBJECT_TYPE': 'MCD_DB_STATE_TRANSITION_ACTION', 'diag_com_primitive': {'object_id': 'NOPE', 'pool_id': 'B.sd'}}]
+        self.resolve(obj)
+        self.assertEqual(['SVC_X', 'SVC_Y', NOT_RESOLVABLE], [action['diag_com_primitive_short_name'] for action in obj])
+        self.assertEqual(['#OBJECT_TYPE', 'diag_com_primitive', 'diag_com_primitive_short_name'], list(obj[0]))
+
+    def test_action_without_service_gets_nothing(self):
+        obj = self.resolve({'#OBJECT_TYPE': 'MCD_DB_STATE_TRANSITION_ACTION', 'diag_com_primitive': None})
+        self.assertEqual(['#OBJECT_TYPE', 'diag_com_primitive'], list(obj))
+
+    def chart_object(self, semantic='SEM'):
+        return {'#OBJECT_TYPE': 'MCD_DB_ECU_STATE_CHART', 'semantic': semantic, 'ecu_state_transitions': [
+            {'name': 'TR_AB', 'reference': {'object_id': 'TR_AB', 'pool_id': 'A.sd', 'attributes': []}},
+            {'name': 'TR_BA', 'reference': {'object_id': 'TR_BA', 'pool_id': '', 'attributes': []}}]}
+
+    def add_chart_parts(self):
+        self.add_state('ST_A')
+        self.add_state('ST_B')
+        self.add_transition('TR_AB', ('ST_A', 'A.sd'), ('ST_B', ''))
+        self.add_transition('TR_BA', ('ST_B', ''), ('ST_A', None))
+        self.add_service('SVC_X')
+        self.add_service('SVC_Y')
+
+    def test_chart_lists_transitions_with_services(self):
+        self.add_chart_parts()
+        actions = [('TR_AB', [support.state_transition_action_body('SVC_X', 'A.sd'),
+                              support.state_transition_action_body('SVC_Y', None)])]
+        self.add('A.sd', 'DbStateChartDataSEM', 'DB_STATE_CHART_DATA', support.state_chart_data_body(actions))
+        chart = self.resolve(self.chart_object())
+        self.assertEqual(['#OBJECT_TYPE', 'semantic', 'ecu_state_transitions', 'transitions'], list(chart))
+        self.assertEqual([
+            {'transition': 'TR_AB', 'source_state': 'ST_A', 'target_state': 'ST_B', 'services': ['SVC_X', 'SVC_Y']},
+            {'transition': 'TR_BA', 'source_state': 'ST_B', 'target_state': 'ST_A', 'services': []}],
+            chart['transitions'])
+        self.assertEqual(['transition', 'source_state', 'target_state', 'services'], list(chart['transitions'][0]))
+
+    def test_chart_without_chart_data_has_empty_services(self):
+        self.add_chart_parts()
+        for semantic in ('SEM', ''):
+            chart = self.resolve(self.chart_object(semantic))
+            self.assertEqual([[], []], [entry['services'] for entry in chart['transitions']])
+            self.assertEqual('TR_AB', chart['transitions'][0]['transition'])
+
+    def test_chart_with_missing_transition_is_not_resolvable(self):
+        self.add_chart_parts()
+        chart = self.chart_object()
+        chart['ecu_state_transitions'][1]['reference']['object_id'] = 'NOPE'
+        self.resolve(chart)
+        self.assertEqual({'transition': NOT_RESOLVABLE, 'source_state': NOT_RESOLVABLE,
+                          'target_state': NOT_RESOLVABLE, 'services': []}, chart['transitions'][1])
+
+    def connector_object(self, table_row='ROW_1', table_pool='A.sd'):
+        return {'#OBJECT_TYPE': 'MCD_DB_TABLE_ROW_CONNECTOR', 'table_row': 'ROW_1' if table_row is None else table_row,
+                'table_reference': {'object_id': 'TAB_A', 'pool_id': table_pool, 'attributes': []}, 'table': None}
+
+    def add_table(self, rows=(('ROW_1', 'F190'), ('ROW_2', 'F191')), pool='A.sd', row_pool=''):
+        entries = []
+        for name, key in rows:
+            self.add(pool, name, 'MCD_DB_TABLE_PARAMETER', support.table_row_body(name, key))
+            entries.append((name, name, row_pool))
+        self.add(pool, 'TAB_A', 'MCD_DB_TABLE', support.table_body('TAB_A', entries))
+
+    def test_row_connector_gets_table_short_name_and_row_key(self):
+        self.add_table()
+        for row, key in (('ROW_1', 'F190'), ('ROW_2', 'F191')):
+            obj = self.resolve(self.connector_object(row))
+            self.assertEqual('TAB_A', obj['table_short_name'])
+            self.assertEqual(key, obj['table_row_key'])
+        self.assertEqual(['#OBJECT_TYPE', 'table_row', 'table_short_name', 'table_row_key', 'table_reference', 'table'],
+                         list(obj))
+
+    def test_row_connector_with_empty_pool_ids_resolves_in_pool_of_table(self):
+        self.add_table(pool='B.sd')
+        obj = self.resolve(self.connector_object(table_pool='B.sd'), pool='A.sd')
+        self.assertEqual(('TAB_A', 'F190'), (obj['table_short_name'], obj['table_row_key']))
+
+    def test_row_connector_with_missing_row_is_not_resolvable(self):
+        self.add_table()
+        obj = self.resolve(self.connector_object('ROW_9'))
+        self.assertEqual(('TAB_A', NOT_RESOLVABLE), (obj['table_short_name'], obj['table_row_key']))
+
+    def test_row_connector_with_missing_table_is_not_resolvable(self):
+        self.add_table()
+        obj = self.resolve(self.connector_object(table_pool='Z.sd'))
+        self.assertEqual((NOT_RESOLVABLE, NOT_RESOLVABLE), (obj['table_short_name'], obj['table_row_key']))
+
+    def test_odx_link_row_connector_is_unchanged(self):
+        self.add_table()
+        obj = {'#OBJECT_TYPE': 'MCD_DB_TABLE_ROW_CONNECTOR', 'table_row': 'ROW_1', 'table_reference': None, 'table': {'x': 1}}
+        self.assertEqual(['#OBJECT_TYPE', 'table_row', 'table_reference', 'table'], list(self.resolve(obj)))
+
+
 if __name__ == '__main__':
     unittest.main()
