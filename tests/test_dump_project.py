@@ -69,7 +69,7 @@ EXPECTED_B = "ECU Shared Data\n\n'UNIT_TWO' {\n  #OBJECT_TYPE: 'MCD_DB_UNIT'\n  
 
 
 # Text of B.sd.c for a state without transitions and a ConfigData without SDG references
-EXPECTED_STATE_AND_CONFIGURATION = "ECU Shared Data\n\n'CD_X' {\n  #OBJECT_TYPE: 'MCD_DB_CONFIGURATION_DATA'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  description: None\n  long_name: None\n  short_name: 'CD_X'\n  configuration_record_references (0) {\n  }\n  base_variant_to_case_map (0) {\n  }\n  special_data_group_references (0) {\n  }\n  major: 0x0\n  minor: 0x0\n  revision: 0x0\n  is_revision_label_available: False\n  additional_audiences (0) {\n  }\n}\n\n'ST_A' {\n  #OBJECT_TYPE: 'MCD_DB_ECU_STATE'\n  description: None\n  long_name: None\n  short_name: 'ST_A'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  ecu_state_transitions (0) {\n  }\n}\n"
+EXPECTED_STATE_AND_CONFIGURATION = "ECU Shared Data\n\n'CD_X' {\n  #OBJECT_TYPE: 'MCD_DB_CONFIGURATION_DATA'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  description: None\n  long_name: None\n  short_name: 'CD_X'\n  configuration_record_references (0) {\n  }\n  base_variant_to_case_map (0) {\n  }\n  special_data_group_references (0) {\n  }\n  major: 0x0\n  minor: 0x0\n  revision: 0x0\n  is_revision_label_available: False\n  additional_audiences (0) {\n  }\n  configuration_data_files (0) {\n  }\n}\n\n'ST_A' {\n  #OBJECT_TYPE: 'MCD_DB_ECU_STATE'\n  description: None\n  long_name: None\n  short_name: 'ST_A'\n  description_id: None\n  long_name_id: None\n  unique_object_id: None\n  ecu_state_transitions (0) {\n  }\n}\n"
 
 
 class BuilderTest(unittest.TestCase):
@@ -133,6 +133,52 @@ class DumpProjectTest(unittest.TestCase):
         references = "  special_data_group_references (1) {\n    [0] {\n      object_id: 0x1\n    }\n  }\n"
         self.assertIn(references + "  special_data_groups (1) {\n", text)
         self.assertIn("content: 'Content'", text)
+
+    def config_data_project(self):
+        data = support.configuration_data_body('CD_X')
+        write_project(self.folder, {'B.sd': {'CD_X': data.build('MCD_DB_CONFIGURATION_DATA')}},
+                      data.ascii_strings, data.unicode_strings)
+
+    def write_config_file(self, relative_path, content=b'x'):
+        path = os.path.join(self.folder, *relative_path.split('/'))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'wb') as handle:
+            handle.write(content)
+
+    def test_dump_copies_config_data_and_skips_empty_folders(self):
+        self.config_data_project()
+        self.write_config_file('ConfigData_CD_X/a.bin', b'1')
+        self.write_config_file('ConfigData_CD_X/sub/b.bin', b'22')
+        os.mkdir(os.path.join(self.folder, 'ConfigData_CD_EMPTY'))
+        tree, stdout = dump_tree(self.folder)
+        self.assertEqual(['B.sd.c', 'ConfigData_CD_X/a.bin', 'ConfigData_CD_X/sub/b.bin'], list(tree))
+        self.assertEqual('1', tree['ConfigData_CD_X/a.bin'])
+        self.assertEqual('22', tree['ConfigData_CD_X/sub/b.bin'])
+        self.assertIn("    name: 'a.bin'\n", tree['B.sd.c'])
+        self.assertEqual('', stdout)
+
+    def test_unreferenced_folder_with_files_is_reported(self):
+        self.config_data_project()
+        self.write_config_file('ConfigData_CD_X/a.bin')
+        self.write_config_file('ConfigData_CD_Y/a.bin')
+        _, stdout = dump_tree(self.folder)
+        self.assertEqual('ConfigData folder ConfigData_CD_Y is not referenced by any object\n', stdout)
+
+    def test_rerun_without_overwrite_reports_nothing_and_keeps_copies(self):
+        self.config_data_project()
+        self.write_config_file('ConfigData_CD_X/a.bin', b'old')
+        self.write_config_file('ConfigData_CD_Y/a.bin')
+        storage = StringStorage(self.folder)
+        with tempfile.TemporaryDirectory() as output_folder:
+            with contextlib.redirect_stdout(io.StringIO()):
+                dumpProject.app_dumpProject(storage, self.folder, output_folder, True)
+            self.write_config_file('ConfigData_CD_X/a.bin', b'new')
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                dumpProject.app_dumpProject(storage, self.folder, output_folder, False)
+            with open(os.path.join(output_folder, 'ConfigData_CD_X', 'a.bin'), 'rb') as handle:
+                self.assertEqual(b'old', handle.read())
+        self.assertEqual('', stdout.getvalue())
 
     def raw_project(self, entries, pool='A.sd', ascii_strings=()):
         write_strings(self.folder, ascii_strings)

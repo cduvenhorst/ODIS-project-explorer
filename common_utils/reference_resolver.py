@@ -4,7 +4,7 @@ import struct
 
 from classes import DbObject
 from classes.ObjectLoader import ObjectLoader
-from common_utils import enum_converters
+from common_utils import config_data, enum_converters
 from common_utils.sdg_files import SdgFile
 
 NOT_RESOLVABLE = 'not resolvable'
@@ -38,6 +38,9 @@ class ReferenceResolver:
         # Short names (and row keys) per (pool, object)
         self.__short_names = {}
         self.__row_keys = {}
+        
+        # Short names of the configuration data objects seen, to find ConfigData folders nobody refers to
+        self.configuration_data_short_names = set()
     
     
     # Walk an object (dictionaries and lists of any depth) and add the resolved references in place
@@ -81,6 +84,13 @@ class ReferenceResolver:
                 (table_short_name, row_key) = self.__table_row(obj['table_reference'], obj['table_row'], pool_id)
                 insert_after(obj, 'table_row', 'table_short_name', table_short_name)
                 insert_after(obj, 'table_short_name', 'table_row_key', row_key)
+        elif object_type == 'MCD_DB_CONFIGURATION_DATA':
+            if obj.get('short_name') is not None:
+                self.configuration_data_short_names.add(obj['short_name'])
+                obj['configuration_data_files'] = config_data.list_config_data_files(
+                    self.__project_folder_path, config_data.CONFIG_DATA_PREFIX + obj['short_name'])
+        elif object_type == 'MCD_DB_DATA_RECORD':
+            obj['configuration_data_files'] = self.__data_record_files(obj)
     
     
     # Load an Object of a Pool
@@ -234,3 +244,14 @@ class ReferenceResolver:
             row = self.load_object(key[0], key[1], table_pool_id)
             self.__row_keys[key] = (row.get('short_name'), row.get('key')) if isinstance(row, dict) else (None, None)
         return self.__row_keys[key]
+    
+    
+    # Files of the ConfigData folder of the parent configuration data which match the coding data file name
+    def __data_record_files(self, record):
+        parent = record.get('parent_configuration_data_short_name')
+        coding_data = record.get('coding_data')
+        pattern = coding_data.get('file_name') if isinstance(coding_data, dict) else None
+        if not parent or not pattern:
+            return NOT_RESOLVABLE
+        files = config_data.list_config_data_files(self.__project_folder_path, config_data.CONFIG_DATA_PREFIX + parent)
+        return config_data.matching_config_data_files(files, pattern)

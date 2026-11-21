@@ -525,6 +525,21 @@ def configuration_data_body(short_name, sdg_numbers=()):
     return body.u32(0).u32(0).u32(0).flag(False).u8(0)
 
 
+def data_record_body(short_name: str, parent: str | None, file_name: str | None) -> ObjectBytes:
+    """Body of an MCD_DB_DATA_RECORD with coding data when file_name is not None."""
+    body = (ObjectBytes().ascii(None).ascii(None).ascii(None).unicode(None).unicode(None)
+            .ascii(short_name))
+    body.absent().u8(0).u16(0).u8(0)
+    if file_name is None:
+        body.flag(False).absent()
+    else:
+        coding = (ObjectBytes().ascii(None).unicode(None).unicode(None).ascii(None).ascii(None).ascii(None)
+                  .ascii(file_name).flag(False))
+        body.flag(True).nested('MCD_DB_CODING_DATA', coding)
+    body.u8(0).ascii(None).ascii(None).u32(0).ascii(parent)
+    return body.u8(0).u8(0)
+
+
 def sdg_element_body(text_id='', content='', semantic_information=''):
     """Body of a valid MCD_DB_SPECIAL_DATA_ELEMENT; an empty text is a word without the top bit."""
     body = ObjectBytes()

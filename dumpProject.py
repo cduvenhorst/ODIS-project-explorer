@@ -3,7 +3,7 @@ import os
 import struct
 import xml.etree.ElementTree as ET
 
-from common_utils import enum_converters, object_printer
+from common_utils import config_data, enum_converters, object_printer
 from common_utils.reference_resolver import ReferenceResolver
 from classes.PblRecordManager import PblRecordManager
 from classes.ObjectLoader import ObjectLoader
@@ -61,6 +61,8 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
     # Pools missing from rt_index.xml (none if the file is missing or invalid)
     unlisted_pools = pools_not_in_rt_index(project_folder_path) or set()
     
+    skipped_pool = False
+    
     # Go through each file (Pool) in the Project folder
     for current_filename in os.listdir(project_folder_path):
         # The PoolID simply refers to the file's name (without extension)
@@ -76,6 +78,8 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
         output_pool_path = os.path.join(output_folder_path, PoolID + '.c')
         
         # Only unpack the Pool if the file doesn't already exist (or if overwriting is allowed)
+        if not overwrite and os.path.isfile(output_pool_path):
+            skipped_pool = True
         if overwrite or not os.path.isfile(output_pool_path):
             # A pool that fails to dump must not leave a half-written file behind, or a rerun without
             # overwriting would skip it
@@ -140,6 +144,17 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
                 output_pool_file.close()
                 os.remove(output_pool_path)
                 raise
+    
+    # The ConfigData files are copied beside the Pool files
+    config_data.copy_config_data(project_folder_path, output_folder_path, overwrite)
+    
+    # Folders which no configuration data object refers to (not known if a Pool was skipped)
+    if not skipped_pool:
+        for folder_name in config_data.config_data_folders(project_folder_path):
+            short_name = folder_name[len(config_data.CONFIG_DATA_PREFIX):]
+            if short_name not in resolver.configuration_data_short_names \
+                    and config_data.list_config_data_files(project_folder_path, folder_name):
+                print('ConfigData folder {} is not referenced by any object'.format(folder_name))
 
 # Handle usage as script
 if __name__ == '__main__':
