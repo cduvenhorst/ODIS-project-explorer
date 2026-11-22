@@ -5,7 +5,8 @@ from odx_export.elements import XSI_TYPE, add_desc, add_names, add_ref, format_v
 from odx_export.naming import split_key
 
 ENC = {'eISO_8859_1': 'ISO-8859-1', 'e2C': '2C', 'eBCD_P': 'BCD-P', 'eBCD_UP': 'BCD-UP', 'eUTF_8': 'UTF-8',
-       'eUCS_2': 'UCS-2', 'e1C': '1C', 'eSM': 'SM', 'eISO_8859_2': 'ISO-8859-2', 'eWINDOWS_1252': 'WINDOWS-1252'}
+       'eUCS_2': 'UCS-2', 'e1C': '1C', 'eSM': 'SM', 'eISO_8859_2': 'ISO-8859-2', 'eWINDOWS_1252': 'WINDOWS-1252',
+       'eIEEE754': 'IEEE754'}
 CT = {'eSTANDARD_LENGTH_TYPE': 'STANDARD-LENGTH-TYPE', 'eMIN_MAX_LENGTH_TYPE': 'MIN-MAX-LENGTH-TYPE',
       'eLEADING_LENGTH_INFO_TYPE': 'LEADING-LENGTH-INFO-TYPE', 'ePARAM_LENGTH_INFO_TYPE': 'PARAM-LENGTH-INFO-TYPE'}
 CC = {'eIDENTICAL': 'IDENTICAL', 'eLINEAR': 'LINEAR', 'eTEXTTAB': 'TEXTTABLE', 'eTAB_INTP': 'TAB-INTP',
@@ -202,6 +203,7 @@ def _add_interval(ctx, parent, interval):
 
 def add_constraint(ctx, parent, tag, reference):
     """Append INTERNAL-CONSTR or PHYS-CONSTR from the referenced constraint of this pool."""
+    # A field whose flag is not set is absent, not an empty reference; only an empty object_id counts.
     if reference is None:
         return None
     key = reference.get('object_id')
@@ -250,6 +252,7 @@ def add_data_object_prop(ctx, parent, key):
     if physical_type is not None:
         add_physical_type(ctx, element, physical_type)
     add_constraint(ctx, element, 'INTERNAL-CONSTR', dop.get('internal_constraint_reference'))
+    # A unit reference whose flag is not set is absent, not an empty reference.
     if dop.get('unit_reference') is not None:
         add_ref(ctx, element, 'UNIT-REF', dop['unit_reference'])
     add_constraint(ctx, element, 'PHYS-CONSTR', dop.get('physical_constraint_reference'))

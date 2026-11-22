@@ -125,10 +125,17 @@ class DiagCodedTypeTests(unittest.TestCase):
         self.assertNotIn('BASE-TYPE-ENCODING', int_type.attrib)
         self.assertEqual(unicode_type.get('BASE-TYPE-ENCODING'), 'UCS-2')
 
-    def test_unmapped_encoding_is_not_written(self):
+    def test_ieee754_encoding_is_written(self):
         ctx = context({})
         element = data_objects.add_diag_coded_type(
             ctx, ET.Element('X'), coded_type(base_data_type='eDB_FLOAT32', encoding='eIEEE754'))
+        self.assertEqual(element.get('BASE-TYPE-ENCODING'), 'IEEE754')
+        self.assertEqual(ctx.report['unmapped_enumerations'], 0)
+
+    def test_unmapped_encoding_is_not_written(self):
+        ctx = context({})
+        element = data_objects.add_diag_coded_type(
+            ctx, ET.Element('X'), coded_type(base_data_type='eDB_FLOAT32', encoding=42))
         self.assertNotIn('BASE-TYPE-ENCODING', element.attrib)
         self.assertEqual(ctx.report['unmapped_enumerations'], 1)
 
