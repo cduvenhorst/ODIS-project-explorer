@@ -399,6 +399,49 @@ class ConstraintTests(unittest.TestCase):
         self.assertEqual(xml(element), '<INTERNAL-CONSTR><LOWER-LIMIT>0</LOWER-LIMIT>'
                                        '<UPPER-LIMIT>4294967295</UPPER-LIMIT></INTERNAL-CONSTR>')
 
+    def test_unsigned_full_range_of_coded_bit_length_with_scales_omits_limits(self):
+        ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 65535, [scale_constraint('Inv', 255, 255)]))})
+        element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR', reference('IC_L_C1'),
+                                              coded_type(bit_length=16))
+        self.assertEqual(tags(element), ['SCALE-CONSTRS'])
+
+    def test_signed_full_range_of_coded_bit_length_with_scales_omits_limits(self):
+        ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(-2147483648, 2147483647,
+                                                                [scale_constraint('Inv', 0, 0)]))})
+        element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR', reference('IC_L_C1'),
+                                              coded_type(base_data_type='eDB_INT32', encoding='e2C',
+                                                         bit_length=32))
+        self.assertEqual(tags(element), ['SCALE-CONSTRS'])
+
+    def test_limits_inside_the_coded_range_are_kept(self):
+        ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 427, [scale_constraint('Inv', 255, 255)]))})
+        element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR', reference('IC_L_C1'),
+                                              coded_type(bit_length=16))
+        self.assertEqual(tags(element), ['LOWER-LIMIT', 'UPPER-LIMIT', 'SCALE-CONSTRS'])
+        self.assertEqual(element.findtext('UPPER-LIMIT'), '427')
+
+    def test_full_coded_range_without_scales_keeps_limits(self):
+        ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 65535))})
+        element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR', reference('IC_L_C1'),
+                                              coded_type(bit_length=16))
+        self.assertEqual(xml(element), '<INTERNAL-CONSTR><LOWER-LIMIT>0</LOWER-LIMIT>'
+                                       '<UPPER-LIMIT>65535</UPPER-LIMIT></INTERNAL-CONSTR>')
+
+    def test_unsigned_range_does_not_apply_to_signed_coded_type(self):
+        ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 65535, [scale_constraint('Inv', 0, 0)]))})
+        element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR', reference('IC_L_C1'),
+                                              coded_type(base_data_type='eDB_INT32', bit_length=16))
+        self.assertEqual(tags(element), ['LOWER-LIMIT', 'UPPER-LIMIT', 'SCALE-CONSTRS'])
+
+    def test_coded_type_without_bit_length_keeps_only_the_known_full_range_rule(self):
+        for lower, upper, expected in ((0, 65535, ['LOWER-LIMIT', 'UPPER-LIMIT', 'SCALE-CONSTRS']),
+                                       (0, 4294967295, ['SCALE-CONSTRS'])):
+            ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(lower, upper,
+                                                                    [scale_constraint('Inv', 0, 0)]))})
+            element = data_objects.add_constraint(ctx, ET.Element('X'), 'INTERNAL-CONSTR',
+                                                  reference('IC_L_C1'), min_max_type(255))
+            self.assertEqual(tags(element), expected)
+
     def test_scale_constraint_validity_label_and_limits(self):
         ctx = context({'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 254, [
             scale_constraint('Inv', 255, 300, 'eVALUE_NOT_VALID', upper_type='eLIMIT_OPEN')]))})
@@ -456,6 +499,16 @@ class DataObjectPropTests(unittest.TestCase):
         self.assertEqual(tags(element), ['SHORT-NAME', 'COMPU-METHOD', 'DIAG-CODED-TYPE', 'PHYSICAL-TYPE',
                                          'PHYS-CONSTR'])
         self.assertEqual(ctx.report['empty_references'], 0)
+
+    def test_data_object_prop_omits_internal_limits_spanning_its_coded_range(self):
+        dop = {'short_name': 'Level', 'compu_method': compu_method('eIDENTICAL'),
+               'diag_coded_type': coded_type(bit_length=16), 'physical_type': physical_type(radix=16),
+               'unit_reference': None, 'internal_constraint_reference': reference('IC_L_C1'),
+               'physical_constraint_reference': None}
+        ctx = context({'DOP_L_D4': ('DB_DOP_SIMPLE_BASE', dop),
+                       'IC_L_C1': ('MCD_CONSTRAINT', constraint(0, 65535, [scale_constraint('Inv', 0, 0)]))})
+        element = data_objects.add_data_object_prop(ctx, ET.Element('X'), 'DOP_L_D4')
+        self.assertEqual(tags(element.find('INTERNAL-CONSTR')), ['SCALE-CONSTRS'])
 
     def test_data_object_prop_sdgs_come_before_the_compu_method(self):
         def fake_sdgs(ctx, parent, obj):
