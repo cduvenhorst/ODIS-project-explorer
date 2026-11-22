@@ -79,6 +79,29 @@ class DumpOdxTests(unittest.TestCase):
         self.assertFalse([line for line in lines if line.startswith('0.0.0@L.sd: objects without a place in ODX')],
                          lines)
 
+    def test_skipped_pool_prints_traceback_to_stderr(self):
+        storage = StringStorage(self.folder)
+        with tempfile.TemporaryDirectory() as output_folder:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                dumpODX.app_dumpODX(storage, self.folder, output_folder)
+        skipped = [line for line in stdout.getvalue().splitlines() if line.startswith('0.0.0@B.sd: ')]
+        self.assertEqual(len(skipped), 1, stdout.getvalue())
+        self.assertIn('Traceback (most recent call last)', stderr.getvalue())
+
+    def test_skipped_pool_removes_output_of_an_earlier_run(self):
+        storage = StringStorage(self.folder)
+        with tempfile.TemporaryDirectory() as output_folder:
+            odx_folder = os.path.join(output_folder, 'odx')
+            os.makedirs(odx_folder)
+            stale = os.path.join(odx_folder, 'B.odx')
+            with open(stale, 'w') as handle:
+                handle.write('stale')
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                dumpODX.app_dumpODX(storage, self.folder, output_folder)
+            self.assertFalse(os.path.exists(stale))
+            self.assertTrue(os.path.isfile(os.path.join(odx_folder, 'L.odx')))
+
     def test_reports_objects_without_place_separately(self):
         ctx = context({'DOP_L_D1': ('DB_DOP_SIMPLE_BASE', {}),
                        'TBP_L_T1.R1': ('MCD_DB_TABLE_PARAMETER', {}),

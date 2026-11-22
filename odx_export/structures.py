@@ -94,10 +94,9 @@ def add_mux(ctx, parent, key):
         cases_element = sub(ctx, element, 'CASES')
         for case in cases:
             case_element = _add_case(ctx, cases_element, 'CASE', case)
-            add_limit(ctx, case_element, 'LOWER-LIMIT', case['lower_limit'].get('limit'),
-                       case['lower_limit'].get('limit_type'))
-            add_limit(ctx, case_element, 'UPPER-LIMIT', case['upper_limit'].get('limit'),
-                       case['upper_limit'].get('limit_type'))
+            for tag, field in (('LOWER-LIMIT', 'lower_limit'), ('UPPER-LIMIT', 'upper_limit')):
+                if case[field] is not None:
+                    add_limit(ctx, case_element, tag, case[field].get('limit'), case[field].get('limit_type'))
     return element
 
 

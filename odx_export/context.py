@@ -19,6 +19,7 @@ class PoolContext:
         self.used = set()
         self.report = Counter()
         self.without_place = []
+        self._length_key_owners = None  # parameter object ID -> owner ID, computed on first use
         self._without_place_seen = set()
 
     def take(self, key):

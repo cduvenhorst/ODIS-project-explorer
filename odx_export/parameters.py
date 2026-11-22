@@ -51,7 +51,7 @@ def add_param(ctx, parent, parameter, owner_id):
     kind = _kind(ctx, parameter['mcd_parameter_type'])
     attributes = {XSI_TYPE: kind, 'SEMANTIC': parameter.get('semantic')}
     if kind in _IDENTIFIED_KINDS:
-        attributes['ID'] = owner_id + '.' + parameter['short_name']
+        attributes['ID'] = owner_id + '.' + (parameter['short_name'] or '')
     # Every parameter keeps its object ID, also without ID: the original documents carry it on each PARAM.
     attributes['OID'] = parameter.get('unique_object_id') or None
     if kind == 'SYSTEM':
@@ -92,7 +92,7 @@ def add_param(ctx, parent, parameter, owner_id):
     elif kind == 'TABLE-KEY':
         _add_table_key_ref(ctx, element, parameter)
     elif kind == 'TABLE-STRUCT':
-        sub(ctx, element, 'TABLE-KEY-REF', ID_REF=owner_id + '.' + parameter['key_parameter_short_name'])
+        sub(ctx, element, 'TABLE-KEY-REF', ID_REF=owner_id + '.' + (parameter['key_parameter_short_name'] or ''))
     return element
 
 

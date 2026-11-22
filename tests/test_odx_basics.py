@@ -105,6 +105,9 @@ class TextTests(unittest.TestCase):
         self.assertEqual(elements.format_value(True), 'true')
         self.assertEqual(elements.format_value({'value': 5, 'data_type': 'eA_UINT32'}), '5')
         self.assertIsNone(elements.format_value(None))
+        self.assertEqual(elements.format_value(float('nan')), 'NaN')
+        self.assertEqual(elements.format_value(float('inf')), 'INF')
+        self.assertEqual(elements.format_value(float('-inf')), '-INF')
 
     def test_sub_omits_none_attributes_and_maps_named(self):
         ctx = context({})

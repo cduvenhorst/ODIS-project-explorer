@@ -186,6 +186,18 @@ class MuxTests(unittest.TestCase):
         self.assertEqual(ctx.report['empty_references'], 0)
 
 
+class MuxLimitTests(unittest.TestCase):
+    def test_case_without_limit_objects_writes_no_limit_elements(self):
+        mux = {'offset': 0,
+               'switch_key': {'bit_position': 0, 'byte_position': 0, 'is_byte_position_available': True,
+                              'dop_base_reference': reference('DOP_L_D1')},
+               'cases': [dict(case_base('ONE', None), lower_limit=None, upper_limit=limit(1))],
+               'default_case': None}
+        ctx = pool(DOP_L_M3=('MCD_DB_PARAMETER_MULTIPLEXER', mux))
+        element = structures.add_mux(ctx, ET.Element('X'), 'DOP_L_M3')
+        self.assertEqual(tags(element.find('CASES/CASE')), ['SHORT-NAME', 'UPPER-LIMIT'])
+
+
 class EnvDataTests(unittest.TestCase):
     def test_env_data_desc_and_env_data_with_all_value(self):
         all_value = parameter('ALL', long_name='All values', mcd_parameter_type='eVALUE',

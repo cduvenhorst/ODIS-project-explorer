@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+import traceback
 from collections import Counter
 
 from classes.PblRecordManager import PblRecordManager
@@ -47,6 +49,9 @@ def app_dumpODX(string_storage, project_folder_path, output_folder_path):
     # One Pool at a time: its objects are released before the next Pool is loaded
     for PoolID in pools.shared_data_pools():
         output_path = os.path.join(odx_folder_path, layer_name(PoolID) + '.odx')
+        # A document of an earlier run must not stay behind and look current when this Pool is skipped
+        if os.path.exists(output_path):
+            os.remove(output_path)
         try:
             ctx = pools.context(PoolID)
             write_document(build_document(ctx), output_path, PoolID)
@@ -54,6 +59,7 @@ def app_dumpODX(string_storage, project_folder_path, output_folder_path):
             # A Pool that cannot be loaded or written is skipped, the other Pools are still written
             # (write_document removes a half-written file)
             print('{}: skipped, cannot be loaded: {!r}'.format(PoolID, error))
+            traceback.print_exc(file=sys.stderr)
             ctx = None
             continue
         for line in report_lines(ctx):

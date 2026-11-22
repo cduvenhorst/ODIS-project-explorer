@@ -81,7 +81,7 @@ def length_key_owners(ctx):
 
 def _length_key_owner(ctx, unique_object_id):
     # Computed once per context; length_key_owners itself stays a pure function.
-    owners = getattr(ctx, '_length_key_owners', None)
+    owners = ctx._length_key_owners
     if owners is None:
         owners = length_key_owners(ctx)
         ctx._length_key_owners = owners
@@ -105,7 +105,8 @@ def add_diag_coded_type(ctx, parent, coded_type, owner_id=None):
         'TERMINATION': None if termination is None else _mapped(ctx, TERMINATION, termination)})
     if kind in ('eSTANDARD_LENGTH_TYPE', 'eLEADING_LENGTH_INFO_TYPE'):
         sub(ctx, element, 'BIT-LENGTH', str(coded_type['bit_length']))
-        if coded_type.get('bit_mask'):
+        # LEADING-LENGTH-INFO-TYPE has no BIT-MASK in ODX 2.2.0
+        if kind == 'eSTANDARD_LENGTH_TYPE' and coded_type.get('bit_mask'):
             sub(ctx, element, 'BIT-MASK', format_value(bytes(coded_type['bit_mask'])))
     elif kind == 'eMIN_MAX_LENGTH_TYPE':
         if coded_type['max_length'] != _DEFAULT_MAX_LENGTH:

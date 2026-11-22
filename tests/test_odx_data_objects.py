@@ -105,6 +105,16 @@ class DiagCodedTypeTests(unittest.TestCase):
         self.assertEqual(element.findtext('BIT-LENGTH'), '32')
         self.assertEqual(element.findtext('BIT-MASK'), '0FFF')
 
+    def test_leading_length_info_type_writes_no_bit_mask(self):
+        ctx = context({})
+        element = data_objects.add_diag_coded_type(
+            ctx, ET.Element('X'), coded_type(coded_type='eLEADING_LENGTH_INFO_TYPE', bit_length=8,
+                                             bit_mask=bytearray(b'\x0f')))
+        self.assertEqual(tags(element), ['BIT-LENGTH'])
+
+    def test_length_key_owner_cache_is_created_by_the_context(self):
+        self.assertTrue(hasattr(context({}), '_length_key_owners'))
+
     def test_low_high_byte_order_is_written(self):
         ctx = context({})
         element = data_objects.add_diag_coded_type(ctx, ET.Element('X'),

@@ -169,6 +169,19 @@ class ParamIdTests(unittest.TestCase):
         self.assertEqual(tags(written[0]), ['SHORT-NAME', 'BYTE-POSITION'])
 
 
+class MissingShortNameTests(unittest.TestCase):
+    def test_missing_short_name_counts_as_empty(self):
+        ctx = target_context()
+        written = write(ctx, dict(parameter('eLENGTH_KEY', 'LK', dop_base_reference=reference('DOP_L_D1')),
+                                  short_name=None))
+        self.assertEqual(written[0].get('ID'), 'S1.')
+
+    def test_missing_key_parameter_short_name_counts_as_empty(self):
+        ctx = target_context()
+        written = write(ctx, parameter('eTABLE_STRUCT', 'TS', key_parameter_short_name=None))
+        self.assertEqual(xml(written[0].find('TABLE-KEY-REF')), '<TABLE-KEY-REF ID-REF="S1." />')
+
+
 class ParamPositionTests(unittest.TestCase):
     def test_param_bit_position_zero_omitted(self):
         ctx = target_context()

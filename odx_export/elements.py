@@ -1,4 +1,5 @@
 """Helpers that write ODX elements with escaping, references and number formats."""
+import math
 import re
 import xml.etree.ElementTree as ET
 
@@ -72,6 +73,10 @@ def format_value(value, data_type=None):
     if isinstance(value, bool):
         return 'true' if value else 'false'
     if isinstance(value, float):
+        if math.isnan(value):
+            return 'NaN'
+        if math.isinf(value):
+            return 'INF' if value > 0 else '-INF'
         text = repr(value)
         return text[:-2] if text.endswith('.0') else text
     return str(value)
