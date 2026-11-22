@@ -142,6 +142,11 @@ class PoolContextTests(unittest.TestCase):
                                      ctx.keys('DOP_')), ['DOP_L_A', 'DOP_L_B'])
         self.assertEqual(ctx.ordered(None, ctx.keys('DOP_')), ['DOP_L_B', 'DOP_L_A'])
 
+    def test_ordered_takes_only_references_into_own_pool(self):
+        ctx = context({'DOP_L_A': ('T', 1), 'DOP_L_B': ('T', 2)})
+        foreign = reference('DOP_L_B', '5.4.0@L.sd')
+        self.assertEqual(ctx.ordered([foreign], ctx.keys('DOP_')), ['DOP_L_A', 'DOP_L_B'])
+
     def test_target_type(self):
         ctx = context({'DOP_L_A': ('T', 1)},
                       object_type=lambda pool, key: 'F' if pool == '5.4.0@N.sd' else None)

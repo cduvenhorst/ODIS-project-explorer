@@ -7,12 +7,12 @@ from odx_export.naming import layer_name, split_key
 XSI_TYPE = '{http://www.w3.org/2001/XMLSchema-instance}type'
 
 # Characters XML 1.0 does not allow.
-_INVALID = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]')
+_INVALID = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]')
 
 
 def clean(ctx, text):
     """Replace every character XML 1.0 forbids by U+FFFD and count the replacements."""
-    cleaned, count = _INVALID.subn('�', text)
+    cleaned, count = _INVALID.subn('\ufffd', text)
     if count:
         ctx.report['replaced_characters'] += count
     return cleaned

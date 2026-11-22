@@ -18,6 +18,7 @@ class PoolContext:
         self.used = set()
         self.report = Counter()
         self.without_place = []
+        self._without_place_seen = set()
 
     def take(self, key):
         """Return the object and remember it as used."""
@@ -55,16 +56,21 @@ class PoolContext:
         """
         wanted = set(keys)
         result = []
+        seen = set()
         for entry in references or []:
             reference = entry.get('reference', entry) if isinstance(entry, dict) else None
-            object_id = reference.get('object_id') if reference else None
-            if object_id in wanted and object_id not in result:
+            if not reference or reference.get('pool_id') != self.pool_id:
+                continue
+            object_id = reference.get('object_id')
+            if object_id in wanted and object_id not in seen:
+                seen.add(object_id)
                 result.append(object_id)
-        result.extend(key for key in keys if key not in result)
+        result.extend(key for key in keys if key not in seen)
         return result
 
     def mark_without_place(self, key):
-        if key not in self.without_place:
+        if key not in self._without_place_seen:
+            self._without_place_seen.add(key)
             self.without_place.append(key)
         self.used.add(key)
 
