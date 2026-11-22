@@ -5,6 +5,7 @@ from odx_export.special_data import sdgs
 from tests.odx_support import context, xml
 
 NAMES = {7: 'CAPTION_L_7', 8: 'CAPTION_L_8', 9: 'STRANGE_NAME'}
+CAPTION_TYPE = 'MCD_DB_SPECIAL_DATA_GROUP_CAPTION'
 
 
 def make_ctx():
@@ -90,6 +91,31 @@ class SpecialDataTest(unittest.TestCase):
         self.assertEqual({'SDG-CAPTION-REF'}, {s[0].tag for s in sdg})
         self.assertEqual(4, ctx.report['unresolvable_references'])
         self.assertEqual(1, ctx.report['unresolvable_sdgs'])
+
+    def test_written_caption_of_own_pool_is_marked_used(self):
+        ctx = context({'CAPTION_L_7': (CAPTION_TYPE, caption())}, key_name=NAMES.get)
+        run(ctx, [group([], caption(), 7), group([], caption(), 7)])
+        self.assertIn('CAPTION_L_7', ctx.used)
+        self.assertNotIn(CAPTION_TYPE, ctx.unused())
+
+    def test_caption_reference_alone_marks_caption_used(self):
+        ctx = context({'CAPTION_L_7': (CAPTION_TYPE, caption())}, key_name=NAMES.get)
+        # The caption was written earlier in this document; only SDG-CAPTION-REF is written here.
+        ctx.written_caption_ids.add('7')
+        parent = run(ctx, [group([], caption(), 7)])
+        self.assertEqual('SDG-CAPTION-REF', parent.find('SDGS/SDG')[0].tag)
+        self.assertNotIn(CAPTION_TYPE, ctx.unused())
+
+    def test_unresolvable_caption_is_not_marked_used(self):
+        ctx = context({'CAPTION_L_7': (CAPTION_TYPE, caption())}, key_name=NAMES.get)
+        run(ctx, [group([], 'not resolvable', 7)])
+        self.assertNotIn('CAPTION_L_7', ctx.used)
+        self.assertEqual(1, ctx.unused()[CAPTION_TYPE])
+
+    def test_resolved_caption_outside_the_pool_marks_nothing(self):
+        ctx = make_ctx()
+        run(ctx, [group([], caption(), 8)])
+        self.assertEqual(set(), ctx.used)
 
     def test_no_groups_gives_no_sdgs(self):
         for obj in ({}, {'special_data_groups': []}, {'special_data_groups': None}):

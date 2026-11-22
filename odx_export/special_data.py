@@ -54,6 +54,9 @@ def _write_caption(ctx, parent, group):
             ID_REF=name if name is not None else 'hash %d' % object_key)
         return
     caption_id = parts[1]
+    if name in ctx.types:
+        # The caption object of this pool is written, either here or by an earlier SDG-CAPTION.
+        ctx.used.add(name)
     if caption_id in ctx.written_caption_ids:
         # ODX form from the standard; no original document to compare (survey)
         sub(ctx, parent, 'SDG-CAPTION-REF', ID_REF=caption_id)
