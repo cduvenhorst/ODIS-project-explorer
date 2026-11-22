@@ -310,6 +310,35 @@ For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` f
 > python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash" "D:/PIDT/workspace"
 > ```
 
+### ODX export
+
+`dumpODX` reconstructs an ODX 2.2.0 document from every shared data pool (`*.sd`) of a project, without the kernel and without a converter.
+It is called like `dumpProject` and writes `<output>/<project>/odx/<pool>.odx`, where `<pool>` is the pool name without the `<version>@` part and without `.sd`.
+Each document holds a `DIAG-LAYER-CONTAINER` with one `ECU-SHARED-DATA`; all other layer types and ODX-C, ODX-F and ODX-V are not written.
+
+The documents are equivalent in content, not identical to the original ODX documents.
+A comment directly after the XML declaration says so and names the pool; no `ADMIN-DATA` is invented.
+
+- **Kept:** the objects of the pool with their names, IDs (taken from the object keys), references (`ID-REF`, with `DOCREF`/`DOCTYPE="LAYER"` into other pools, `...-SNREF` for references without pool), data object properties with coded type, compu method, physical type, constraints and units, structures, fields, multiplexers, environment data, DTC DOPs with their DTCs, tables with their rows and precondition states, services, jobs, requests, responses, functional classes, state charts and special data groups.
+  Values the converter adds and the original documents do not carry are left out.
+- **Approximate:** default values that ODX allows to omit (the more frequent form is written; `MIN-NUMBER-OF-ITEMS` and `ADDRESSING` are written also with their default), numbers with more digits than a `double` holds, and the order of lists (the order of the layer's reference list, then pool order; nothing is sorted).
+- **Lost**, because the pools do not have it: `ADMIN-DATA`, `COMPANY-DATAS`, long names and descriptions of DOPs and fields, `SHORT-LABEL` and `DESC` of `COMPU-SCALE`, `IS-VISIBLE`, `OID` without a pool object, unused `PHYSICAL-DIMENSION`s, `DOCREF` to the own document and characters outside Latin-1 in SDG texts.
+
+Characters that XML 1.0 does not allow are replaced by U+FFFD in every text and attribute value.
+`DISPLAY-RADIX` `DEC` is not written as an attribute; instead the comment `<!-- DISPLAY-RADIX not present: pool value DEC -->` is the first child of `PHYSICAL-TYPE`.
+An object that no object of the pool references and that has no place in ODX (a table row that no table lists) is not written; a comment at the end of `ECU-SHARED-DATA` names its type and key.
+
+Per written pool the script prints the number of unresolvable references, empty references, replaced characters and omitted `DISPLAY-RADIX` `DEC` values, then, if there are any, the unused objects per type and, on a separate line, the objects without a place in ODX per type.
+A reference whose target is missing or follows no naming rule is written with the object key as `ID-REF` and counted; the script does not stop.
+A pool that cannot be loaded or written is reported as `skipped, cannot be loaded` and the other pools are still written.
+
+Some forms follow the ODX standard only, since no original document was available to compare: `NRC-CONST` and `SYSTEM` parameters, `STATIC-FIELD`, `SINGLE-ECU-JOB`, `SDG-CAPTION` (and `SDG-CAPTION-REF` for a caption that was already written), `VALUE-SNPATHREF` in `POS-RESPONSE-SUPPRESSABLE`, and `TI` of `SD`, which rests on the kernel's field name only.
+
+> [!TIP]
+> ```powershell
+> python dumpODX.py "C:/path/to/project" "O:/ODX"
+> ```
+
 ### `dumpMWB`
 
 This script will dump "MWB definitions".
