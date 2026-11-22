@@ -2,7 +2,7 @@
 import xml.etree.ElementTree as ET
 
 from odx_export import special_data
-from odx_export.data_objects import _add_limit
+from odx_export.data_objects import add_limit
 from odx_export.elements import add_names, add_ref, identified, sub
 from odx_export.parameters import add_params
 
@@ -94,9 +94,9 @@ def add_mux(ctx, parent, key):
         cases_element = sub(ctx, element, 'CASES')
         for case in cases:
             case_element = _add_case(ctx, cases_element, 'CASE', case)
-            _add_limit(ctx, case_element, 'LOWER-LIMIT', case['lower_limit'].get('limit'),
+            add_limit(ctx, case_element, 'LOWER-LIMIT', case['lower_limit'].get('limit'),
                        case['lower_limit'].get('limit_type'))
-            _add_limit(ctx, case_element, 'UPPER-LIMIT', case['upper_limit'].get('limit'),
+            add_limit(ctx, case_element, 'UPPER-LIMIT', case['upper_limit'].get('limit'),
                        case['upper_limit'].get('limit_type'))
     return element
 

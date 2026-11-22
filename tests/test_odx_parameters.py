@@ -142,7 +142,15 @@ class ParamIdTests(unittest.TestCase):
                         parameter('eVALUE', 'V', dop_base_reference=reference('DOP_L_D1')),
                         parameter('eCODED_CONST', 'C', default_value=value(1), diag_coded_type=coded_type()))
         self.assertEqual([param.get('ID') for param in written], ['S1.LK', 'S1.TK', None, None])
-        self.assertEqual([param.get('OID') for param in written], ['OID-LK', 'OID-TK', None, None])
+        self.assertEqual([param.get('OID') for param in written], ['OID-LK', 'OID-TK', 'OID-V', 'OID-C'])
+
+    def test_every_param_with_object_id_gets_oid(self):
+        ctx = target_context()
+        written = write(ctx, parameter('eVALUE', 'V'), parameter('eVALUE', 'W', unique_object_id=''),
+                        parameter('eVALUE', 'N', unique_object_id=None))
+        self.assertEqual(written[0].attrib, {XSI_TYPE: 'VALUE', 'OID': 'OID-V'})
+        self.assertNotIn('OID', written[1].attrib)
+        self.assertNotIn('OID', written[2].attrib)
 
     def test_table_key_uses_row_ref_by_flag_or_prefix(self):
         ctx = target_context()

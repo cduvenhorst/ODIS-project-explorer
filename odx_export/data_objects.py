@@ -50,7 +50,7 @@ def _data_type(ctx, base_data_type, prefix):
     return None
 
 
-def _add_limit(ctx, parent, tag, limit_value, limit_type):
+def add_limit(ctx, parent, tag, limit_value, limit_type):
     """Append LOWER-LIMIT or UPPER-LIMIT; an infinite limit without value is the converter's and is dropped."""
     if limit_type == 'eLIMIT_INFINITE' and limit_value is None:
         return None
@@ -132,12 +132,12 @@ def _add_compu_scale(ctx, parent, compu_scale, category, physical_base_type):
     lower = compu_scale.get('lower_limit_as_coded_value')
     upper = compu_scale.get('upper_limit_as_coded_value')
     if lower is not None:
-        _add_limit(ctx, element, 'LOWER-LIMIT', lower.get('limit'), lower.get('limit_type'))
+        add_limit(ctx, element, 'LOWER-LIMIT', lower.get('limit'), lower.get('limit_type'))
     # TEXTTABLE: an upper limit equal to the lower one is the ODX default.
     # TAB-INTP: open upper limits are added by the converter.
     if upper is not None and not (category == 'eTEXTTAB' and upper == lower) \
             and not (category == 'eTAB_INTP' and upper.get('limit_type') == 'eLIMIT_OPEN'):
-        _add_limit(ctx, element, 'UPPER-LIMIT', upper.get('limit'), upper.get('limit_type'))
+        add_limit(ctx, element, 'UPPER-LIMIT', upper.get('limit'), upper.get('limit_type'))
     inverse = compu_scale.get('compu_inverse_value')
     # TAB-INTP: the inverse values are added by the converter.
     if inverse is not None and category != 'eTAB_INTP':
@@ -198,8 +198,8 @@ def add_physical_type(ctx, parent, physical_type):
 
 
 def _add_interval(ctx, parent, interval):
-    _add_limit(ctx, parent, 'LOWER-LIMIT', interval['lower_limit'], interval['lower_limit_interval_type'])
-    _add_limit(ctx, parent, 'UPPER-LIMIT', interval['upper_limit'], interval['upper_limit_interval_type'])
+    add_limit(ctx, parent, 'LOWER-LIMIT', interval['lower_limit'], interval['lower_limit_interval_type'])
+    add_limit(ctx, parent, 'UPPER-LIMIT', interval['upper_limit'], interval['upper_limit_interval_type'])
 
 
 def add_constraint(ctx, parent, tag, reference):

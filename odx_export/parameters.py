@@ -52,7 +52,8 @@ def add_param(ctx, parent, parameter, owner_id):
     attributes = {XSI_TYPE: kind, 'SEMANTIC': parameter.get('semantic')}
     if kind in _IDENTIFIED_KINDS:
         attributes['ID'] = owner_id + '.' + parameter['short_name']
-        attributes['OID'] = parameter.get('unique_object_id') or None
+    # Every parameter keeps its object ID, also without ID: the original documents carry it on each PARAM.
+    attributes['OID'] = parameter.get('unique_object_id') or None
     if kind == 'SYSTEM':
         # ODX form from the standard; no original document to compare (survey)
         attributes['SYSPARAM'] = parameter.get('system_parameter')
