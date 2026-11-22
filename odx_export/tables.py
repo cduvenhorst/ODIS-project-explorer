@@ -74,7 +74,8 @@ def precondition_states(ctx):
         for entry in data.get('state_precondition_definitions_map') or []:
             state = entry.get('map_key')
             for definition in entry.get('items') or []:
-                if not isinstance(definition, dict):
+                # A definition with a DiagCom reference is a service precondition, not one of a table row.
+                if not isinstance(definition, dict) or definition.get('diag_com_primitive') is not None:
                     continue
                 row_key = _object_id(definition.get('table_parameter'))
                 # The data holds no table parameter for this definition: an empty reference.

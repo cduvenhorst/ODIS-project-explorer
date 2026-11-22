@@ -237,6 +237,14 @@ class PreconditionTests(unittest.TestCase):
         self.assertEqual(tables.precondition_states(ctx), {'TBP_L_T1.R1': ['C1.Default']})
         self.assertEqual(ctx.report['empty_references'], 2)
 
+    def test_service_precondition_in_state_chart_data_is_skipped_without_counting(self):
+        data = chart_data([('Default', [None, reference('TBP_L_T1.R1')])])
+        data['state_precondition_definitions_map'][0]['items'][0]['diag_com_primitive'] = reference('DC_L_S1')
+        ctx = pool({'SC_L_C1': ('MCD_DB_ECU_STATE_CHART', chart('SESSION')),
+                    'DbStateChartDataSESSION': ('DB_STATE_CHART_DATA', data)})
+        self.assertEqual(tables.precondition_states(ctx), {'TBP_L_T1.R1': ['C1.Default']})
+        self.assertEqual(ctx.report['empty_references'], 0)
+
     def test_precondition_without_matching_chart_is_counted(self):
         ctx = pool({'SC_L_C1': ('MCD_DB_ECU_STATE_CHART', chart('OTHER')),
                     'DbStateChartDataSESSION': ('DB_STATE_CHART_DATA', chart_data(
