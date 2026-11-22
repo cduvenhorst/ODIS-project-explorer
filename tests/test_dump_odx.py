@@ -71,8 +71,7 @@ class DumpOdxTests(unittest.TestCase):
     def test_reports_per_pool(self):
         _, stdout = run_dump(self.folder)
         lines = stdout.splitlines()
-        self.assertIn('0.0.0@L.sd: unresolvable references 0, empty references 0, replaced characters 0, '
-                      'DISPLAY-RADIX DEC not present 0', lines)
+        self.assertIn('0.0.0@L.sd: unresolvable references 0, empty references 0, replaced characters 0', lines)
         skipped = [line for line in lines if line.startswith('0.0.0@B.sd: ')]
         self.assertEqual(len(skipped), 1, lines)
         self.assertTrue(skipped[0].startswith('0.0.0@B.sd: skipped, cannot be loaded: '), skipped[0])
@@ -90,8 +89,7 @@ class DumpOdxTests(unittest.TestCase):
         ctx.report['unresolvable_references'] = 2
         ctx.report['replaced_characters'] = 1
         self.assertEqual(dumpODX.report_lines(ctx), [
-            '0.0.0@L.sd: unresolvable references 2, empty references 0, replaced characters 1, '
-            'DISPLAY-RADIX DEC not present 0',
+            '0.0.0@L.sd: unresolvable references 2, empty references 0, replaced characters 1',
             '0.0.0@L.sd: unused objects DB_DOP_SIMPLE_BASE 1, MCD_DB_UNIT 1',
             '0.0.0@L.sd: objects without a place in ODX MCD_DB_TABLE_PARAMETER 2'])
 

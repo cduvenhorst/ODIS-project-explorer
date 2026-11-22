@@ -27,7 +27,6 @@ _DEFAULT_MAX_LENGTH = 65535
 # The converter adds these internal limits next to scale constraints, as well as the full value range
 # of the coded type (see _coded_full_range).
 _FULL_RANGE = ('0', '4294967295')
-_DEC_RADIX_COMMENT = ' DISPLAY-RADIX not present: pool value DEC '
 _PARAMETER_FIELDS = ('parameters', 'request_parameters', 'response_parameters')
 _STRING_VALUE_TYPES = ('eA_UNICODE2STRING', 'eA_ASCIISTRING')
 _EXPONENTS = (('LENGTH-EXP', 'length_exponent'), ('MASS-EXP', 'mass_exponent'), ('TIME-EXP', 'time_exponent'),
@@ -183,16 +182,13 @@ def add_compu_method(ctx, parent, compu_method, physical_base_type=None):
 
 def add_physical_type(ctx, parent, physical_type):
     radix = physical_type['display_radix']
-    radix_text = None
+    base_data_type = _data_type(ctx, physical_type['base_data_type'], 'eDB_PHYS_')
+    # The original documents write DEC for A_UINT32 only; for other data types it is left out.
     if radix != 10:
         radix_text = _mapped(ctx, RADIX, radix)
-    element = sub(ctx, parent, 'PHYSICAL-TYPE',
-                  BASE_DATA_TYPE=_data_type(ctx, physical_type['base_data_type'], 'eDB_PHYS_'),
-                  DISPLAY_RADIX=radix_text)
-    if radix == 10:
-        # DEC is the ODX default; it is marked as not present instead of being dropped silently.
-        element.append(ET.Comment(_DEC_RADIX_COMMENT))
-        ctx.report['omitted_display_radix'] += 1
+    else:
+        radix_text = 'DEC' if base_data_type == 'A_UINT32' else None
+    element = sub(ctx, parent, 'PHYSICAL-TYPE', BASE_DATA_TYPE=base_data_type, DISPLAY_RADIX=radix_text)
     if physical_type['is_precision_available']:
         sub(ctx, element, 'PRECISION', str(physical_type['precision']))
     return element

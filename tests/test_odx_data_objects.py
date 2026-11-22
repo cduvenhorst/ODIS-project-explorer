@@ -343,27 +343,28 @@ class CompuMethodTests(unittest.TestCase):
 
 
 class PhysicalTypeTests(unittest.TestCase):
-    def test_physical_type_marks_dec_radix_as_not_present(self):
+    def test_physical_type_writes_dec_radix_for_uint32_only(self):
         ctx = context({})
         parent = ET.Element('X')
         decimal = data_objects.add_physical_type(ctx, parent, physical_type(radix=10))
-        self.assertEqual(decimal.get('BASE-DATA-TYPE'), 'A_UINT32')
-        self.assertNotIn('DISPLAY-RADIX', decimal.attrib)
-        self.assertIs(decimal[0].tag, ET.Comment)
-        self.assertEqual(decimal[0].text, ' DISPLAY-RADIX not present: pool value DEC ')
-        self.assertEqual(xml(decimal), '<PHYSICAL-TYPE BASE-DATA-TYPE="A_UINT32">'
-                                       '<!-- DISPLAY-RADIX not present: pool value DEC --></PHYSICAL-TYPE>')
-        self.assertEqual(ctx.report['omitted_display_radix'], 1)
-        hexadecimal = data_objects.add_physical_type(ctx, parent, physical_type('eDB_PHYS_FLOAT64', 16, 3))
+        self.assertEqual(xml(decimal), '<PHYSICAL-TYPE BASE-DATA-TYPE="A_UINT32" DISPLAY-RADIX="DEC" />')
+        self.assertEqual(len(decimal), 0)
+
+    def test_physical_type_leaves_out_dec_radix_for_other_data_types(self):
+        ctx = context({})
+        parent = ET.Element('X')
+        plain = data_objects.add_physical_type(ctx, parent, physical_type('eDB_PHYS_INT32', 10))
+        self.assertNotIn('DISPLAY-RADIX', plain.attrib)
+        self.assertEqual(len(plain), 0)
+        precise = data_objects.add_physical_type(ctx, parent, physical_type('eDB_PHYS_INT32', 10, 2))
+        self.assertNotIn('DISPLAY-RADIX', precise.attrib)
+        self.assertEqual([child.tag for child in precise], ['PRECISION'])
+
+    def test_physical_type_keeps_other_radixes_for_any_data_type(self):
+        ctx = context({})
+        hexadecimal = data_objects.add_physical_type(ctx, ET.Element('X'), physical_type('eDB_PHYS_FLOAT64', 16, 3))
         self.assertEqual(xml(hexadecimal), '<PHYSICAL-TYPE BASE-DATA-TYPE="A_FLOAT64" DISPLAY-RADIX="HEX">'
                                            '<PRECISION>3</PRECISION></PHYSICAL-TYPE>')
-        self.assertEqual(ctx.report['omitted_display_radix'], 1)
-
-    def test_dec_radix_comment_comes_before_precision(self):
-        ctx = context({})
-        element = data_objects.add_physical_type(ctx, ET.Element('X'), physical_type(radix=10, precision=2))
-        self.assertIs(element[0].tag, ET.Comment)
-        self.assertEqual(element[1].tag, 'PRECISION')
 
 
 class ConstraintTests(unittest.TestCase):

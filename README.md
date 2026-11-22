@@ -325,10 +325,10 @@ A comment directly after the XML declaration says so and names the pool; no `ADM
 - **Lost**, because the pools do not have it: `ADMIN-DATA`, `COMPANY-DATAS`, long names and descriptions of DOPs and fields, `SHORT-LABEL` and `DESC` of `COMPU-SCALE`, `IS-VISIBLE`, `OID` without a pool object, unused `PHYSICAL-DIMENSION`s, `DOCREF` to the own document and characters outside Latin-1 in SDG texts.
 
 Characters that XML 1.0 does not allow are replaced by U+FFFD in every text and attribute value.
-`DISPLAY-RADIX` `DEC` is not written as an attribute; instead the comment `<!-- DISPLAY-RADIX not present: pool value DEC -->` is the first child of `PHYSICAL-TYPE`.
+`DISPLAY-RADIX` `DEC` is written for `A_UINT32` only, as in the original documents; for other data types the decimal radix is left out.
 An object that no object of the pool references and that has no place in ODX (a table row that no table lists) is not written; a comment at the end of `ECU-SHARED-DATA` names its type and key.
 
-Per written pool the script prints the number of unresolvable references, empty references, replaced characters and omitted `DISPLAY-RADIX` `DEC` values, then, if there are any, the unused objects per type and, on a separate line, the objects without a place in ODX per type.
+Per written pool the script prints the number of unresolvable references, empty references, and replaced characters, then, if there are any, the unused objects per type and, on a separate line, the objects without a place in ODX per type.
 A reference whose target is missing or follows no naming rule is written with the object key as `ID-REF` and counted; the script does not stop.
 A pool that cannot be loaded or written is reported as `skipped, cannot be loaded` and the other pools are still written.
 

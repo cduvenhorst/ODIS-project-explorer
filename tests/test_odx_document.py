@@ -176,10 +176,9 @@ class DocumentTests(unittest.TestCase):
         self.assertIn('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"', lines[2])
         self.assertEqual(lines[3], '  <DIAG-LAYER-CONTAINER ID="CONTAINER">')
         self.assertEqual(parsed.getroot().get('MODEL-VERSION'), '2.2.0')
-        # The DISPLAY-RADIX comment survives indenting and writing.
+        # DISPLAY-RADIX DEC of an A_UINT32 survives indenting and writing.
         physical_type = parsed.find('.//DATA-OBJECT-PROP/PHYSICAL-TYPE')
-        self.assertIs(physical_type[0].tag, ET.Comment)
-        self.assertEqual(physical_type[0].text, ' DISPLAY-RADIX not present: pool value DEC ')
+        self.assertEqual(physical_type.get('DISPLAY-RADIX'), 'DEC')
 
     def test_xsi_namespace_is_declared_once_when_used(self):
         objects = full_objects()

@@ -20,10 +20,8 @@ pbl_record_manager = PblRecordManager(pbl_dll_path)
 ### returns the counter line, and the lines for unused objects and objects without a place in ODX if there are any
 def report_lines(ctx) -> list[str]:
     report = ctx.report
-    lines = ['{}: unresolvable references {}, empty references {}, replaced characters {}, '
-             'DISPLAY-RADIX DEC not present {}'.format(ctx.pool_id, report['unresolvable_references'],
-                                                       report['empty_references'], report['replaced_characters'],
-                                                       report['omitted_display_radix'])]
+    lines = ['{}: unresolvable references {}, empty references {}, replaced characters {}'.format(
+        ctx.pool_id, report['unresolvable_references'], report['empty_references'], report['replaced_characters'])]
     unused = ctx.unused()
     if unused:
         lines.append('{}: unused objects {}'.format(ctx.pool_id, _type_counts(unused)))
