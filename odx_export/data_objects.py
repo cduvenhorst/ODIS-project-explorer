@@ -24,8 +24,7 @@ TERMINATION = {'eENDOFPDU': 'END-OF-PDU', 'eZERO': 'ZERO', 'eHEX_FF': 'HEX-FF'}
 # Encodings the converter adds to these base data types; the original documents do not carry them.
 _CONVERTER_ENCODINGS = {('eDB_ASCIISTRING', 'eISO_8859_1'), ('eDB_INT32', 'e2C')}
 _DEFAULT_MAX_LENGTH = 65535
-# The converter adds these internal limits next to scale constraints, as well as the full value range
-# of the coded type (see _coded_full_range).
+# The converter adds these internal limits next to scale constraints.
 _FULL_RANGE = ('0', '4294967295')
 _PARAMETER_FIELDS = ('parameters', 'request_parameters', 'response_parameters')
 _STRING_VALUE_TYPES = ('eA_UNICODE2STRING', 'eA_ASCIISTRING')
@@ -199,25 +198,8 @@ def _add_interval(ctx, parent, interval):
     add_limit(ctx, parent, 'UPPER-LIMIT', interval['upper_limit'], interval['upper_limit_interval_type'])
 
 
-def _coded_full_range(coded_type):
-    """Lower and upper limit of the full value range of a standard length coded type, or None."""
-    if not coded_type or coded_type.get('coded_type') != 'eSTANDARD_LENGTH_TYPE':
-        return None
-    bit_length = coded_type.get('bit_length')
-    if not bit_length:
-        return None
-    if coded_type.get('base_data_type') == 'eDB_UINT32':
-        return '0', str(2 ** bit_length - 1)
-    if coded_type.get('base_data_type') == 'eDB_INT32':
-        return str(-2 ** (bit_length - 1)), str(2 ** (bit_length - 1) - 1)
-    return None
-
-
-def add_constraint(ctx, parent, tag, reference, coded_type=None):
-    """Append INTERNAL-CONSTR or PHYS-CONSTR from the referenced constraint of this pool.
-
-    coded_type is the DIAG-CODED-TYPE of the owning DOP; it gives the full value range for INTERNAL-CONSTR.
-    """
+def add_constraint(ctx, parent, tag, reference):
+    """Append INTERNAL-CONSTR or PHYS-CONSTR from the referenced constraint of this pool."""
     # A field whose flag is not set is absent, not an empty reference; only an empty object_id counts.
     if reference is None:
         return None
@@ -237,7 +219,7 @@ def add_constraint(ctx, parent, tag, reference, coded_type=None):
     scale_constraints = [entry for entry in constraint.get('scale_constraints') or [] if entry]
     if interval is not None:
         limits = (format_value(interval['lower_limit']), format_value(interval['upper_limit']))
-        if not (scale_constraints and limits in (_FULL_RANGE, _coded_full_range(coded_type))):
+        if not (scale_constraints and limits == _FULL_RANGE):
             _add_interval(ctx, element, interval)
     if scale_constraints:
         scales_element = sub(ctx, element, 'SCALE-CONSTRS')
@@ -267,8 +249,7 @@ def add_data_object_prop(ctx, parent, key):
         add_diag_coded_type(ctx, element, dop['diag_coded_type'])
     if physical_type is not None:
         add_physical_type(ctx, element, physical_type)
-    add_constraint(ctx, element, 'INTERNAL-CONSTR', dop.get('internal_constraint_reference'),
-                   dop.get('diag_coded_type'))
+    add_constraint(ctx, element, 'INTERNAL-CONSTR', dop.get('internal_constraint_reference'))
     # A unit reference whose flag is not set is absent, not an empty reference.
     if dop.get('unit_reference') is not None:
         add_ref(ctx, element, 'UNIT-REF', dop['unit_reference'])
