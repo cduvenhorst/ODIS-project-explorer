@@ -2,6 +2,7 @@
 from odx_export import special_data
 from odx_export.data_objects import add_compu_method, add_diag_coded_type, add_physical_type
 from odx_export.elements import add_names, add_ref, identified, sub
+from odx_export.naming import split_key
 
 
 def _add_dtc(ctx, parent, key):
@@ -41,8 +42,9 @@ def add_dtc_dop(ctx, parent, key, written_dtcs):
         for entry in entries:
             reference = entry.get('reference', entry)
             dtc_key = reference.get('object_id') if reference else None
+            # A key outside the naming rule has no ID; add_ref writes it as an unresolvable reference.
             if (dtc_key and reference.get('pool_id') == ctx.pool_id and dtc_key in ctx.objects
-                    and dtc_key not in written_dtcs):
+                    and split_key(dtc_key, ctx.layer) is not None and dtc_key not in written_dtcs):
                 _add_dtc(ctx, dtcs, dtc_key)
                 written_dtcs.add(dtc_key)
             else:

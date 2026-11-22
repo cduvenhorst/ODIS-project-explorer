@@ -107,6 +107,15 @@ class DtcDopTests(unittest.TestCase):
         element = trouble_codes.add_dtc_dop(ctx, ET.Element('X'), 'DOP_L_X1', set())
         self.assertEqual(tags(element), ['SHORT-NAME'])
 
+    def test_own_dtc_key_outside_the_naming_rule_is_unresolvable(self):
+        ctx = context({'DOP_L_X1': ('DB_DOP_DTC', dtc_dop('DOP1', reference('WEIRD'))),
+                       'WEIRD': ('MCD_DB_DIAG_TROUBLE_CODE', dtc('W'))})
+        written = set()
+        element = trouble_codes.add_dtc_dop(ctx, ET.Element('X'), 'DOP_L_X1', written)
+        self.assertEqual(xml(element.find('DTCS')), '<DTCS><DTC-REF ID-REF="WEIRD" /></DTCS>')
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
+        self.assertEqual(written, set())
+
     def test_dtc_dop_with_only_empty_references_has_no_dtcs(self):
         ctx = context({'DOP_L_X1': ('DB_DOP_DTC', dtc_dop('DOP1', reference('')))})
         element = trouble_codes.add_dtc_dop(ctx, ET.Element('X'), 'DOP_L_X1', set())
