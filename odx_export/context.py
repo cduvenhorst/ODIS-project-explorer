@@ -15,6 +15,7 @@ class PoolContext:
         self.types = types  # key -> type name
         self.object_type = object_type  # (pool_id, object_key) -> type name or None, other pools
         self.key_name = key_name  # hash -> key name or None
+        self.written_caption_ids = set()  # SDG-CAPTION IDs already written in this document
         self.used = set()
         self.report = Counter()
         self.without_place = []
