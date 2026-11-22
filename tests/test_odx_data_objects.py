@@ -304,6 +304,32 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(ctx.report['unmapped_enumerations'], 1)
 
 
+    def test_string_values_use_vt_without_physical_base_type(self):
+        ctx = context({})
+        scales = [scale(limit(1), limit(1), constant=value('An', 'eA_ASCIISTRING'),
+                        inverse=value('x', 'eA_ASCIISTRING')),
+                  scale(limit(2), limit(2), constant=value('Aus', 'eA_UNICODE2STRING')),
+                  scale(limit(3), limit(3), constant=value(3))]
+        element = data_objects.add_compu_method(ctx, ET.Element('X'), compu_method('eTEXTTAB', scales))
+        first, second, third = element.findall('COMPU-INTERNAL-TO-PHYS/COMPU-SCALES/COMPU-SCALE')
+        self.assertEqual(first.findtext('COMPU-CONST/VT'), 'An')
+        self.assertEqual(first.findtext('COMPU-INVERSE-VALUE/VT'), 'x')
+        self.assertEqual(second.findtext('COMPU-CONST/VT'), 'Aus')
+        self.assertEqual(third.findtext('COMPU-CONST/V'), '3')
+
+    def test_inverse_value_tag_follows_its_data_type(self):
+        # The inverse value is an internal value; the physical base type does not describe it.
+        ctx = context({})
+        scales = [scale(limit(1), limit(1), constant=value('On', 'eA_UNICODE2STRING'), inverse=value(1)),
+                  scale(limit(2), limit(2), constant=value('Off', 'eA_UNICODE2STRING'),
+                        inverse=value('y', 'eA_UNICODE2STRING'))]
+        element = data_objects.add_compu_method(ctx, ET.Element('X'), compu_method('eTEXTTAB', scales),
+                                                'eDB_PHYS_UNICODE2STRING')
+        first, second = element.findall('COMPU-INTERNAL-TO-PHYS/COMPU-SCALES/COMPU-SCALE')
+        self.assertEqual(first.findtext('COMPU-INVERSE-VALUE/V'), '1')
+        self.assertEqual(second.findtext('COMPU-INVERSE-VALUE/VT'), 'y')
+
+
 class PhysicalTypeTests(unittest.TestCase):
     def test_physical_type_marks_dec_radix_as_not_present(self):
         ctx = context({})
@@ -334,6 +360,23 @@ class ConstraintTests(unittest.TestCase):
         parent = ET.Element('X')
         self.assertIsNone(data_objects.add_constraint(ctx, parent, 'INTERNAL-CONSTR', None))
         self.assertEqual(len(parent), 0)
+        self.assertEqual(ctx.report['empty_references'], 0)
+
+    def test_constraint_reference_with_empty_object_id_is_counted(self):
+        ctx = context({})
+        parent = ET.Element('X')
+        self.assertIsNone(data_objects.add_constraint(ctx, parent, 'INTERNAL-CONSTR', reference('')))
+        self.assertEqual(len(parent), 0)
+        self.assertEqual(ctx.report['empty_references'], 1)
+
+    def test_constraint_in_foreign_pool_is_unresolvable(self):
+        # A constraint is embedded; ODX has no reference form for it, so no DOCREF/DOCTYPE is written.
+        ctx = context({}, object_type=lambda pool, key: 'MCD_CONSTRAINT')
+        parent = ET.Element('X')
+        self.assertIsNone(data_objects.add_constraint(ctx, parent, 'INTERNAL-CONSTR',
+                                                      reference('IC_N_C1', '5.4.0@N.sd')))
+        self.assertEqual(len(parent), 0)
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
 
     def test_computed_constraint_is_dropped(self):
         ctx = context({'PC_L_C1': ('MCD_CONSTRAINT', constraint(computed=True))})
@@ -451,6 +494,23 @@ class UnitSpecTests(unittest.TestCase):
                                                                     'unit_references': []})
         self.assertEqual(tags(element), ['UNITS'])
         self.assertIsNone(element.find('UNITS/UNIT/PHYSICAL-DIMENSION-REF'))
+
+    def test_unit_groups_need_a_written_group(self):
+        ctx = context({'UNIT_L_U1': ('MCD_DB_UNIT', unit('rpm', 'U-1'))})
+        layer_data = {'unit_group_references': [{'map_key': 'A', 'reference': reference('')},
+                                                {'map_key': 'B', 'reference': reference('UNITGR_9')}],
+                      'unit_references': []}
+        element = data_objects.add_unit_spec(ctx, ET.Element('X'), layer_data)
+        self.assertEqual(tags(element), ['UNITS'])
+        self.assertEqual(ctx.report['empty_references'], 1)
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
+
+    def test_no_written_group_and_no_units_no_unit_spec(self):
+        ctx = context({})
+        parent = ET.Element('X')
+        self.assertIsNone(data_objects.add_unit_spec(
+            ctx, parent, {'unit_group_references': [{'map_key': 'B', 'reference': reference('UNITGR_9')}]}))
+        self.assertEqual(len(parent), 0)
 
     def test_no_units_no_unit_spec(self):
         ctx = context({})

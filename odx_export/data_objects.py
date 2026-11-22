@@ -61,7 +61,7 @@ def _value_tag(value, physical_base_type=None):
     """VT for text values, V otherwise; the physical base type decides when it is known."""
     if physical_base_type:
         return 'VT' if physical_base_type == 'eDB_PHYS_UNICODE2STRING' else 'V'
-    return 'VT' if value.get('data_type') == 'eA_UNICODE2STRING' else 'V'
+    return 'VT' if value.get('data_type') in _STRING_VALUE_TYPES else 'V'
 
 
 def length_key_owners(ctx):
@@ -140,8 +140,8 @@ def _add_compu_scale(ctx, parent, compu_scale, category, physical_base_type):
     inverse = compu_scale.get('compu_inverse_value')
     # TAB-INTP: the inverse values are added by the converter.
     if inverse is not None and category != 'eTAB_INTP':
-        tag = 'VT' if inverse.get('data_type') in _STRING_VALUE_TYPES else 'V'
-        sub(ctx, sub(ctx, element, 'COMPU-INVERSE-VALUE'), tag, format_value(inverse))
+        # The inverse value is an internal value; the physical base type does not describe it.
+        sub(ctx, sub(ctx, element, 'COMPU-INVERSE-VALUE'), _value_tag(inverse), format_value(inverse))
     constant = compu_scale.get('compu_constant')
     coeffs = compu_scale.get('compu_rational_coeffs_as_coded_values')
     if constant is not None:
@@ -287,10 +287,12 @@ def add_unit_spec(ctx, parent, layer_data):
     if not group_entries and not unit_keys:
         return None
     element = sub(ctx, parent, 'UNIT-SPEC')
-    if group_entries:
-        groups = sub(ctx, element, 'UNIT-GROUPS')
-        for entry in group_entries:
-            _add_unit_group(ctx, groups, entry.get('reference', entry))
+    # UNIT-GROUPS needs at least one UNIT-GROUP; it is appended only when one was written.
+    groups = ET.Element('UNIT-GROUPS')
+    for entry in group_entries:
+        _add_unit_group(ctx, groups, entry.get('reference', entry))
+    if len(groups):
+        element.append(groups)
     dimensions = {}
     if unit_keys:
         units = sub(ctx, element, 'UNITS')
@@ -316,4 +318,7 @@ def add_unit_spec(ctx, parent, layer_data):
             for tag, field in _EXPONENTS:
                 if dimension.get(field):
                     sub(ctx, dimension_element, tag, str(dimension[field]))
+    if not len(element):
+        parent.remove(element)
+        return None
     return element
