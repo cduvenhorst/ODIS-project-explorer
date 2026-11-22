@@ -1,6 +1,7 @@
 """DATA-OBJECT-PROP with its coded type, compu method, physical type and constraints, and UNIT-SPEC."""
 import xml.etree.ElementTree as ET
 
+from odx_export import special_data
 from odx_export.elements import XSI_TYPE, add_desc, add_names, add_ref, format_value, identified, sub
 from odx_export.naming import split_key
 
@@ -243,6 +244,7 @@ def add_data_object_prop(ctx, parent, key):
     dop = ctx.take(key)
     element = identified(ctx, parent, 'DATA-OBJECT-PROP', ctx.own_id(key), dop)
     add_names(ctx, element, dop)
+    special_data.sdgs(ctx, element, dop)
     physical_type = dop.get('physical_type')
     if dop.get('compu_method') is not None:
         add_compu_method(ctx, element, dop['compu_method'],

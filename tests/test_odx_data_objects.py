@@ -1,6 +1,7 @@
 """Tests for the ODX data object properties, coded and physical types, compu methods and units."""
 import unittest
 import xml.etree.ElementTree as ET
+from unittest import mock
 
 from odx_export import data_objects
 from odx_export.elements import XSI_TYPE
@@ -455,6 +456,20 @@ class DataObjectPropTests(unittest.TestCase):
         self.assertEqual(tags(element), ['SHORT-NAME', 'COMPU-METHOD', 'DIAG-CODED-TYPE', 'PHYSICAL-TYPE',
                                          'PHYS-CONSTR'])
         self.assertEqual(ctx.report['empty_references'], 0)
+
+    def test_data_object_prop_sdgs_come_before_the_compu_method(self):
+        def fake_sdgs(ctx, parent, obj):
+            return ET.SubElement(parent, 'SDGS')
+
+        dop = {'short_name': 'Temp', 'compu_method': compu_method('eIDENTICAL'),
+               'diag_coded_type': coded_type(), 'physical_type': physical_type(radix=16),
+               'unit_reference': None, 'internal_constraint_reference': None,
+               'physical_constraint_reference': None}
+        ctx = context({'DOP_L_D3': ('DB_DOP_SIMPLE_BASE', dop)})
+        with mock.patch('odx_export.special_data.sdgs', fake_sdgs):
+            element = data_objects.add_data_object_prop(ctx, ET.Element('X'), 'DOP_L_D3')
+        self.assertEqual(tags(element), ['SHORT-NAME', 'SDGS', 'COMPU-METHOD', 'DIAG-CODED-TYPE',
+                                         'PHYSICAL-TYPE'])
 
 
 class UnitSpecTests(unittest.TestCase):
