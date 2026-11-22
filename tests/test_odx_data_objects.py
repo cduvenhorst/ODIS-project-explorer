@@ -260,6 +260,17 @@ class CompuMethodTests(unittest.TestCase):
         self.assertEqual(tags(second), ['LOWER-LIMIT', 'UPPER-LIMIT', 'COMPU-CONST'])
         self.assertEqual(second.findtext('COMPU-CONST/V'), '2.5')
 
+    def test_tab_intp_scale_omits_upper_equal_lower(self):
+        ctx = context({})
+        scales = [scale(limit(0), limit(65535), constant=value(0.0, 'eA_FLOAT64')),
+                  scale(limit(65535), limit(65535), constant=value(100.0, 'eA_FLOAT64'))]
+        element = data_objects.add_compu_method(ctx, ET.Element('X'), compu_method('eTAB_INTP', scales),
+                                                'eDB_PHYS_FLOAT64')
+        first, last = element.findall('COMPU-INTERNAL-TO-PHYS/COMPU-SCALES/COMPU-SCALE')
+        self.assertEqual(tags(first), ['LOWER-LIMIT', 'UPPER-LIMIT', 'COMPU-CONST'])
+        self.assertEqual(tags(last), ['LOWER-LIMIT', 'COMPU-CONST'])
+        self.assertEqual(last.findtext('LOWER-LIMIT'), '65535')
+
     def test_linear_drops_infinite_limits_and_writes_rational_coeffs_from_coded_values(self):
         ctx = context({})
         coeffs = {'numerator': [0.0, 0.5], 'denominator': [1.0]}

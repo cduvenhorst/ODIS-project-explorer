@@ -134,9 +134,9 @@ def _add_compu_scale(ctx, parent, compu_scale, category, physical_base_type):
     upper = compu_scale.get('upper_limit_as_coded_value')
     if lower is not None:
         add_limit(ctx, element, 'LOWER-LIMIT', lower.get('limit'), lower.get('limit_type'))
-    # TEXTTABLE: an upper limit equal to the lower one is the ODX default.
+    # TEXTTABLE and TAB-INTP: an upper limit equal to the lower one is the ODX default.
     # TAB-INTP: open upper limits are added by the converter.
-    if upper is not None and not (category == 'eTEXTTAB' and upper == lower) \
+    if upper is not None and not (category in ('eTEXTTAB', 'eTAB_INTP') and upper == lower) \
             and not (category == 'eTAB_INTP' and upper.get('limit_type') == 'eLIMIT_OPEN'):
         add_limit(ctx, element, 'UPPER-LIMIT', upper.get('limit'), upper.get('limit_type'))
     inverse = compu_scale.get('compu_inverse_value')
