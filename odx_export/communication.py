@@ -216,6 +216,11 @@ def _add_layer_diag_comms(ctx, parent, layer_data):
             # An object of this pool that is no DIAG-COMM written in its layer (a request, say) gets no reference.
             ctx.report['diag_comm_reference_not_written'] += 1
             continue
+        target_type = ctx.target_type(reference)
+        if pool_id != ctx.pool_id and target_type is not None and target_type not in _DIAG_COMM_TYPES:
+            # The same rule for another pool; a target of unknown type is left to add_ref, which counts it.
+            ctx.report['diag_comm_reference_not_written'] += 1
+            continue
         if (pool_id, object_id) not in referenced:
             referenced.add((pool_id, object_id))
             add_ref(ctx, element, 'DIAG-COMM-REF', reference)

@@ -504,6 +504,17 @@ class LayerDiagCommTests(unittest.TestCase):
         self.assertEqual(ctx.report['diag_comm_reference_not_written'], 2)
 
 
+    def test_reference_into_other_pool_to_other_type_is_reported(self):
+        types = {'DC_S_Q1': 'MCD_DB_REQUEST', 'DC_S_S2': 'MCD_DB_SERVICE'}
+        ctx = layer_view({}, object_type=lambda pool_id, object_id: types.get(object_id))
+        written = layer_diag_comms(ctx, [named(reference('DC_S_Q1', '0.0.0@S.sd')),
+                                         named(reference('DC_S_S2', '0.0.0@S.sd')),
+                                         named(reference('DC_S_X3', '0.0.0@S.sd'))])
+        # A target of unknown type is written and counted as unresolvable by the reference itself.
+        self.assertEqual([element.get('ID-REF') for element in written], ['S2', 'DC_S_X3'])
+        self.assertEqual(ctx.report['diag_comm_reference_not_written'], 1)
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
+
 class UnpooledReferenceTests(unittest.TestCase):
     # ProjectPools.context fills in the pool of the references of .ev pools it can resolve; what is still
     # without pool here is reported like in any other pool.
