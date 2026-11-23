@@ -184,7 +184,7 @@ class DiagCodedTypeTests(unittest.TestCase):
         structure = {'short_name': 'S1', 'parameters': [
             {'short_name': 'OTHER', 'unique_object_id': 'P-6'}, length_key]}
         ctx = context({'DOP_L_S1': ('MCD_DB_PARAMETER_STRUCTURE', structure)})
-        self.assertEqual(data_objects.length_key_owners(ctx), {'P-6': 'S1', 'P-7': 'S1'})
+        self.assertEqual(data_objects.length_key_owners(ctx), {'P-6': 'DOP_L_S1', 'P-7': 'DOP_L_S1'})
         element = data_objects.add_diag_coded_type(
             ctx, ET.Element('X'), coded_type(coded_type='ePARAM_LENGTH_INFO_TYPE',
                                              bit_mask=None, length_key_parameter=length_key),
@@ -198,7 +198,15 @@ class DiagCodedTypeTests(unittest.TestCase):
                        'RSP_L_R1': ('MCD_DB_RESPONSE', {'response_parameters': [
                            {'short_name': 'B', 'unique_object_id': 'P-2'}]}),
                        'DOP_L_E1': ('MCD_DB_PARAMETER_ENV_DATA', {'parameters': None})})
-        self.assertEqual(data_objects.length_key_owners(ctx), {'P-1': 'Q1', 'P-2': 'R1'})
+        self.assertEqual(data_objects.length_key_owners(ctx), {'P-1': 'REQ_L_Q1', 'P-2': 'RSP_L_R1'})
+
+    def test_param_length_info_type_owner_without_naming_rule_keeps_its_key(self):
+        length_key = {'short_name': 'LEN', 'unique_object_id': 'P-3'}
+        ctx = context({'XYZ': ('MCD_DB_PARAMETER_STRUCTURE', {'parameters': [length_key]})})
+        element = data_objects.add_diag_coded_type(
+            ctx, ET.Element('X'), coded_type(coded_type='ePARAM_LENGTH_INFO_TYPE', bit_mask=None,
+                                             length_key_parameter=length_key), owner_id='S9')
+        self.assertEqual(xml(element.find('LENGTH-KEY-REF')), '<LENGTH-KEY-REF ID-REF="XYZ.LEN" />')
 
     def test_param_length_info_type_falls_back_to_given_owner(self):
         ctx = context({})

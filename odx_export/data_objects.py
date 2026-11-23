@@ -65,52 +65,35 @@ def _value_tag(value, physical_base_type=None):
 
 
 def length_key_owners(ctx):
-    """unique_object_id of every parameter of the pool -> ID of the object that holds it."""
+    """unique_object_id of every parameter of the pool -> object key of the object that holds it.
+
+    Only the keys are stored, which the pool holds anyway; ID part and layer are derived on access."""
     owners = {}
     for key, obj in ctx.objects.items():
         if not isinstance(obj, dict):
             continue
-        # Every layer of the pool, since all views share the result
-        layer = ctx.naming_layer(key)
-        parts = split_key(key, layer) if layer is not None else None
-        owner_id = parts[1] if parts else key
         for field in _PARAMETER_FIELDS:
             for parameter in obj.get(field) or []:
                 if parameter and parameter.get('unique_object_id'):
-                    owners[parameter['unique_object_id']] = owner_id
+                    owners[parameter['unique_object_id']] = key
     return owners
 
 
-def length_key_owner_layers(ctx):
-    """unique_object_id of every parameter of the pool -> layer whose name the owner's key follows, or None."""
-    layers = {}
-    for key, obj in ctx.objects.items():
-        if not isinstance(obj, dict):
-            continue
-        layer = ctx.naming_layer(key)
-        for field in _PARAMETER_FIELDS:
-            for parameter in obj.get(field) or []:
-                if parameter and parameter.get('unique_object_id'):
-                    layers[parameter['unique_object_id']] = layer
-    return layers
-
-
-def _length_key_owner_layer(ctx, unique_object_id):
-    # Computed once per pool and shared by all views, like the owners.
-    layers = ctx._caches['length_key_owner_layers']
-    if layers is None:
-        layers = length_key_owner_layers(ctx)
-        ctx._caches['length_key_owner_layers'] = layers
-    return layers.get(unique_object_id)
-
-
 def _length_key_owner(ctx, unique_object_id):
-    # Computed once per context; length_key_owners itself stays a pure function.
+    """(owner ID, layer whose name the owner's key follows) of a parameter, or (None, None).
+
+    A key that follows no layer of the pool is its own ID, with layer None."""
+    # Computed once per pool and shared by all views; length_key_owners itself stays a pure function.
     owners = ctx._length_key_owners
     if owners is None:
         owners = length_key_owners(ctx)
         ctx._length_key_owners = owners
-    return owners.get(unique_object_id)
+    key = owners.get(unique_object_id)
+    if key is None:
+        return None, None
+    layer = ctx.naming_layer(key)
+    parts = split_key(key, layer) if layer is not None else None
+    return (parts[1] if parts else key), layer
 
 
 def add_diag_coded_type(ctx, parent, coded_type, owner_id=None):
@@ -142,10 +125,10 @@ def add_diag_coded_type(ctx, parent, coded_type, owner_id=None):
         if not length_key:
             ctx.report['empty_references'] += 1
             return element
-        found = _length_key_owner(ctx, length_key.get('unique_object_id'))
+        found, found_layer = _length_key_owner(ctx, length_key.get('unique_object_id'))
         owner = found or owner_id
         # The given owner is the object being written; an owner found in the pool may lie in another layer.
-        layer = _length_key_owner_layer(ctx, length_key.get('unique_object_id')) if found else None
+        layer = found_layer if found else None
         docref = layer if layer is not None and layer != ctx.layer else None
         if owner is None:
             ctx.report['unresolvable_references'] += 1

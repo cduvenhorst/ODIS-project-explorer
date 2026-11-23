@@ -105,10 +105,10 @@ class PoolLayerTests(unittest.TestCase):
     def test_layer_view_shares_length_key_owners(self):
         pool = layer_pool({'REQ_V1_R1': (REQUEST, {'request_parameters': [{'unique_object_id': 'P-1'}]}),
                            'REQ_V2_R1': (REQUEST, {'request_parameters': [{'unique_object_id': 'P-2'}]})})
-        self.assertEqual(data_objects.length_key_owners(pool.for_layer('V1')), {'P-1': 'R1', 'P-2': 'R1'})
+        self.assertEqual(data_objects.length_key_owners(pool.for_layer('V1')), {'P-1': 'REQ_V1_R1', 'P-2': 'REQ_V2_R1'})
         view = pool.for_layer('V1')
-        view._length_key_owners = {'P-1': 'R1'}
-        self.assertEqual(pool.for_layer('V2')._length_key_owners, {'P-1': 'R1'})
+        view._length_key_owners = {'P-1': 'REQ_V1_R1'}
+        self.assertEqual(pool.for_layer('V2')._length_key_owners, {'P-1': 'REQ_V1_R1'})
 
     def test_caption_without_naming_rule_counts_as_used_and_reported(self):
         names = {7: 'CAPTION_X_G'}

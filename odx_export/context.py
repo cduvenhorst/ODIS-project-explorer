@@ -27,12 +27,12 @@ class PoolContext:
         self.used = set()
         self.report = Counter()
         self.without_place = []
-        self._caches = {'length_key_owners': None, 'length_key_owner_layers': None}  # shared by all views
+        self._caches = {'length_key_owners': None}  # shared by all views
         self._without_place_seen = set()
 
     @property
     def _length_key_owners(self):
-        """Parameter object ID -> owner ID, computed on first use."""
+        """Parameter object ID -> object key of its owner, computed on first use."""
         return self._caches['length_key_owners']
 
     @_length_key_owners.setter
