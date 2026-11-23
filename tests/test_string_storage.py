@@ -132,7 +132,7 @@ class StringStorageTests(unittest.TestCase):
         self.assertEqual(storage.get_unicode_hash('日'), support.string_hash('日', 'U'))
 
     def test_unicode_byte_order_mark_is_kept(self):
-        text = '﻿Marked'
+        text = '\ufeffMarked'
         storage = self._storage({}, {11: text})
         self.assertEqual(storage.get_unicode_string(11), text)
         self.assertEqual(len(storage.get_unicode_string(11)), len('Marked') + 1)
@@ -179,7 +179,7 @@ class StringStorageTests(unittest.TestCase):
 
     def test_write_round_trip_is_byte_identical(self):
         ascii_table = {5: 'Alpha', 9: 'Beta', 3: '', 7: 'café'}
-        unicode_table = {8: 'Grüße', 4: '日本', 6: '﻿Marked'}
+        unicode_table = {8: 'Grüße', 4: '日本', 6: '\ufeffMarked'}
         for packed in (True, False):
             with self.subTest(packed=packed):
                 source = self._folder()
@@ -206,6 +206,21 @@ class StringStorageTests(unittest.TestCase):
         reloaded = StringStorage(target)
         self.assertEqual(reloaded.get_ascii_string(support.string_hash('Delta', 'A')), 'Delta')
         self.assertEqual(reloaded.get_unicode_string(support.string_hash('Epsilon', 'U')), 'Epsilon')
+
+    def test_strings_are_not_held_as_python_objects(self):
+        ascii_strings = ['Alpha', 'Beta Gamma', 'café', '']
+        unicode_strings = ['Grüße', '日本', '\ufeffMarked']
+        storage = self._storage(_hashed(ascii_strings, 'A'), _hashed(unicode_strings, 'U'))
+        storage.add_string_ascii('Delta')
+        storage.add_string_unicode('Epsilon')
+        added_count = 2
+        for name, value in vars(storage).items():
+            if isinstance(value, dict):
+                self.assertLessEqual(len(value), added_count, name)
+        for text in ascii_strings + ['Delta']:
+            self.assertEqual(storage.get_ascii_string(support.string_hash(text, 'A')), text)
+        for text in unicode_strings + ['Epsilon']:
+            self.assertEqual(storage.get_unicode_string(support.string_hash(text, 'U')), text)
 
     def test_str_counts(self):
         storage = self._storage({1: 'a', 2: 'b', 3: 'c'}, {4: 'd'})

@@ -1,8 +1,11 @@
 import os
 import re
 import struct
+import sys
 import zlib
 import traceback
+from array import array
+from bisect import bisect_left
 
 
 class StringStorage:
@@ -52,8 +55,17 @@ class StringStorage:
                 raise RuntimeError('StringStorage: non-gz file error: {}'.format(traceback.format_exc()))
         
         # Parse the files' data as text databases (ASCII and Unicode) and store them in private members
-        self.__ascii_tdb_dict = self.__read_tdb(self.__ascii_data_file_contents, self.__ascii_index_file_contents, 'A')
-        self.__unicode_tdb_dict = self.__read_tdb(self.__unicode_data_file_contents, self.__unicode_index_file_contents, 'U')
+        # * the strings stay as bytes in the .data contents and are decoded when they are requested
+        self.__ascii_tdb = self.__read_tdb(self.__ascii_data_file_contents, self.__ascii_index_file_contents, 'A')
+        self.__unicode_tdb = self.__read_tdb(self.__unicode_data_file_contents, self.__unicode_index_file_contents, 'U')
+        
+        # The .idx contents are no longer needed once the index arrays are built
+        del self.__ascii_index_file_contents
+        del self.__unicode_index_file_contents
+        
+        # Strings added with add_string_ascii / add_string_unicode, by hash in insertion order (asked before the loaded ones)
+        self.__ascii_added_dict = {}
+        self.__unicode_added_dict = {}
         
         # The kernel compares its configured database version with fixed four-digit values
         # A project without the version file (or entry) is treated as the newest known layout, which is None here
@@ -62,7 +74,9 @@ class StringStorage:
     
     # Converter to string (returns text databases sizes, ASCII and Unicode, as formatted string)
     def __str__(self):
-        return 'A: {}, U: {}'.format(len(self.__ascii_tdb_dict), len(self.__unicode_tdb_dict))
+        ascii_count = len(self.__ascii_tdb[1]) + len(self.__ascii_added_dict)
+        unicode_count = len(self.__unicode_tdb[1]) + len(self.__unicode_added_dict)
+        return 'A: {}, U: {}'.format(ascii_count, unicode_count)
     
     
     # PRIVATE METHODS
@@ -87,70 +101,123 @@ class StringStorage:
     
     
     # Parse a text database from its .idx and .data files
+    # * returns (positions, hashes, order): the .data positions and the hashes in index order,
+    #   and the index numbers sorted by hash (a stable sort, so equal hashes keep their index order)
     def __read_tdb(self, data_file_contents, index_file_contents, string_type):
-        tdb_dict = {}
-        
         # The first 4 bytes in the .idx file represent the amount of strings contained in the database
         string_count = struct.unpack('<I', index_file_contents[:4])[0]
         
-        # Get each string
-        for i in range(string_count):
-            # Each "record" in the .idx file is 8 bytes long, and "records" start from position 4
-            index_file_position = 4 + i * 8
-            
-            # The first 4 bytes represent the current string's position in the .data file
-            # The second 4 bytes represent the hash of the current string
-            (data_file_position, string_hash) = struct.unpack('<II', index_file_contents[index_file_position : index_file_position+8])
-            
-            # In the data file, at the indicated position, the first 4 bytes represent the amount of characters in the string that follows
-            string_length = struct.unpack('<I', data_file_contents[data_file_position : data_file_position+4])[0]
-            
-            # Parse the string based on the provided type (all strings in a database are of the same type)
-            string_type = string_type.upper()
-            if string_type == 'A':
-                # ASCII strings use encoding "Windows 1252" and each character is 1 byte
-                encoding = 'cp1252'
-                character_size = 1
-            elif string_type == 'U':
-                # Unicode strings use encoding "UTF-16 LE" (a leading byte order mark is kept) and each character is 2 bytes
-                encoding = 'utf-16-le'
-                character_size = 2
-            else:
-                return None
-            
-            # The string's bytes start after the length
-            string_position = data_file_position + 4
-            
-            # Convert the following bytes to a string of the determined encoding
-            string_size = string_length * character_size
-            string = data_file_contents[string_position : string_position+string_size].decode(encoding)
-            
-            # Ensure the string's hash is not already present in the dictionary
-            if string_hash in tdb_dict:
-                raise RuntimeError('Duplicate key ({}) while loading {} strings ("{}")'.format(string_hash, string_type, tdb_dict[string_hash]))
-            
-            # Store the string in the dictionary, with its hash as the key
-            tdb_dict[string_hash] = string
+        # Each "record" in the .idx file is 8 bytes long, and "records" start from position 4
+        # The first 4 bytes represent the string's position in the .data file
+        # The second 4 bytes represent the hash of the string
+        records = array('I')
+        records.frombytes(index_file_contents[4 : 4 + string_count*8])
+        if sys.byteorder == 'big':
+            records.byteswap()
+        positions = records[0::2]
+        hashes = records[1::2]
+        del records
         
-        return tdb_dict
+        # Sort the index numbers by hash, for the lookup by bisection
+        order = array('I', sorted(range(string_count), key = hashes.__getitem__))
+        
+        # Ensure no hash is present twice; equal hashes are neighbours in the sorted order
+        # * report the hash whose second entry comes first in the index, with the text of its first entry
+        duplicate = None
+        for i in range(1, string_count):
+            if hashes[order[i]] == hashes[order[i-1]] and (duplicate is None or order[i] < duplicate[0]):
+                duplicate = (order[i], order[i-1])
+        if duplicate is not None:
+            string_hash = hashes[duplicate[1]]
+            string = self.__decode_string(data_file_contents, positions[duplicate[1]], string_type)
+            raise RuntimeError('Duplicate key ({}) while loading {} strings ("{}")'.format(string_hash, string_type.upper(), string))
+        
+        return (positions, hashes, order)
+    
+    
+    # Decode the string stored at a position of a .data file
+    def __decode_string(self, data_file_contents, data_file_position, string_type):
+        # In the data file, at the indicated position, the first 4 bytes represent the amount of characters in the string that follows
+        string_length = struct.unpack('<I', data_file_contents[data_file_position : data_file_position+4])[0]
+        
+        # Parse the string based on the provided type (all strings in a database are of the same type)
+        string_type = string_type.upper()
+        if string_type == 'A':
+            # ASCII strings use encoding "Windows 1252" and each character is 1 byte
+            encoding = 'cp1252'
+            character_size = 1
+        elif string_type == 'U':
+            # Unicode strings use encoding "UTF-16 LE" (a leading byte order mark is kept) and each character is 2 bytes
+            encoding = 'utf-16-le'
+            character_size = 2
+        else:
+            return None
+        
+        # The string's bytes start after the length
+        string_position = data_file_position + 4
+        
+        # Convert the following bytes to a string of the determined encoding
+        string_size = string_length * character_size
+        return data_file_contents[string_position : string_position+string_size].decode(encoding)
+    
+    
+    # Look up a string by its hash, first among the added strings, then in the loaded text database
+    def __find_string(self, string_hash, string_type):
+        string_type = string_type.upper()
+        if string_type == 'A':
+            added_dict = self.__ascii_added_dict
+            data_file_contents = self.__ascii_data_file_contents
+            (positions, hashes, order) = self.__ascii_tdb
+        elif string_type == 'U':
+            added_dict = self.__unicode_added_dict
+            data_file_contents = self.__unicode_data_file_contents
+            (positions, hashes, order) = self.__unicode_tdb
+        else:
+            return None
+        
+        if string_hash in added_dict:
+            return added_dict[string_hash]
+        
+        # Bisect the hash-sorted index numbers
+        i = bisect_left(order, string_hash, key = hashes.__getitem__)
+        if i < len(order) and hashes[order[i]] == string_hash:
+            return self.__decode_string(data_file_contents, positions[order[i]], string_type)
+        return None
+    
+    
+    # Yield (hash, string) for every string of a text database: the loaded ones in index order, then the added ones in insertion order
+    def __iterate_strings(self, string_type):
+        string_type = string_type.upper()
+        if string_type == 'A':
+            added_dict = self.__ascii_added_dict
+            data_file_contents = self.__ascii_data_file_contents
+            (positions, hashes, order) = self.__ascii_tdb
+        elif string_type == 'U':
+            added_dict = self.__unicode_added_dict
+            data_file_contents = self.__unicode_data_file_contents
+            (positions, hashes, order) = self.__unicode_tdb
+        else:
+            return
+        
+        for i in range(len(hashes)):
+            yield (hashes[i], self.__decode_string(data_file_contents, positions[i], string_type))
+        yield from added_dict.items()
     
     
     # Write a text database to new .idx and .data files
-    def __write_tdb(self, tdb_dict, output_data_file_path, output_index_file_path, string_type):
+    def __write_tdb(self, output_data_file_path, output_index_file_path, string_type):
         # Open the files
         with open(output_data_file_path, 'wb') as data_file, open(output_index_file_path, 'wb') as index_file:
             # Create empty buffers for the files
             data_file_buffer = bytearray()
             index_file_buffer = bytearray()
             
-            # Add each string to the .data file buffer
-            string_pointers = []
-            for string_hash in tdb_dict:
-                # Retrieve the string from the dictionary
-                string = tdb_dict[string_hash]
-                
-                # Store the current .data position, to write in .idx afterwards
-                string_pointers.append(len(data_file_buffer))
+            # Add each string to the .data file buffer, and its position and hash to the .idx file records
+            string_count = 0
+            for (string_hash, string) in self.__iterate_strings(string_type):
+                # Add the string's .data position and its hash as 4 bytes each
+                index_file_buffer += struct.pack('<II', len(data_file_buffer), string_hash)
+                string_count += 1
                 
                 # Add the string's character count as 4 bytes
                 data_file_buffer += struct.pack('<I', len(string))
@@ -162,18 +229,8 @@ class StringStorage:
                 elif string_type == 'U':
                     data_file_buffer += string.encode('utf-16')[2:] # skip the first 2 bytes = UTF-16 marker
             
-            # Add the amount of strings as 4 bytes to the .idx file buffer
-            index_file_buffer += struct.pack('<I', len(tdb_dict))
-            
-            # Add data for each string to the .idx file buffer
-            counter = 0
-            for string_hash in tdb_dict:
-                # Add the string's .data position as 4 bytes
-                index_file_buffer += struct.pack('<I', string_pointers[counter])
-                counter += 1
-                
-                # Add the string's hash as 4 bytes
-                index_file_buffer += struct.pack('<I', string_hash)
+            # Put the amount of strings as 4 bytes in front of the .idx file records
+            index_file_buffer[0:0] = struct.pack('<I', string_count)
             
             # Compress the file buffers to gzip format and write them to the files
             data_file.write(zlib.compress(data_file_buffer, wbits = 31, level = 1))
@@ -229,10 +286,10 @@ class StringStorage:
     def __add_string(self, string, string_type):
         string_type = string_type.upper()
         if string_type == 'A':
-            tdb_dict = self.__ascii_tdb_dict
+            added_dict = self.__ascii_added_dict
             get_string = self.get_ascii_string
         elif string_type == 'U':
-            tdb_dict = self.__unicode_tdb_dict
+            added_dict = self.__unicode_added_dict
             get_string = self.get_unicode_string
         else:
             return
@@ -241,13 +298,14 @@ class StringStorage:
         string_hash = self.__get_string_hash(string, string_type)
         
         # Handle collisions by adding 11 to the hash until an unused key is found (and the key 0 is invalid, 5 is used instead)
-        while string_hash in tdb_dict:
+        # * the key must be unused among both the loaded and the added strings
+        while get_string(string_hash) is not None:
             string_hash = (string_hash + 11) & 0x7FFFFFFF
             if string_hash == 0:
                 string_hash = 5
         
         # Store the string
-        tdb_dict[string_hash] = string
+        added_dict[string_hash] = string
     
     
     # PUBLIC METHODS
@@ -258,9 +316,7 @@ class StringStorage:
     def get_ascii_string(self, string_hash):
         # kernel: stores the key and fails only when the string is used; an unknown key gives None here
         string_hash = int(string_hash)
-        if string_hash in self.__ascii_tdb_dict:
-            return self.__ascii_tdb_dict[string_hash]
-        return None
+        return self.__find_string(string_hash, 'A')
     
     
     # Get a Unicode string by providing its hash
@@ -268,9 +324,7 @@ class StringStorage:
     def get_unicode_string(self, string_hash):
         # kernel: stores the key and fails only when the string is used; an unknown key gives None here
         string_hash = int(string_hash)
-        if string_hash in self.__unicode_tdb_dict:
-            return self.__unicode_tdb_dict[string_hash]
-        return None
+        return self.__find_string(string_hash, 'U')
     
     
     # Get a string by providing its hash
@@ -336,8 +390,8 @@ class StringStorage:
     def write(self, output_folder_path):
         ascii_data_file_path = os.path.join(output_folder_path, 'AStringData.data.gz')
         ascii_index_file_path = os.path.join(output_folder_path, 'AStringData.idx.gz')
-        self.__write_tdb(self.__ascii_tdb_dict, ascii_data_file_path, ascii_index_file_path, 'A')
+        self.__write_tdb(ascii_data_file_path, ascii_index_file_path, 'A')
         
         unicode_data_file_path = os.path.join(output_folder_path, 'UStringData.data.gz')
         unicode_index_file_path = os.path.join(output_folder_path, 'UStringData.idx.gz')
-        self.__write_tdb(self.__unicode_tdb_dict, unicode_data_file_path, unicode_index_file_path, 'U')
+        self.__write_tdb(unicode_data_file_path, unicode_index_file_path, 'U')
