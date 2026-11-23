@@ -1,5 +1,8 @@
-"""FUNCT-CLASSS, DIAG-COMMS (DIAG-SERVICE, SINGLE-ECU-JOB), REQUESTS and the three response lists."""
+"""FUNCT-CLASSS, DIAG-COMMS (DIAG-SERVICE, SINGLE-ECU-JOB, DIAG-COMM-REF), REQUESTS and the three response lists."""
+import os
+
 from odx_export import special_data
+from odx_export.context import resolve_unpooled
 from odx_export.elements import add_names, add_ref, format_value, identified, sub
 from odx_export.parameters import add_params
 
@@ -8,6 +11,9 @@ _REQUEST = 'MCD_DB_REQUEST'
 _RESPONSE = 'MCD_DB_RESPONSE'
 _SERVICE_TYPES = ('MCD_DB_SERVICE', 'MCD_DB_STARTCOMMUNICATION', 'MCD_DB_STOPCOMMUNICATION')
 _JOB = 'MCD_DB_SINGLE_ECU_JOB'
+_FLASH_JOB = 'MCD_DB_FLASH_JOB'
+# Types written as DIAG-COMMS of a layer pool.
+_DIAG_COMM_TYPES = _SERVICE_TYPES + (_JOB, _FLASH_JOB)
 
 ADDRESSING = {'eFUNCTIONAL_OR_PHYSICAL': 'FUNCTIONAL-OR-PHYSICAL', 'eFUNCTIONAL': 'FUNCTIONAL',
               'ePHYSICAL': 'PHYSICAL'}
@@ -156,6 +162,8 @@ def add_funct_classes(ctx, parent, layer_data):
 
 
 def add_diag_comms(ctx, parent, layer_data):
+    if os.path.splitext(ctx.pool_id)[1] != '.sd':
+        return _add_layer_diag_comms(ctx, parent, layer_data)
     # Requests and responses under DC_ belong to the jobs and are written with the other requests and responses;
     # any other type under DC_ has no writer here and stays unused.
     keys = [key for key in ctx.keys('DC_') if ctx.types[key] in _SERVICE_TYPES or ctx.types[key] == _JOB]
@@ -168,6 +176,58 @@ def add_diag_comms(ctx, parent, layer_data):
             _add_job(ctx, element, key)
         else:
             _add_service(ctx, element, key)
+    return element
+
+
+def _add_own_diag_comm(ctx, parent, key):
+    # A flash job has the fields of a single ECU job and is written as one.
+    if ctx.types[key] in (_JOB, _FLASH_JOB):
+        _add_job(ctx, parent, key)
+    else:
+        _add_service(ctx, parent, key)
+
+
+def _add_layer_diag_comms(ctx, parent, layer_data):
+    """DIAG-COMMS of a layer pool in the order of its reference list, then its unlisted own objects.
+
+    An own object is written in full; an object of another layer or pool becomes a DIAG-COMM-REF to the
+    layer that writes it."""
+    own = [key for key in ctx.keys('DC_') if ctx.types[key] in _DIAG_COMM_TYPES]
+    own_set = set(own)
+    element = sub(ctx, parent, 'DIAG-COMMS')
+    written = set()
+    referenced = set()
+    for entry in layer_data.get('diag_com_primitive_references') or []:
+        reference = entry.get('reference', entry) if isinstance(entry, dict) else None
+        if not reference or not reference.get('object_id'):
+            ctx.report['empty_references'] += 1
+            continue
+        reference = resolve_unpooled(ctx, reference)
+        pool_id, object_id = reference.get('pool_id'), reference['object_id']
+        if pool_id == ctx.pool_id and object_id in own_set:
+            if object_id not in written:
+                written.add(object_id)
+                _add_own_diag_comm(ctx, element, object_id)
+            continue
+        if pool_id is None:
+            # resolve_unpooled has already reported the entries of .ev pools.
+            if not ctx.pool_id.endswith('.ev'):
+                ctx.report['diag_comm_reference_not_written'] += 1
+            continue
+        if pool_id == ctx.pool_id and (ctx.target_layer(pool_id, object_id) == ctx.layer
+                                       or ctx.types.get(object_id) not in _DIAG_COMM_TYPES):
+            # An object of this pool that is no DIAG-COMM written in its layer (a request, say) gets no reference.
+            ctx.report['diag_comm_reference_not_written'] += 1
+            continue
+        if (pool_id, object_id) not in referenced:
+            referenced.add((pool_id, object_id))
+            add_ref(ctx, element, 'DIAG-COMM-REF', reference)
+    for key in own:
+        if key not in written:
+            _add_own_diag_comm(ctx, element, key)
+    if len(element) == 0:
+        parent.remove(element)
+        return None
     return element
 
 

@@ -100,6 +100,8 @@ class PoolContext:
         seen = set()
         for entry in references or []:
             reference = entry.get('reference', entry) if isinstance(entry, dict) else None
+            if reference:
+                reference = resolve_unpooled(self, reference)
             if not reference or reference.get('pool_id') != self.pool_id:
                 continue
             object_id = reference.get('object_id')
@@ -121,6 +123,19 @@ class PoolContext:
         return Counter(type_name for key, type_name in self.types.items()
                        if key not in self.used and key not in skipped
                        and type_name not in _NOT_COUNTED_TYPES)
+
+
+def resolve_unpooled(ctx, reference):
+    """Reference with the pool filled in where a .ev pool leaves it out.
+
+    The layer lists of .ev pools carry no pool ID; a reference without one whose object lies in the pool
+    belongs to the pool, any other is returned unchanged and reported. Other pools are left as they are."""
+    if not ctx.pool_id.endswith('.ev') or reference.get('pool_id') is not None:
+        return reference
+    if reference.get('object_id') in ctx.objects:
+        return dict(reference, pool_id=ctx.pool_id)
+    ctx.report['unpooled_reference_not_in_pool'] += 1
+    return reference
 
 
 def _longest_match(object_key, layers):

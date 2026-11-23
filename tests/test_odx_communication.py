@@ -3,6 +3,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from odx_export import communication
+from odx_export.context import resolve_unpooled
 from tests.odx_support import context
 
 OWN = '0.0.0@L.sd'
@@ -415,6 +416,124 @@ class FunctClassTests(unittest.TestCase):
         self.assertIsNone(communication.add_funct_classes(context({}), parent, {}))
         self.assertEqual(len(parent), 0)
 
+
+
+LAYER_POOL = '0.0.0@B.bv'
+VARIANT_POOL = '0.0.0@E.ev'
+
+
+def layer_view(objects, layer='V1', **kwargs):
+    """View of variant V1 of pool B, which holds the base variant B and the variants V1 and V2."""
+    return context(objects, pool_id=LAYER_POOL, pool_layers=['B', 'V1', 'V2'], **kwargs).for_layer(layer)
+
+
+def layer_diag_comms(ctx, entries):
+    return communication.add_diag_comms(ctx, ET.Element('ECU-VARIANT'), {'diag_com_primitive_references': entries})
+
+
+def summary(element):
+    return [(child.tag, dict(child.attrib)) for child in element]
+
+
+class LayerDiagCommTests(unittest.TestCase):
+    def test_listed_sister_service_becomes_diag_comm_ref_in_list_position(self):
+        ctx = layer_view({
+            'DC_V1_S0': ('MCD_DB_SERVICE', service('S0')),
+            'DC_V1_S1': ('MCD_DB_SERVICE', service('S1')),
+            'DC_V2_S2': ('MCD_DB_SERVICE', service('S2')),
+            'DC_V1_S3': ('MCD_DB_SERVICE', service('S3')),
+        })
+        written = layer_diag_comms(ctx, [{'map_key': 'S1', 'reference': reference('DC_V1_S1', LAYER_POOL)},
+                                         {'map_key': 'S2', 'reference': reference('DC_V2_S2', LAYER_POOL)},
+                                         {'map_key': 'S3', 'reference': reference('DC_V1_S3', LAYER_POOL)}])
+        self.assertEqual(summary(written), [
+            ('DIAG-SERVICE', {'ID': 'S1', 'ADDRESSING': 'PHYSICAL'}),
+            ('DIAG-COMM-REF', {'ID-REF': 'S2', 'DOCREF': 'V2', 'DOCTYPE': 'LAYER'}),
+            ('DIAG-SERVICE', {'ID': 'S3', 'ADDRESSING': 'PHYSICAL'}),
+            ('DIAG-SERVICE', {'ID': 'S0', 'ADDRESSING': 'PHYSICAL'})])
+        self.assertEqual(ctx.used, {'DC_V1_S0', 'DC_V1_S1', 'DC_V1_S3'})
+        self.assertEqual(ctx.report['unresolvable_references'], 0)
+
+    def test_service_of_shared_data_pool_becomes_diag_comm_ref(self):
+        ctx = layer_view({'DC_V1_S1': ('MCD_DB_SERVICE', service('S1'))},
+                         object_type=lambda pool_id, object_id: 'MCD_DB_SERVICE')
+        written = layer_diag_comms(ctx, [named(reference('DC_S_X', '0.0.0@S.sd')),
+                                         named(reference('DC_V1_S1', LAYER_POOL))])
+        self.assertEqual(summary(written), [
+            ('DIAG-COMM-REF', {'ID-REF': 'X', 'DOCREF': 'S', 'DOCTYPE': 'LAYER'}),
+            ('DIAG-SERVICE', {'ID': 'S1', 'ADDRESSING': 'PHYSICAL'})])
+        self.assertEqual(ctx.report['unresolvable_references'], 0)
+
+    def test_own_service_is_written_once_in_full(self):
+        ctx = layer_view({
+            'DC_V1_S1': ('MCD_DB_SERVICE', service('S1')),
+            'DC_V1_S2': ('MCD_DB_SERVICE', service('S2')),
+            'DC_V2_S3': ('MCD_DB_SERVICE', service('S3')),
+        })
+        written = layer_diag_comms(ctx, [named(reference('DC_V1_S2', LAYER_POOL)), reference('DC_V1_S2', LAYER_POOL),
+                                         named(reference('DC_V2_S3', LAYER_POOL)),
+                                         named(reference('DC_V2_S3', LAYER_POOL))])
+        self.assertEqual([(element.tag, element.get('ID') or element.get('ID-REF')) for element in written],
+                         [('DIAG-SERVICE', 'S2'), ('DIAG-COMM-REF', 'S3'), ('DIAG-SERVICE', 'S1')])
+
+    def test_flash_job_is_written_as_single_ecu_job(self):
+        ctx = layer_view({'DC_V1_F1': ('MCD_DB_FLASH_JOB', job(
+            'F1', oid='OID-F1', code_informations=[code_information(code_file='flash.jar', syntax='JAR')]))})
+        written = layer_diag_comms(ctx, [])
+        self.assertEqual(summary(written), [('SINGLE-ECU-JOB', {'ID': 'F1', 'OID': 'OID-F1'})])
+        self.assertEqual(tags(written[0]), ['SHORT-NAME', 'AUDIENCE', 'PROG-CODES'])
+        self.assertEqual(written[0].findtext('PROG-CODES/PROG-CODE/CODE-FILE'), 'flash.jar')
+        self.assertEqual(ctx.used, {'DC_V1_F1'})
+
+    def test_shared_data_pool_keeps_its_diag_comms(self):
+        ctx = context({
+            'DC_L_S1': ('MCD_DB_SERVICE', service('S1')),
+            'DC_L_F1': ('MCD_DB_FLASH_JOB', job('F1')),
+        })
+        written = diag_comms(ctx, {'diag_com_primitive_references': [named(reference('DC_M_S9', OTHER))]})
+        self.assertEqual([element.get('ID') for element in written], ['S1'])
+        self.assertEqual(ctx.unused(), {'MCD_DB_FLASH_JOB': 1})
+
+    def test_reference_in_own_layer_to_other_type_is_reported(self):
+        ctx = layer_view({
+            'DC_V1_S1': ('MCD_DB_SERVICE', service('S1')),
+            'DC_V1_Q1': ('MCD_DB_REQUEST', request('Q1')),
+        })
+        written = layer_diag_comms(ctx, [named(reference('DC_V1_Q1', LAYER_POOL)), named({'object_id': 'DC_V1_X',
+                                                                                         'pool_id': None})])
+        self.assertEqual([element.get('ID') for element in written], ['S1'])
+        self.assertEqual(ctx.report['diag_comm_reference_not_written'], 2)
+
+
+class UnpooledReferenceTests(unittest.TestCase):
+    def test_unpooled_reference_to_own_object_is_own(self):
+        ctx = context({
+            'DC_E_S1': ('MCD_DB_SERVICE', service('S1')),
+            'DC_E_S2': ('MCD_DB_SERVICE', service('S2')),
+        }, pool_id=VARIANT_POOL)
+        unpooled = {'object_id': 'DC_E_S2', 'pool_id': None}
+        self.assertEqual(resolve_unpooled(ctx, unpooled), {'object_id': 'DC_E_S2', 'pool_id': VARIANT_POOL})
+        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_E_S1', 'DC_E_S2']), ['DC_E_S2', 'DC_E_S1'])
+        written = layer_diag_comms(ctx, [named(unpooled)])
+        self.assertEqual(summary(written), [('DIAG-SERVICE', {'ID': 'S2', 'ADDRESSING': 'PHYSICAL'}),
+                                            ('DIAG-SERVICE', {'ID': 'S1', 'ADDRESSING': 'PHYSICAL'})])
+        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 0)
+
+    def test_unpooled_reference_outside_pool_is_reported(self):
+        ctx = context({'DC_E_S1': ('MCD_DB_SERVICE', service('S1'))}, pool_id=VARIANT_POOL)
+        unpooled = {'object_id': 'DC_X_S9', 'pool_id': None}
+        self.assertEqual(resolve_unpooled(ctx, unpooled), unpooled)
+        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 1)
+        written = layer_diag_comms(ctx, [named(unpooled)])
+        self.assertEqual([element.get('ID') for element in written], ['S1'])
+        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 2)
+
+    def test_unpooled_reference_outside_variant_pools_is_unchanged(self):
+        ctx = context({'DC_L_S1': ('MCD_DB_SERVICE', service('S1'))})
+        unpooled = {'object_id': 'DC_L_S1', 'pool_id': None}
+        self.assertEqual(resolve_unpooled(ctx, unpooled), unpooled)
+        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_L_S1']), ['DC_L_S1'])
+        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 0)
 
 if __name__ == '__main__':
     unittest.main()
