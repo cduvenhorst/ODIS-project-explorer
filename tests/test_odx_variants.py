@@ -134,6 +134,15 @@ class BaseVariantPatternTests(unittest.TestCase):
         self.assertEqual(ctx.report['base_variant_pattern_mismatch'], 2)
 
 
+    def test_variants_by_name_follow_the_reference_list(self):
+        found = {'variant_patterns': []}
+        base_variant = {'ecu_variant_references': [
+            {'name': 'V1', 'reference': {'object_id': 'EV_X1', 'pool_id': LAYER_POOL}},
+            {'name': 'V2', 'reference': {'object_id': 'EV_X2', 'pool_id': LAYER_POOL}},
+            {'name': 'V3', 'reference': None}]}
+        self.assertEqual(variants.variants_by_name(base_variant, {'EV_X1': found, 'EV_X9': {}}), {'V1': found})
+        self.assertEqual(variants.variants_by_name({}, {'EV_X1': found}), {})
+
 class SubComponentTests(unittest.TestCase):
     def test_sub_component_basic_form_and_usage(self):
         ctx = context({

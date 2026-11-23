@@ -63,13 +63,19 @@ class PoolContext:
         self.used.add(key)
         return self.objects[key]
 
+    def owns(self, key):
+        """Whether the key follows the naming rule of the layer being written."""
+        if split_key(key, self.layer) is None:
+            return False
+        # A key of a layer whose name starts with this one ('V1' and 'V1_X') belongs to that layer.
+        return len(self.pool_layers) == 1 or self.naming_layer(key) == self.layer
+
     def keys(self, prefix, object_type=None):
         """Own keys '<prefix><layer>_...' of this layer in pool order, optionally of one type only."""
         head = prefix + self.layer + '_'
-        # A key of a layer whose name starts with this one ('V1' and 'V1_X') belongs to that layer.
         return [key for key in self.objects
                 if key.startswith(head) and (object_type is None or self.types[key] == object_type)
-                and (len(self.pool_layers) == 1 or self.naming_layer(key) == self.layer)]
+                and self.owns(key)]
 
     def own_id(self, key):
         """ID part of a key of this pool, split with the layer the key names."""

@@ -253,5 +253,21 @@ class PreconditionTests(unittest.TestCase):
         self.assertEqual(ctx.report['unresolvable_references'], 1)
 
 
+class LongerLayerNameTests(unittest.TestCase):
+    def test_row_of_a_longer_layer_name_is_referenced_not_embedded(self):
+        bv = '0.0.0@B.bv'
+        ctx = context({
+            'DOP_B_D1': ('DB_DOP_SIMPLE_BASE', {}),
+            'TB_B_T1': ('MCD_DB_TABLE', table('T1', [reference('TBP_B_T1.R1', bv), reference('TBP_B_V1_T1.R2', bv)],
+                                              dop_reference=reference('DOP_B_D1', bv))),
+            'TBP_B_T1.R1': ('MCD_DB_TABLE_PARAMETER', row('R1', '1', reference('DOP_B_D1', bv))),
+            'TBP_B_V1_T1.R2': ('MCD_DB_TABLE_PARAMETER', row('R2', '2', reference('DOP_B_D1', bv))),
+        }, pool_id=bv, pool_layers=['B', 'B_V1']).for_layer('B')
+        self.assertEqual(tables.row_owners(ctx, ['TB_B_T1']), {'TBP_B_T1.R1': 'TB_B_T1'})
+        first = table_element(written(ctx), 'T1')
+        self.assertEqual([element.get('ID') for element in first.findall('TABLE-ROW')], ['T1.R1'])
+        self.assertEqual(first.find('TABLE-ROW-REF').attrib, {'ID-REF': 'T1.R2', 'DOCREF': 'B_V1', 'DOCTYPE': 'LAYER'})
+
+
 if __name__ == '__main__':
     unittest.main()

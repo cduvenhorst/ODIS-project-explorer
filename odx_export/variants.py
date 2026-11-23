@@ -58,6 +58,20 @@ def check_base_variant_patterns(ctx, base_variant, variants):
             ctx.report['base_variant_pattern_mismatch'] += 1
 
 
+def variants_by_name(base_variant, variants):
+    """Variant name -> variant, from the base variant's 'ecu_variant_references'.
+
+    variants maps the object key of a variant to the variant; a name whose reference points to no
+    such variant is left out."""
+    result = {}
+    for entry in base_variant.get('ecu_variant_references') or []:
+        reference = entry.get('reference') if isinstance(entry, dict) else None
+        object_id = reference.get('object_id') if reference else None
+        if object_id in variants:
+            result.setdefault(entry.get('name'), variants[object_id])
+    return result
+
+
 def check_group_members(ctx, group, member_parents):
     """Report every member of a functional group whose pool does not list the group's pool as parent.
 

@@ -95,5 +95,20 @@ class StateChartTests(unittest.TestCase):
         self.assertEqual(len(parent), 0)
 
 
+class LongerLayerNameTests(unittest.TestCase):
+    def test_state_of_a_longer_layer_name_is_not_embedded(self):
+        bv = '0.0.0@B.bv'
+        result = chart([], [], start_state=None)
+        result['ecu_states'] = [named('ST_B_C1.Default', bv), named('ST_B_V1_C1.Other', bv)]
+        ctx = context({'SC_B_C1': ('MCD_DB_ECU_STATE_CHART', result),
+                       'ST_B_C1.Default': ('MCD_DB_ECU_STATE', state('Default')),
+                       'ST_B_V1_C1.Other': ('MCD_DB_ECU_STATE', state('Other'))},
+                      pool_id=bv, pool_layers=['B', 'B_V1']).for_layer('B')
+        element = state_charts.add_state_charts(ctx, ET.Element('X'), {}).find('STATE-CHART')
+        self.assertEqual([state_el.get('ID') for state_el in element.find('STATES')], ['C1.Default'])
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
+        self.assertNotIn('ST_B_V1_C1.Other', ctx.used)
+
+
 if __name__ == '__main__':
     unittest.main()

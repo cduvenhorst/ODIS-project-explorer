@@ -1,6 +1,5 @@
 """STATE-CHARTS with STATE-CHART, STATE-TRANSITION and STATE."""
 from odx_export.elements import add_names, identified, sub
-from odx_export.naming import split_key
 
 _CHART = 'MCD_DB_ECU_STATE_CHART'
 
@@ -14,7 +13,7 @@ def _own_object_key(ctx, entry, type_name):
         return None
     # A state or transition is written inside its chart; one outside the own pool has no place here.
     if (reference.get('pool_id') != ctx.pool_id or ctx.types.get(object_id) != type_name
-            or split_key(object_id, ctx.layer) is None):
+            or not ctx.owns(object_id)):
         ctx.report['unresolvable_references'] += 1
         return None
     return object_id

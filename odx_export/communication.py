@@ -32,7 +32,7 @@ _PROG_CODE_FIELDS = (('CODE-FILE', 'code_file'), ('ENCRYPTION', 'encryption'), (
 def _own_keys(ctx, prefixes, type_name):
     """Own keys with one of the prefixes and of the given type, in pool order."""
     heads = tuple(prefix + ctx.layer + '_' for prefix in prefixes)
-    return [key for key in ctx.objects if key.startswith(heads) and ctx.types[key] == type_name]
+    return [key for key in ctx.objects if key.startswith(heads) and ctx.types[key] == type_name and ctx.owns(key)]
 
 
 def _reference(entry):

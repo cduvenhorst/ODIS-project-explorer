@@ -136,5 +136,19 @@ class DtcDopTests(unittest.TestCase):
                                                           'TEXT', 'LEVEL', 'SDGS'])
 
 
+class LongerLayerNameTests(unittest.TestCase):
+    def test_dtc_of_a_longer_layer_name_is_referenced_not_embedded(self):
+        bv = '0.0.0@B.bv'
+        ctx = context({'DOP_B_X1': ('DB_DOP_DTC', dtc_dop('DOP1', reference('DTC_B_A', bv),
+                                                          reference('DTC_B_V1_A', bv))),
+                       'DTC_B_A': ('MCD_DB_DIAG_TROUBLE_CODE', dtc('A')),
+                       'DTC_B_V1_A': ('MCD_DB_DIAG_TROUBLE_CODE', dtc('A'))},
+                      pool_id=bv, pool_layers=['B', 'B_V1']).for_layer('B')
+        element = trouble_codes.add_dtc_dop(ctx, ET.Element('X'), 'DOP_B_X1', set())
+        self.assertEqual([child.get('ID') for child in element.findall('DTCS/DTC')], ['A'])
+        self.assertEqual(element.find('DTCS/DTC-REF').attrib, {'ID-REF': 'A', 'DOCREF': 'B_V1', 'DOCTYPE': 'LAYER'})
+        self.assertNotIn('DTC_B_V1_A', ctx.used)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -49,7 +49,7 @@ def row_owners(ctx, table_keys):
     listing = defaultdict(list)
     for table_key in table_keys:
         for row_key in _listed_own_rows(ctx, ctx.objects[table_key]):
-            if ctx.types.get(row_key) == _ROW and split_key(row_key, ctx.layer) is not None:
+            if ctx.types.get(row_key) == _ROW and ctx.owns(row_key):
                 if table_key not in listing[row_key]:
                     listing[row_key].append(table_key)
     owners = {}

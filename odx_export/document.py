@@ -213,7 +213,8 @@ def build_layer_document(ctx, layer_lookup):
         elif tag == 'FUNCTIONAL-GROUP':
             variants.check_group_members(ctx, obj, member_parents)
     if base_variant is not None:
-        variants.check_base_variant_patterns(ctx, base_variant, ecu_variants)
+        # The map key of a pattern entry is the variant name, not the object key of the variant.
+        variants.check_base_variant_patterns(ctx, base_variant, variants.variants_by_name(base_variant, ecu_variants))
     for tag in _LAYER_LISTS:
         if not len(lists[tag]):
             container.remove(lists[tag])

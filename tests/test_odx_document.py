@@ -297,7 +297,9 @@ def base_variant_objects():
                                parent_layers=[BV_POOL])),
         'B': ('MCD_DB_ECU_BASE_VARIANT', variants.names(
             'B', 'OID-B', long_name='Base', long_name_id='TI-B', description='Base text',
-            ecu_variant_patterns=[{'map_key': 'EV_V1', 'ecu_variant_patterns': [v1_pattern]}])),
+            ecu_variant_patterns=[{'map_key': 'V1', 'ecu_variant_patterns': [v1_pattern]}],
+            ecu_variant_references=[{'name': 'V1', 'reference': reference('EV_V1', BV_POOL)},
+                                    {'name': 'V2', 'reference': reference('EV_V2', BV_POOL)}])),
         'EV_V1': ('MCD_DB_ECU_VARIANT', variants.names('V1', 'OID-V1', variant_patterns=[v1_pattern])),
         'EV_V2': ('MCD_DB_ECU_VARIANT', variants.names('V2', 'OID-V2', variant_patterns=[])),
         'REQ_V1_Q1': ('MCD_DB_REQUEST', communication.request('Q1')),
@@ -350,13 +352,31 @@ class LayerDocumentTests(unittest.TestCase):
 
     def test_base_variant_patterns_and_shared_data_parents_are_checked(self):
         objects = base_variant_objects()
-        objects['B'][1]['ecu_variant_patterns'].append({'map_key': 'EV_V2', 'ecu_variant_patterns': [
+        objects['B'][1]['ecu_variant_patterns'].append({'map_key': 'V2', 'ecu_variant_patterns': [
             variants.pattern(variants.matching_parameter('Identify', '4711', name='Part'))]})
         objects['LD_V2'][1]['shared_data_parent_layers'] = ['0.0.0@T.sd']
         ctx = layer_context(objects, BV_POOL)
         build_layer_document(ctx, layer_lookup(ctx))
         self.assertEqual(ctx.report['base_variant_pattern_mismatch'], 1)
         self.assertEqual(ctx.report['shared_data_parent_not_in_parents'], 1)
+
+    def test_base_variant_patterns_matched_by_variant_name(self):
+        # The map key is the variant name of the reference list; the variant object has another key.
+        objects = base_variant_objects()
+        objects['B'][1]['ecu_variant_patterns'].append({'map_key': 'V2', 'ecu_variant_patterns': []})
+        ctx = layer_context(objects, BV_POOL)
+        build_layer_document(ctx, layer_lookup(ctx))
+        self.assertEqual(ctx.report['base_variant_pattern_mismatch'], 0)
+
+    def test_base_variant_pattern_without_variant_is_counted(self):
+        objects = base_variant_objects()
+        objects['B'][1]['ecu_variant_patterns'].extend([
+            {'map_key': 'EV_V2', 'ecu_variant_patterns': []},  # an object key, not a variant name
+            {'map_key': 'V9', 'ecu_variant_patterns': []}])  # no variant of that name
+        objects['B'][1]['ecu_variant_references'].append({'name': 'V9', 'reference': reference('EV_V9', BV_POOL)})
+        ctx = layer_context(objects, BV_POOL)
+        build_layer_document(ctx, layer_lookup(ctx))
+        self.assertEqual(ctx.report['base_variant_pattern_mismatch'], 2)
 
     def test_protocol_document_with_comparams_and_spec_ref(self):
         objects = project('CONTAINER_P')

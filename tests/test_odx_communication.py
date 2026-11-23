@@ -535,5 +535,35 @@ class UnpooledReferenceTests(unittest.TestCase):
         self.assertEqual(ctx.ordered([named(unpooled)], ['DC_L_S1']), ['DC_L_S1'])
         self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 0)
 
+
+def longer_name_view(objects):
+    """View of the base variant B of a pool whose variant B_V1 has a name that starts with B."""
+    return context(objects, pool_id=LAYER_POOL, pool_layers=['B', 'B_V1']).for_layer('B')
+
+
+class LongerLayerNameTests(unittest.TestCase):
+    def test_own_keys_skip_keys_of_a_longer_layer_name(self):
+        ctx = longer_name_view({
+            'REQ_B_R1': ('MCD_DB_REQUEST', request('R1')),
+            'REQ_B_V1_R1': ('MCD_DB_REQUEST', request('R1')),
+            'DC_B_V1_R2': ('MCD_DB_REQUEST', request('R2')),
+        })
+        written = communication.add_requests(ctx, ET.Element('BASE-VARIANT'), {})
+        self.assertEqual([element.get('ID') for element in written], ['R1'])
+        self.assertEqual(ctx.used, {'REQ_B_R1'})
+
+    def test_own_responses_skip_keys_of_a_longer_layer_name(self):
+        ctx = longer_name_view({
+            'RSP_B_P1': ('MCD_DB_RESPONSE', response('P1', 'ePOSITIVE_RESPONSE')),
+            'RSP_B_V1_P1': ('MCD_DB_RESPONSE', response('P1', 'ePOSITIVE_RESPONSE')),
+            'DC_B_V1_N1': ('MCD_DB_RESPONSE', response('N1', 'eLOCAL_NEG_RESPONSE')),
+        })
+        parent = ET.Element('BASE-VARIANT')
+        communication.add_responses(ctx, parent, {})
+        self.assertEqual(tags(parent), ['POS-RESPONSES'])
+        self.assertEqual([element.get('ID') for element in parent.find('POS-RESPONSES')], ['P1'])
+        self.assertEqual(ctx.used, {'RSP_B_P1'})
+
+
 if __name__ == '__main__':
     unittest.main()
