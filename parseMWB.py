@@ -646,8 +646,9 @@ def get_dop_value(dop, dop_response_bytes_slice, dop_bit_position):
                         below_upper_limit = (physical_value <= scale_constraint['upper_limit']['value'])
                 
                 # If the value is in range and the SCALE-CONSTR is not VALID, raise an exception
+                # upstream: read 'short_name', a key dumpMWB never writes (it writes 'short_label'), so this raised KeyError instead of the message
                 if above_lower_limit and below_upper_limit and scale_constraint['validity'] != 'VALID':
-                    raise RuntimeError('Physical value {} falls in SCALE-CONSTR with validity {} (SN {}, DESC {})'.format(physical_value, scale_constraint['validity'], scale_constraint['short_name'], scale_constraint['description']))
+                    raise RuntimeError('Physical value {} falls in SCALE-CONSTR with validity {} (Label {}, DESC {})'.format(physical_value, scale_constraint['validity'], scale_constraint['short_label'], scale_constraint['description']))
     
     #print('{} ({}), physical value: {}'.format(dop['physical_base_data_type'], dop['compu_category'], physical_value))
     
