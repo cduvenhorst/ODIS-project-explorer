@@ -312,9 +312,9 @@ For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` f
 
 ### ODX export
 
-`dumpODX` reconstructs an ODX 2.2.0 document from every shared data pool (`*.sd`) of a project, without the kernel and without a converter.
-It is called like `dumpProject` and writes `<output>/<project>/odx/<pool>.odx`, where `<pool>` is the pool name without the `<version>@` part and without `.sd`.
-Each document holds a `DIAG-LAYER-CONTAINER` with one `ECU-SHARED-DATA`; all other layer types and ODX-C, ODX-F and ODX-V are not written.
+`dumpODX` reconstructs an ODX 2.2.0 document from every shared data pool (`*.sd`) of a project, then from every base variant, variant, protocol and functional group pool (`*.bv`, `*.ev`, `*.pr`, `*.fg`, see [Other layers](#other-layers)), without the kernel and without a converter.
+It is called like `dumpProject` and writes `<output>/<project>/odx/<pool>.odx`, where `<pool>` is the pool name without the `<version>@` part and without its extension.
+Each document of a shared data pool holds a `DIAG-LAYER-CONTAINER` with one `ECU-SHARED-DATA`; ODX-C, ODX-F and ODX-V are not written.
 
 The documents are equivalent in content, not identical to the original ODX documents.
 A comment directly after the XML declaration says so and names the pool; no `ADMIN-DATA` is invented.
@@ -328,7 +328,7 @@ Characters that XML 1.0 does not allow are replaced by U+FFFD in every text and 
 `DISPLAY-RADIX` `DEC` is written for `A_UINT32` only, as in the original documents; for other data types the decimal radix is left out.
 An object that no object of the pool references and that has no place in ODX (a table row that no table lists) is not written; a comment at the end of `ECU-SHARED-DATA` names its type and key.
 
-Per written pool the script prints the number of unresolvable references, empty references, and replaced characters, then, if there are any, the unused objects per type and, on a separate line, the objects without a place in ODX per type.
+Per written pool the script prints the number of unresolvable references, empty references, and replaced characters, then, each on a line of its own and only if there are any, every other non-zero counter by name (`other counters`), the unused objects per type and the objects without a place in ODX per type.
 A reference whose target is missing or follows no naming rule is written with the object key as `ID-REF` and counted; the script does not stop.
 A pool that cannot be loaded or written is reported as `skipped, cannot be loaded` and the other pools are still written.
 
@@ -338,6 +338,25 @@ Some forms follow the ODX standard only, since no original document was availabl
 > ```powershell
 > python dumpODX.py "C:/path/to/project" "O:/ODX"
 > ```
+
+#### Other layers
+
+A base variant pool (`*.bv`) holds a base variant and its variants; its document has `BASE-VARIANTS` and `ECU-VARIANTS`.
+The document of a variant pool (`*.ev`) has `ECU-VARIANTS`, that of a protocol pool (`*.pr`) `PROTOCOLS` and that of a functional group pool (`*.fg`) `FUNCTIONAL-GROUPS`.
+Each pool becomes one `DIAG-LAYER-CONTAINER` named by the pool's project data, with one element per layer in pool order.
+The layer contents are written as for shared data pools; the rules above apply.
+
+- **Kept:** per layer its `ID` (the layer ID), `SHORT-NAME` (the layer name), the `OID`, long name and description of the base variant, variant or functional group object, the functional classes, data dictionary, services, jobs (flash jobs as `SINGLE-ECU-JOB`), requests, responses, state charts, sub components and special data groups of the layer, the `PARENT-REFS` with their `NOT-INHERITED-...` lists, the `ECU-VARIANT-PATTERNS` of a variant, the `COMPARAM-REFS` with their values, and `PROT-STACK-SNREF` of a protocol.
+- **Derived:** the pools store no ID for a communication parameter or a communication parameter spec. `COMPARAM-REF` gets `ID-REF` `<subset layer>.<short name>` with `DOCREF` the layer name of the `.cs` pool, and `COMPARAM-SPEC-REF` gets the layer name of the `.cp` pool as `ID-REF` and `DOCREF`. Both are rules, not values of the pools, and they are unverified.
+- **Approximate:** an object that two sister variants list is written once, in the layer whose name its key follows; the other layer refers to a service or job by `DIAG-COMM-REF`. Environment data have no such reference form and stand only in that layer, so it is lost that the other layer lists them too.
+- **Not written:** the pools `.mj`, `.cs`, `.cp`, `.ec`, `.fl` and `.vi`, the fields `protocol_type`, `base_variant_reference` and `ecu_variant_reference` (they name the object whose texts the layer element carries) and `multiple_ecu_job_references`, environment data connectors of sub components and the plain DTC name lists of sub components. A layer of another kind (a multiple ECU job) is named in a comment.
+- **Checked instead of written:** ODX 2.2 has no member list of a functional group, the members' `PARENT-REFS` carry it; every member whose pool does not name the group's pool as parent is counted. The variant patterns that a base variant repeats are compared with those of its variants, and shared data parents that are not among the parents are counted.
+
+IDs are unique per layer, not per document: two variants of one pool may both have a request `Q1`.
+A reference to an object of another layer gets `DOCREF` (the layer name) and `DOCTYPE="LAYER"`, also when both layers stand in the same document.
+An object without a place in ODX is named in a comment at the end of the layer element whose name its key follows, otherwise at the end of the container.
+
+The element forms of `SUB-COMPONENT` and its connectors, and `COMPARAM-REF` without a value, follow what is known of ODX 2.2 without a schema to check them against.
 
 ### `dumpMWB`
 
