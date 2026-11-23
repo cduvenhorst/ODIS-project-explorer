@@ -107,6 +107,10 @@ class StringStorage:
         # The first 4 bytes in the .idx file represent the amount of strings contained in the database
         string_count = struct.unpack('<I', index_file_contents[:4])[0]
         
+        # A corrupt string count must not allocate a table of up to 32 GiB before the records run out
+        if len(index_file_contents) < 4 + string_count*8:
+            raise RuntimeError('Index of {} strings too short ({} bytes, {} strings need {} bytes)'.format(string_type.upper(), len(index_file_contents), string_count, 4 + string_count*8))
+        
         # Each "record" in the .idx file is 8 bytes long, and "records" start from position 4
         # The first 4 bytes represent the string's position in the .data file
         # The second 4 bytes represent the hash of the string

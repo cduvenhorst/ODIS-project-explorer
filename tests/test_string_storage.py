@@ -181,6 +181,21 @@ class StringStorageTests(unittest.TestCase):
                     StringStorage(folder)
                 self.assertEqual(str(context.exception), message)
 
+    def test_index_shorter_than_its_string_count_raises_runtime_error(self):
+        folder = self._folder()
+        _write_tables(folder, {5: 'first'}, {}, packed=False)
+        # claim 1000 strings while the index holds the record of one
+        path = os.path.join(folder, 'AStringData.idx')
+        with open(path, 'rb') as handle:
+            index = bytearray(handle.read())
+        index[:4] = struct.pack('<I', 1000)
+        with open(path, 'wb') as handle:
+            handle.write(index)
+        with self.assertRaises(RuntimeError) as context:
+            StringStorage(folder)
+        self.assertEqual(str(context.exception),
+                         'Index of A strings too short (12 bytes, 1000 strings need 8004 bytes)')
+
     def test_add_string_then_get_and_hash(self):
         storage = self._storage({}, {})
         storage.add_string_ascii('Alpha')
