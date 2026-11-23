@@ -3,7 +3,6 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from odx_export import communication
-from odx_export.context import resolve_unpooled
 from tests.odx_support import context
 
 OWN = '0.0.0@L.sd'
@@ -506,34 +505,23 @@ class LayerDiagCommTests(unittest.TestCase):
 
 
 class UnpooledReferenceTests(unittest.TestCase):
-    def test_unpooled_reference_to_own_object_is_own(self):
-        ctx = context({
-            'DC_E_S1': ('MCD_DB_SERVICE', service('S1')),
-            'DC_E_S2': ('MCD_DB_SERVICE', service('S2')),
-        }, pool_id=VARIANT_POOL)
-        unpooled = {'object_id': 'DC_E_S2', 'pool_id': None}
-        self.assertEqual(resolve_unpooled(ctx, unpooled), {'object_id': 'DC_E_S2', 'pool_id': VARIANT_POOL})
-        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_E_S1', 'DC_E_S2']), ['DC_E_S2', 'DC_E_S1'])
-        written = layer_diag_comms(ctx, [named(unpooled)])
-        self.assertEqual(summary(written), [('DIAG-SERVICE', {'ID': 'S2', 'ADDRESSING': 'PHYSICAL'}),
-                                            ('DIAG-SERVICE', {'ID': 'S1', 'ADDRESSING': 'PHYSICAL'})])
-        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 0)
-
-    def test_unpooled_reference_outside_pool_is_reported(self):
+    # ProjectPools.context fills in the pool of the references of .ev pools it can resolve; what is still
+    # without pool here is reported like in any other pool.
+    def test_unpooled_reference_in_variant_pool_is_reported(self):
         ctx = context({'DC_E_S1': ('MCD_DB_SERVICE', service('S1'))}, pool_id=VARIANT_POOL)
         unpooled = {'object_id': 'DC_X_S9', 'pool_id': None}
-        self.assertEqual(resolve_unpooled(ctx, unpooled), unpooled)
-        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 1)
+        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_E_S1']), ['DC_E_S1'])
         written = layer_diag_comms(ctx, [named(unpooled)])
         self.assertEqual([element.get('ID') for element in written], ['S1'])
-        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 2)
+        self.assertEqual(ctx.report['diag_comm_reference_not_written'], 1)
+        self.assertEqual(unpooled, {'object_id': 'DC_X_S9', 'pool_id': None})
 
-    def test_unpooled_reference_outside_variant_pools_is_unchanged(self):
-        ctx = context({'DC_L_S1': ('MCD_DB_SERVICE', service('S1'))})
-        unpooled = {'object_id': 'DC_L_S1', 'pool_id': None}
-        self.assertEqual(resolve_unpooled(ctx, unpooled), unpooled)
-        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_L_S1']), ['DC_L_S1'])
-        self.assertEqual(ctx.report['unpooled_reference_not_in_pool'], 0)
+    def test_unpooled_reference_to_own_object_stays_unpooled(self):
+        ctx = context({'DC_E_S1': ('MCD_DB_SERVICE', service('S1')),
+                       'DC_E_S2': ('MCD_DB_SERVICE', service('S2'))}, pool_id=VARIANT_POOL)
+        unpooled = {'object_id': 'DC_E_S2', 'pool_id': None}
+        self.assertEqual(ctx.ordered([named(unpooled)], ['DC_E_S1', 'DC_E_S2']), ['DC_E_S1', 'DC_E_S2'])
+        self.assertEqual(unpooled, {'object_id': 'DC_E_S2', 'pool_id': None})
 
 
 def longer_name_view(objects):

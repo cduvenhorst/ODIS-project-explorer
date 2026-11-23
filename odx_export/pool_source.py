@@ -2,6 +2,7 @@
 import os
 import struct
 import zlib
+from collections import Counter
 
 from classes.ObjectLoader import ObjectLoader
 from classes.PblRecordManager import PblRecordManager
@@ -74,19 +75,67 @@ class ProjectPools:
                 types[name] = type_name
                 # An object of a type without loader stays out of the objects and is reported as unused
                 if type_name in supported_object_types:
-                    obj = object_loader.load_object_by_parts(parts)
-                    resolver.resolve_object(obj, pool_id)
-                    objects[name] = obj
+                    objects[name] = object_loader.load_object_by_parts(parts)
         self.__type_maps[pool_id] = dict(types)
         self.__layers[pool_id] = [_layer_description(key, objects[key])
                                   for key, type_name in types.items() if type_name == _LAYER_TYPE]
+        unpooled = self.__resolve_variant_references(pool_id, objects, types)
+        # After the pools are filled in, so that the shown names come from the pool that holds the object
+        for obj in objects.values():
+            resolver.resolve_object(obj, pool_id)
         pool_layers = [layer['layer_name'] for layer in self.__layers[pool_id]]
         # The survey found the pool's own layer name among its layers in every pool; a pool without it
         # keeps the naming rule of 4-C1 (layer name from the pool name) in addition.
         if layer_name(pool_id) not in pool_layers:
             pool_layers.append(layer_name(pool_id))
-        return PoolContext(pool_id, objects, types, object_type=self.object_type, key_name=self.key_name,
-                           pool_layers=pool_layers, foreign_layers=self.__foreign_layers)
+        ctx = PoolContext(pool_id, objects, types, object_type=self.object_type, key_name=self.key_name,
+                          pool_layers=pool_layers, foreign_layers=self.__foreign_layers)
+        ctx.report.update(unpooled)
+        return ctx
+
+    def __resolve_variant_references(self, pool_id, objects, types):
+        """Fill in the pool of the references without one in a .ev pool; Counter of the informative counters.
+
+        Many references of .ev pools carry no pool ID. Like the kernel (ObjectLoader.
+        load_DOP_by_reference_without_PoolID: own variant, base variant, protocol), such a reference points
+        into the own pool if it holds the object, else into the first pool of the parent chain that does:
+        parent_layers breadth first from the pool's own layer, each pool once, by type map only. A name that
+        no pool holds (a short name in a matching pattern, say) stays without pool. Other pools are unchanged."""
+        if not pool_id.endswith('.ev'):
+            return Counter()
+        chain = self.__parent_chain(pool_id)
+
+        def find_pool(object_id):
+            if object_id in types:
+                return pool_id
+            return next((parent for parent in chain if self.object_type(parent, object_id) is not None), None)
+
+        counts = Counter()
+        for obj in objects.values():
+            counts.update(resolve_unpooled_references(obj, find_pool))
+        return Counter({
+            'unpooled_references_resolved_to_parent': sum(count for target, count in counts.items()
+                                                          if target not in (None, pool_id)),
+            'unpooled_references_unresolved': counts[None]})
+
+    def __parent_chain(self, pool_id):
+        """Pools of the parent layers of a pool, breadth first, each once and without the pool itself."""
+        chain = []
+        seen = {pool_id}
+        queue = [pool_id]
+        while queue:
+            try:
+                layers = self.layers(queue.pop(0))
+            except Exception:
+                # A broken layer object of another pool ends the chain there, not this pool
+                layers = []
+            for layer in layers:
+                for parent in layer['parent_layers'] or []:
+                    if parent not in seen:
+                        seen.add(parent)
+                        chain.append(parent)
+                        queue.append(parent)
+        return chain
 
     def __foreign_layers(self, pool_id):
         if pool_id not in self.__foreign_layer_names:
@@ -169,3 +218,26 @@ def _layer_description(key, obj):
     description = {'key': key}
     description.update((field, obj[field]) for field in _LAYER_FIELDS)
     return description
+
+
+def resolve_unpooled_references(obj, find_pool):
+    """Fill in the pool of every reference without one, at any depth of dicts and lists, in place.
+
+    find_pool(object_id) gives the pool that holds the object, or None; such a reference stays as it is.
+    Returns a Counter: per pool the references resolved into it, under None the ones left unresolved."""
+    counts = Counter()
+    pending = [obj]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, list):
+            pending.extend(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        if 'object_id' in item and 'pool_id' in item and item['pool_id'] is None and item['object_id']:
+            pool_id = find_pool(item['object_id'])
+            counts[pool_id] += 1
+            if pool_id is not None:
+                item['pool_id'] = pool_id
+        pending.extend(item.values())
+    return counts

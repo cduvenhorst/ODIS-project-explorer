@@ -2,7 +2,6 @@
 import os
 
 from odx_export import special_data
-from odx_export.context import resolve_unpooled
 from odx_export.elements import add_names, add_ref, format_value, identified, sub
 from odx_export.parameters import add_params
 
@@ -202,7 +201,6 @@ def _add_layer_diag_comms(ctx, parent, layer_data):
         if not reference or not reference.get('object_id'):
             ctx.report['empty_references'] += 1
             continue
-        reference = resolve_unpooled(ctx, reference)
         pool_id, object_id = reference.get('pool_id'), reference['object_id']
         if pool_id == ctx.pool_id and object_id in own_set:
             if object_id not in written:
@@ -210,9 +208,7 @@ def _add_layer_diag_comms(ctx, parent, layer_data):
                 _add_own_diag_comm(ctx, element, object_id)
             continue
         if pool_id is None:
-            # resolve_unpooled has already reported the entries of .ev pools.
-            if not ctx.pool_id.endswith('.ev'):
-                ctx.report['diag_comm_reference_not_written'] += 1
+            ctx.report['diag_comm_reference_not_written'] += 1
             continue
         if pool_id == ctx.pool_id and (ctx.target_layer(pool_id, object_id) == ctx.layer
                                        or ctx.types.get(object_id) not in _DIAG_COMM_TYPES):

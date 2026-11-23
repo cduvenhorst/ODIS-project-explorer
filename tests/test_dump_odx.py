@@ -8,10 +8,11 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from collections import Counter
 
 import dumpODX
 from classes.StringStorage import StringStorage
-from odx_export.pool_source import ProjectPools
+from odx_export.pool_source import ProjectPools, resolve_unpooled_references
 from tests import support
 from tests.odx_support import context
 from tests.support import REPOSITORY_ROOT, ObjectBytes, concat, unit_body, write_project, write_raw_pool
@@ -407,6 +408,120 @@ class ProjectPoolsTests(unittest.TestCase):
     def test_strict_loading_raises(self):
         with self.assertRaises(Exception):
             self.pools.context(B_POOL)
+
+
+EV_POOL = '0.0.0@E.ev'
+
+
+def variant_reference_body(object_id, pool_id=None, name='V'):
+    """MCD_DB_ECU_VARIANT whose base variant reference is (object_id, pool_id)."""
+    return ecu_tail_body(ObjectBytes().ascii(object_id).ascii(pool_id).absent(), name)
+
+
+def write_variant_pool_project(folder):
+    """Variant pool E.ev with parent B.bv, whose base variant has the parent P.pr, and a shared data pool L.sd.
+
+    Each ECU variant object holds one reference; the units are the targets."""
+    pool_layer = '#RtGen_DB_LAYER_DATA'
+    bodies = {
+        PR_POOL: {pool_layer: located_layer_body('PROT_P', 'P', 'protocol'),
+                  'UNIT_P_U1': unit_body(), 'UNIT_P_U2': unit_body()},
+        BV_POOL: {pool_layer: located_layer_body('BV_B', 'B', 'base variant', 'B', parents=(PR_POOL,)),
+                  'UNIT_B_U1': unit_body(), 'UNIT_P_U2': unit_body(), 'UNIT_E_U1': unit_body(),
+                  'EV_KEEP': variant_reference_body('UNIT_B_U1')},
+        EV_POOL: {pool_layer: located_layer_body('EV_E_ID', 'E', 'variant', 'EV_E', parents=(BV_POOL,)),
+                  'UNIT_E_U1': unit_body(), 'EV_E': variant_reference_body('B', BV_POOL, 'E'),
+                  'EV_OWN': variant_reference_body('UNIT_E_U1'),
+                  'EV_PARENT': variant_reference_body('UNIT_B_U1'),
+                  'EV_GRANDPARENT': variant_reference_body('UNIT_P_U1'),
+                  'EV_NEAREST': variant_reference_body('UNIT_P_U2'),
+                  'EV_SHORT_NAME': variant_reference_body('SomeShortName'),
+                  'EV_POOLED': variant_reference_body('UNIT_P_U1', PR_POOL)},
+        L_POOL: {pool_layer: named_layer_body('ESD_L', 'L'), 'UNIT_L_U1': unit_body(),
+                 'EV_SHARED': variant_reference_body('UNIT_L_U1')},
+    }
+    strings = ObjectBytes()
+    pools = {}
+    for pool_id, objects in bodies.items():
+        pools[pool_id] = {}
+        for key, body in objects.items():
+            strings = concat(strings, body)
+            type_name = ('MCD_DB_UNIT' if key.startswith('UNIT_') else 'MCD_DB_ECU_VARIANT'
+                         if key.startswith('EV_') else 'DB_LAYER_DATA')
+            pools[pool_id][key] = body.build(type_name)
+    write_project(folder, pools, strings.ascii_strings, strings.unicode_strings)
+
+
+class VariantPoolReferenceTests(unittest.TestCase):
+    def setUp(self):
+        folder_handle = tempfile.TemporaryDirectory()
+        self.addCleanup(folder_handle.cleanup)
+        write_variant_pool_project(folder_handle.name)
+        self.pools = ProjectPools(folder_handle.name, StringStorage(folder_handle.name), dumpODX.pbl_record_manager)
+
+    def reference(self, ctx, key):
+        reference = ctx.objects[key]['ecu_base_variant_reference']
+        return reference['object_id'], reference['pool_id']
+
+    def test_ev_unpooled_reference_to_own_object_gets_own_pool(self):
+        ctx = self.pools.context(EV_POOL)
+        # The own pool comes before the parent B.bv, which has an object of the same name.
+        self.assertEqual(self.reference(ctx, 'EV_OWN'), ('UNIT_E_U1', EV_POOL))
+
+    def test_ev_unpooled_reference_to_parent_object_gets_parent_pool(self):
+        ctx = self.pools.context(EV_POOL)
+        self.assertEqual(self.reference(ctx, 'EV_PARENT'), ('UNIT_B_U1', BV_POOL))
+        self.assertEqual(self.reference(ctx, 'EV_GRANDPARENT'), ('UNIT_P_U1', PR_POOL))
+        # Breadth first: the parent B.bv comes before its own parent P.pr.
+        self.assertEqual(self.reference(ctx, 'EV_NEAREST'), ('UNIT_P_U2', BV_POOL))
+        self.assertEqual(self.reference(ctx, 'EV_POOLED'), ('UNIT_P_U1', PR_POOL))
+        self.assertEqual(ctx.report['unpooled_references_resolved_to_parent'], 3)
+
+    def test_ev_unpooled_short_name_stays_unpooled(self):
+        ctx = self.pools.context(EV_POOL)
+        self.assertEqual(self.reference(ctx, 'EV_SHORT_NAME'), ('SomeShortName', None))
+        self.assertEqual(ctx.report['unpooled_references_unresolved'], 1)
+
+    def test_broken_parent_layer_object_ends_the_chain(self):
+        folder_handle = tempfile.TemporaryDirectory()
+        self.addCleanup(folder_handle.cleanup)
+        write_variant_pool_project(folder_handle.name)
+        broken = named_layer_body('BV_B', 'B').build('DB_LAYER_DATA')[:6]
+        for extension in ('.key', '.db'):
+            os.remove(os.path.join(folder_handle.name, BV_POOL + extension))
+        write_raw_pool(folder_handle.name, BV_POOL,
+                       [(struct.pack('<L', support.string_hash('#RtGen_DB_LAYER_DATA', 'A')), [broken])])
+        pools = ProjectPools(folder_handle.name, StringStorage(folder_handle.name), dumpODX.pbl_record_manager)
+        ctx = pools.context(EV_POOL)
+        self.assertEqual(self.reference(ctx, 'EV_OWN'), ('UNIT_E_U1', EV_POOL))
+        self.assertEqual(self.reference(ctx, 'EV_GRANDPARENT'), ('UNIT_P_U1', None))
+
+    def test_other_pools_keep_unpooled_references(self):
+        base = self.pools.context(BV_POOL)
+        self.assertEqual(self.reference(base, 'EV_KEEP'), ('UNIT_B_U1', None))
+        shared = self.pools.context(L_POOL)
+        self.assertEqual(self.reference(shared, 'EV_SHARED'), ('UNIT_L_U1', None))
+        for ctx in (base, shared):
+            self.assertEqual(ctx.report['unpooled_references_resolved_to_parent'], 0)
+            self.assertEqual(ctx.report['unpooled_references_unresolved'], 0)
+
+
+class ResolveUnpooledReferencesTests(unittest.TestCase):
+    def test_references_at_any_depth_are_resolved(self):
+        obj = {'reference': {'object_id': 'A', 'pool_id': None},
+               'entries': [{'name': 'N', 'reference': {'object_id': 'B', 'pool_id': None}},
+                           [{'object_id': 'C', 'pool_id': None, 'attributes': []}]],
+               'empty': {'object_id': '', 'pool_id': None},
+               'pooled': {'object_id': 'A', 'pool_id': 'X.bv'}}
+        pools = {'A': 'own.ev', 'B': 'parent.bv'}
+        counts = resolve_unpooled_references(obj, pools.get)
+        self.assertEqual(obj['reference'], {'object_id': 'A', 'pool_id': 'own.ev'})
+        self.assertEqual(obj['entries'][0]['reference'], {'object_id': 'B', 'pool_id': 'parent.bv'})
+        self.assertEqual(obj['entries'][1][0], {'object_id': 'C', 'pool_id': None, 'attributes': []})
+        self.assertEqual(obj['empty'], {'object_id': '', 'pool_id': None})
+        self.assertEqual(obj['pooled'], {'object_id': 'A', 'pool_id': 'X.bv'})
+        # Per pool the number of references resolved into it; None counts the unresolved ones.
+        self.assertEqual(counts, Counter({'own.ev': 1, 'parent.bv': 1, None: 1}))
 
 
 if __name__ == '__main__':
