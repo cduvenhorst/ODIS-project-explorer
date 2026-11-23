@@ -133,7 +133,6 @@ class BaseVariantPatternTests(unittest.TestCase):
             {'V1': {'variant_patterns': [pattern(matching_parameter('S_Read', '2000', name='P'))]}})
         self.assertEqual(ctx.report['base_variant_pattern_mismatch'], 2)
 
-
     def test_variants_by_name_follow_the_reference_list(self):
         found = {'variant_patterns': []}
         base_variant = {'ecu_variant_references': [
@@ -142,6 +141,7 @@ class BaseVariantPatternTests(unittest.TestCase):
             {'name': 'V3', 'reference': None}]}
         self.assertEqual(variants.variants_by_name(base_variant, {'EV_X1': found, 'EV_X9': {}}), {'V1': found})
         self.assertEqual(variants.variants_by_name({}, {'EV_X1': found}), {})
+
 
 class SubComponentTests(unittest.TestCase):
     def test_sub_component_basic_form_and_usage(self):
