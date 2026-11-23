@@ -2,7 +2,7 @@
 import unittest
 import xml.etree.ElementTree as ET
 
-from odx_export import data_objects
+from odx_export import data_objects, layers
 from odx_export.elements import add_ref
 from odx_export.special_data import sdgs
 from tests.odx_support import context, xml
@@ -139,13 +139,6 @@ class PoolLayerTests(unittest.TestCase):
                                       '</SDG-CAPTION></SDG></SDGS></P>')
         self.assertEqual(ctx.report['unresolvable_references'], 0)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-from odx_export import layers  # noqa: E402
-
 PARENTS = {
     '0.0.0@B.bv': {'layer_name': 'Base', 'layer_id': 'BASE_ID'},
     '0.0.0@L.sd': {'layer_name': 'Shared', 'layer_id': 'SHARED_ID'},
@@ -231,3 +224,7 @@ class ParentRefTests(unittest.TestCase):
             _, holder, result = parent_refs(data)
             self.assertIsNone(result)
             self.assertEqual(len(holder), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()
