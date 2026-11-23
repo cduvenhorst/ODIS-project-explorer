@@ -158,6 +158,29 @@ class StringStorageTests(unittest.TestCase):
             StringStorage(folder)
         self.assertEqual(str(context.exception), 'Duplicate key (5) while loading A strings ("first")')
 
+    def test_first_repeated_hash_in_index_order_is_reported(self):
+        # the hash whose second entry comes first in the index is reported, with the text of its first entry;
+        # the second case makes sure it is not simply the smallest repeated hash
+        cases = (
+            (((9, 'x'), (3, 'y'), (3, 'z'), (9, 'w')), 'Duplicate key (3) while loading A strings ("y")'),
+            (((3, 'y'), (9, 'x'), (9, 'w'), (3, 'z')), 'Duplicate key (9) while loading A strings ("x")'),
+        )
+        for records, message in cases:
+            with self.subTest(message=message):
+                folder = self._folder()
+                data = bytearray()
+                index = bytearray(struct.pack('<I', len(records)))
+                for value, text in records:
+                    index += struct.pack('<II', len(data), value)
+                    data += struct.pack('<I', len(text)) + text.encode('cp1252')
+                _write_tables(folder, {}, {}, packed=False)
+                for name, content in (('AStringData.data', data), ('AStringData.idx', index)):
+                    with open(os.path.join(folder, name), 'wb') as handle:
+                        handle.write(content)
+                with self.assertRaises(RuntimeError) as context:
+                    StringStorage(folder)
+                self.assertEqual(str(context.exception), message)
+
     def test_add_string_then_get_and_hash(self):
         storage = self._storage({}, {})
         storage.add_string_ascii('Alpha')

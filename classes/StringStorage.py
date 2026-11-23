@@ -5,7 +5,6 @@ import sys
 import zlib
 import traceback
 from array import array
-from bisect import bisect_left
 
 
 class StringStorage:
@@ -74,8 +73,8 @@ class StringStorage:
     
     # Converter to string (returns text databases sizes, ASCII and Unicode, as formatted string)
     def __str__(self):
-        ascii_count = len(self.__ascii_tdb[1]) + len(self.__ascii_added_dict)
-        unicode_count = len(self.__unicode_tdb[1]) + len(self.__unicode_added_dict)
+        ascii_count = len(self.__ascii_tdb[0]) // 2 + len(self.__ascii_added_dict)
+        unicode_count = len(self.__unicode_tdb[0]) // 2 + len(self.__unicode_added_dict)
         return 'A: {}, U: {}'.format(ascii_count, unicode_count)
     
     
@@ -101,8 +100,9 @@ class StringStorage:
     
     
     # Parse a text database from its .idx and .data files
-    # * returns (positions, hashes, order): the .data positions and the hashes in index order,
-    #   and the index numbers sorted by hash (a stable sort, so equal hashes keep their index order)
+    # * returns (records, table): the .idx records as (position, hash) pairs in index order,
+    #   and an open-addressing hash table of index numbers (see __get_table_slot)
+    # * no Python object is kept per string, so that large projects fit in memory
     def __read_tdb(self, data_file_contents, index_file_contents, string_type):
         # The first 4 bytes in the .idx file represent the amount of strings contained in the database
         string_count = struct.unpack('<I', index_file_contents[:4])[0]
@@ -111,28 +111,41 @@ class StringStorage:
         # The first 4 bytes represent the string's position in the .data file
         # The second 4 bytes represent the hash of the string
         records = array('I')
-        records.frombytes(index_file_contents[4 : 4 + string_count*8])
+        records.frombytes(memoryview(index_file_contents)[4 : 4 + string_count*8])
         if sys.byteorder == 'big':
             records.byteswap()
-        positions = records[0::2]
-        hashes = records[1::2]
-        del records
         
-        # Sort the index numbers by hash, for the lookup by bisection
-        order = array('I', sorted(range(string_count), key = hashes.__getitem__))
+        # The table has a power-of-two size of at least twice the string count; each slot holds index + 1, 0 is empty
+        table_bits = 3
+        while (1 << table_bits) < 2 * string_count:
+            table_bits += 1
+        table = array('I', bytes(4 << table_bits))
         
-        # Ensure no hash is present twice; equal hashes are neighbours in the sorted order
-        # * report the hash whose second entry comes first in the index, with the text of its first entry
-        duplicate = None
-        for i in range(1, string_count):
-            if hashes[order[i]] == hashes[order[i-1]] and (duplicate is None or order[i] < duplicate[0]):
-                duplicate = (order[i], order[i-1])
-        if duplicate is not None:
-            string_hash = hashes[duplicate[1]]
-            string = self.__decode_string(data_file_contents, positions[duplicate[1]], string_type)
-            raise RuntimeError('Duplicate key ({}) while loading {} strings ("{}")'.format(string_hash, string_type.upper(), string))
+        # Insert the strings in index order
+        for i in range(string_count):
+            string_hash = records[2*i + 1]
+            slot = self.__get_table_slot(table, table_bits, records, string_hash)
+            
+            # Ensure the string's hash is not already present in the table
+            # * the stored entry is the one that comes first in the index
+            if table[slot] != 0:
+                string = self.__decode_string(data_file_contents, records[2*(table[slot] - 1)], string_type)
+                raise RuntimeError('Duplicate key ({}) while loading {} strings ("{}")'.format(string_hash, string_type.upper(), string))
+            table[slot] = i + 1
         
-        return (positions, hashes, order)
+        return (records, table)
+    
+    
+    # Find the table slot of a hash: the slot holding its entry, or the empty slot where it belongs
+    # * the start slot is taken from a multiplicative (Fibonacci) hash, collisions move to the next slot (linear probing)
+    def __get_table_slot(self, table, table_bits, records, string_hash):
+        mask = (1 << table_bits) - 1
+        slot = ((string_hash * 0x9E3779B1) & 0xFFFFFFFF) >> (32 - table_bits)
+        while True:
+            entry = table[slot]
+            if entry == 0 or records[2*entry - 1] == string_hash:
+                return slot
+            slot = (slot + 1) & mask
     
     
     # Decode the string stored at a position of a .data file
@@ -161,46 +174,47 @@ class StringStorage:
         return data_file_contents[string_position : string_position+string_size].decode(encoding)
     
     
-    # Look up a string by its hash, first among the added strings, then in the loaded text database
-    def __find_string(self, string_hash, string_type):
+    # Get the parts of a text database: (.data contents, records, table, added strings)
+    def __get_tdb(self, string_type):
         string_type = string_type.upper()
         if string_type == 'A':
-            added_dict = self.__ascii_added_dict
-            data_file_contents = self.__ascii_data_file_contents
-            (positions, hashes, order) = self.__ascii_tdb
+            return (self.__ascii_data_file_contents, *self.__ascii_tdb, self.__ascii_added_dict)
         elif string_type == 'U':
-            added_dict = self.__unicode_added_dict
-            data_file_contents = self.__unicode_data_file_contents
-            (positions, hashes, order) = self.__unicode_tdb
+            return (self.__unicode_data_file_contents, *self.__unicode_tdb, self.__unicode_added_dict)
         else:
             return None
+    
+    
+    # Look up a string by its hash, first among the added strings, then in the loaded text database
+    def __find_string(self, string_hash, string_type):
+        tdb = self.__get_tdb(string_type)
+        if tdb is None:
+            return None
+        (data_file_contents, records, table, added_dict) = tdb
         
         if string_hash in added_dict:
             return added_dict[string_hash]
         
-        # Bisect the hash-sorted index numbers
-        i = bisect_left(order, string_hash, key = hashes.__getitem__)
-        if i < len(order) and hashes[order[i]] == string_hash:
-            return self.__decode_string(data_file_contents, positions[order[i]], string_type)
-        return None
+        # Hashes outside 32 bits cannot be in the table
+        if not 0 <= string_hash <= 0xFFFFFFFF:
+            return None
+        
+        table_bits = len(table).bit_length() - 1
+        entry = table[self.__get_table_slot(table, table_bits, records, string_hash)]
+        if entry == 0:
+            return None
+        return self.__decode_string(data_file_contents, records[2*(entry - 1)], string_type)
     
     
     # Yield (hash, string) for every string of a text database: the loaded ones in index order, then the added ones in insertion order
     def __iterate_strings(self, string_type):
-        string_type = string_type.upper()
-        if string_type == 'A':
-            added_dict = self.__ascii_added_dict
-            data_file_contents = self.__ascii_data_file_contents
-            (positions, hashes, order) = self.__ascii_tdb
-        elif string_type == 'U':
-            added_dict = self.__unicode_added_dict
-            data_file_contents = self.__unicode_data_file_contents
-            (positions, hashes, order) = self.__unicode_tdb
-        else:
+        tdb = self.__get_tdb(string_type)
+        if tdb is None:
             return
+        (data_file_contents, records, table, added_dict) = tdb
         
-        for i in range(len(hashes)):
-            yield (hashes[i], self.__decode_string(data_file_contents, positions[i], string_type))
+        for i in range(len(records) // 2):
+            yield (records[2*i + 1], self.__decode_string(data_file_contents, records[2*i], string_type))
         yield from added_dict.items()
     
     
