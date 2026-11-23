@@ -25,7 +25,7 @@ class PoolContext:
         self.used = set()
         self.report = Counter()
         self.without_place = []
-        self._caches = {'length_key_owners': None}  # shared by all views of the pool
+        self._caches = {'length_key_owners': None, 'length_key_owner_layers': None}  # shared by all views
         self._without_place_seen = set()
 
     @property

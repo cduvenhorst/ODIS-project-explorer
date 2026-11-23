@@ -46,7 +46,9 @@ def _write_caption(ctx, parent, group):
         return
     object_key = reference['object_key']
     name = ctx.key_name(object_key) if ctx.key_name else None
-    parts = split_key(name, ctx.target_layer(ctx.pool_id, name)) if name is not None else None
+    # The resolver loads the caption from the group's own pool, whatever pool the reference names.
+    layer = ctx.target_layer(ctx.pool_id, name) if name is not None else None
+    parts = split_key(name, layer) if name is not None else None
     if caption == NOT_RESOLVABLE or parts is None:
         # ODX form from the standard; no original document to compare (survey)
         ctx.report['unresolvable_references'] += 1
@@ -60,6 +62,10 @@ def _write_caption(ctx, parent, group):
     if name in ctx.types:
         # The caption object of this pool is written, either here or by an earlier SDG-CAPTION.
         ctx.used.add(name)
+    if layer != ctx.layer:
+        # A caption whose key names another layer of the pool belongs to that layer (spec 5.5).
+        sub(ctx, parent, 'SDG-CAPTION-REF', ID_REF=caption_id, DOCREF=layer, DOCTYPE='LAYER')
+        return
     if caption_id in ctx.written_caption_ids:
         # ODX form from the standard; no original document to compare (survey)
         sub(ctx, parent, 'SDG-CAPTION-REF', ID_REF=caption_id)

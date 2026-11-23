@@ -81,6 +81,29 @@ def length_key_owners(ctx):
     return owners
 
 
+def length_key_owner_layers(ctx):
+    """unique_object_id of every parameter of the pool -> layer whose name the owner's key follows, or None."""
+    layers = {}
+    for key, obj in ctx.objects.items():
+        if not isinstance(obj, dict):
+            continue
+        layer = ctx.naming_layer(key)
+        for field in _PARAMETER_FIELDS:
+            for parameter in obj.get(field) or []:
+                if parameter and parameter.get('unique_object_id'):
+                    layers[parameter['unique_object_id']] = layer
+    return layers
+
+
+def _length_key_owner_layer(ctx, unique_object_id):
+    # Computed once per pool and shared by all views, like the owners.
+    layers = ctx._caches['length_key_owner_layers']
+    if layers is None:
+        layers = length_key_owner_layers(ctx)
+        ctx._caches['length_key_owner_layers'] = layers
+    return layers.get(unique_object_id)
+
+
 def _length_key_owner(ctx, unique_object_id):
     # Computed once per context; length_key_owners itself stays a pure function.
     owners = ctx._length_key_owners
@@ -119,13 +142,17 @@ def add_diag_coded_type(ctx, parent, coded_type, owner_id=None):
         if not length_key:
             ctx.report['empty_references'] += 1
             return element
-        owner = _length_key_owner(ctx, length_key.get('unique_object_id')) or owner_id
+        found = _length_key_owner(ctx, length_key.get('unique_object_id'))
+        owner = found or owner_id
+        # The given owner is the object being written; an owner found in the pool may lie in another layer.
+        layer = _length_key_owner_layer(ctx, length_key.get('unique_object_id')) if found else None
+        docref = layer if layer is not None and layer != ctx.layer else None
         if owner is None:
             ctx.report['unresolvable_references'] += 1
             id_ref = length_key['short_name']
         else:
             id_ref = owner + '.' + length_key['short_name']
-        sub(ctx, element, 'LENGTH-KEY-REF', ID_REF=id_ref)
+        sub(ctx, element, 'LENGTH-KEY-REF', ID_REF=id_ref, DOCREF=docref, DOCTYPE='LAYER' if docref else None)
     return element
 
 

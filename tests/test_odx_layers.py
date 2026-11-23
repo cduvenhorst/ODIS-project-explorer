@@ -139,6 +139,39 @@ class PoolLayerTests(unittest.TestCase):
                                       '</SDG-CAPTION></SDG></SDGS></P>')
         self.assertEqual(ctx.report['unresolvable_references'], 0)
 
+    def test_caption_of_another_layer_is_referenced_with_docref(self):
+        names = {7: 'CAPTION_V1_7'}
+        caption = {'short_name': 'CAP', 'long_name': None, 'description': None,
+                   'long_name_id': '', 'description_id': '', 'unique_object_id': ''}
+        ctx = layer_pool({'CAPTION_V1_7': ('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', caption)},
+                         key_name=names.get).for_layer('V2')
+        group = {'items': [], 'semantic_information': '', 'caption': caption,
+                 'caption_reference': {'object_key': 7, 'pool_id': LAYER_POOL}}
+        parent = ET.Element('P')
+        sdgs(ctx, parent, {'special_data_groups': [group, group]})
+        ref = '<SDG><SDG-CAPTION-REF ID-REF="7" DOCREF="V1" DOCTYPE="LAYER" /></SDG>'
+        self.assertEqual(xml(parent), '<P><SDGS>' + ref + ref + '</SDGS></P>')
+        self.assertEqual(ctx.written_caption_ids, set())
+        self.assertEqual(ctx.report['unresolvable_references'], 0)
+        self.assertEqual(ctx.unused(), {})
+
+    def test_length_key_of_another_layer_is_referenced_with_docref(self):
+        length_key = {'short_name': 'LEN', 'unique_object_id': 'P-1'}
+        pool = layer_pool({'REQ_V1_Q1': (REQUEST, {'request_parameters': [length_key]})})
+        coded_type = {'coded_type': 'ePARAM_LENGTH_INFO_TYPE', 'bit_length': 8, 'bit_mask': None,
+                      'base_data_type': 'eDB_UINT32', 'encoding': 'eNONE', 'is_high_low_byte_order': True,
+                      'is_condensed_bit_mask': False, 'length_key_parameter': length_key}
+
+        def length_key_ref(layer, owner_id=None):
+            element = data_objects.add_diag_coded_type(pool.for_layer(layer), ET.Element('X'), coded_type, owner_id)
+            return xml(element.find('LENGTH-KEY-REF'))
+
+        self.assertEqual(length_key_ref('V2', 'S9'), '<LENGTH-KEY-REF ID-REF="Q1.LEN" DOCREF="V1" DOCTYPE="LAYER" />')
+        self.assertEqual(length_key_ref('V1'), '<LENGTH-KEY-REF ID-REF="Q1.LEN" />')
+        # The given owner is the object being written, so it lies in the view's layer.
+        coded_type['length_key_parameter'] = {'short_name': 'LEN', 'unique_object_id': 'P-9'}
+        self.assertEqual(length_key_ref('V2', 'S9'), '<LENGTH-KEY-REF ID-REF="S9.LEN" />')
+
 
 PARENTS = {
     '0.0.0@B.bv': {'layer_name': 'Base', 'layer_id': 'BASE_ID'},
