@@ -6,7 +6,7 @@ from collections import Counter
 
 from classes.PblRecordManager import PblRecordManager
 from classes.StringStorage import StringStorage
-from odx_export.document import build_document, write_document
+from odx_export.document import build_document, build_layer_document, write_document
 from odx_export.naming import layer_name
 from odx_export.pool_source import ProjectPools
 
@@ -17,13 +17,21 @@ pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
 
 
+# Counters of the first message line; every other counter is listed in the line 'other counters'
+_MAIN_COUNTERS = ('unresolvable_references', 'empty_references', 'replaced_characters')
+
+
 # Messages for a written Pool
 ### ctx = PoolContext of the Pool after its document was built
-### returns the counter line, and the lines for unused objects and objects without a place in ODX if there are any
+### returns the counter line, and the lines for other non-zero counters, unused objects and objects without a
+### place in ODX if there are any
 def report_lines(ctx) -> list[str]:
     report = ctx.report
     lines = ['{}: unresolvable references {}, empty references {}, replaced characters {}'.format(
         ctx.pool_id, report['unresolvable_references'], report['empty_references'], report['replaced_characters'])]
+    others = Counter({name: count for name, count in report.items() if name not in _MAIN_COUNTERS and count})
+    if others:
+        lines.append('{}: other counters {}'.format(ctx.pool_id, _type_counts(others)))
     unused = ctx.unused()
     if unused:
         lines.append('{}: unused objects {}'.format(ctx.pool_id, _type_counts(unused)))
@@ -37,7 +45,28 @@ def _type_counts(counter):
     return ', '.join('{} {}'.format(type_name, count) for (type_name, count) in sorted(counter.items()))
 
 
-# Reconstruct an ODX document for each shared data Pool of an MCD Project
+# Write the ODX document of one Pool and print its messages
+### build = function that builds the document root from the PoolContext
+def _dump_pool(pools, PoolID, odx_folder_path, build):
+    output_path = os.path.join(odx_folder_path, layer_name(PoolID) + '.odx')
+    # A document of an earlier run must not stay behind and look current when this Pool is skipped
+    if os.path.exists(output_path):
+        os.remove(output_path)
+    try:
+        ctx = pools.context(PoolID)
+        write_document(build(ctx), output_path, PoolID)
+    except Exception as error:
+        # A Pool that cannot be loaded or written is skipped, the other Pools are still written
+        # (write_document removes a half-written file)
+        print('{}: skipped, cannot be loaded: {!r}'.format(PoolID, error))
+        traceback.print_exc(file=sys.stderr)
+        return
+    for line in report_lines(ctx):
+        print(line)
+
+
+# Reconstruct an ODX document for each shared data Pool, then for each base variant, variant, protocol and
+# functional group Pool of an MCD Project
 ### string_storage      = instance of StringStorage, loaded from the target Project
 ### project_folder_path = Project path (folder with .db and .key files)
 ### output_folder_path  = path of folder in which the "odx" folder with the documents is written
@@ -48,28 +77,15 @@ def app_dumpODX(string_storage, project_folder_path, output_folder_path):
 
     # One Pool at a time: its objects are released before the next Pool is loaded
     for PoolID in pools.shared_data_pools():
-        output_path = os.path.join(odx_folder_path, layer_name(PoolID) + '.odx')
-        # A document of an earlier run must not stay behind and look current when this Pool is skipped
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        try:
-            ctx = pools.context(PoolID)
-            write_document(build_document(ctx), output_path, PoolID)
-        except Exception as error:
-            # A Pool that cannot be loaded or written is skipped, the other Pools are still written
-            # (write_document removes a half-written file)
-            print('{}: skipped, cannot be loaded: {!r}'.format(PoolID, error))
-            traceback.print_exc(file=sys.stderr)
-            ctx = None
-            continue
-        for line in report_lines(ctx):
-            print(line)
-        ctx = None
+        _dump_pool(pools, PoolID, odx_folder_path, build_document)
+    for PoolID in pools.layer_pools():
+        _dump_pool(pools, PoolID, odx_folder_path, lambda ctx: build_layer_document(ctx, pools.layers))
 
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Reconstruct an ODX document from each shared data Pool of an MCD Project')
+    parser = argparse.ArgumentParser(
+        description='Reconstruct an ODX document from each shared data and layer Pool of an MCD Project')
     parser.add_argument('project_folder_path', help='MCD Project (folder containing .db and .key files)')
     parser.add_argument('output_folder_path', help='Main output folder, in which another folder with the name of the Project will be added')
     args = parser.parse_args()

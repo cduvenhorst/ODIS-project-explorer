@@ -1,9 +1,10 @@
-"""The ODX document of a shared data pool: DIAG-LAYER-CONTAINER with one ECU-SHARED-DATA."""
+"""The ODX document of a pool: DIAG-LAYER-CONTAINER with its ECU-SHARED-DATA or its other layers."""
 import os
 import xml.etree.ElementTree as ET
 
-from odx_export import communication, data_objects, special_data, state_charts, structures, tables, trouble_codes
-from odx_export.elements import clean, sub
+from odx_export import (communication, data_objects, layers, special_data, state_charts, structures, tables,
+                        trouble_codes, variants)
+from odx_export.elements import add_desc, clean, identified, sub
 
 LAYER_DATA_KEY = '#RtGen_DB_LAYER_DATA'
 PROJECT_DATA_KEY = '#RtGen_DB_PROJECT_DATA'
@@ -13,6 +14,17 @@ _ENV_DATA = 'MCD_DB_PARAMETER_ENV_DATA'
 _HEADER = (' Reconstructed by ODIS-project-explorer from pool {}: '
            'equivalent in content, not identical to the original ODX document ')
 _NOT_WRITTEN = ' Not written: {} {}: not referenced by any object, no place in ODX '
+_SHARED_DATA_EXTENSION = '.sd'
+# location_type -> (list element, layer element, layer data field of the layer object, its type)
+_LAYER_KINDS = {
+    'ePROTOCOL': ('PROTOCOLS', 'PROTOCOL', None, None),
+    'eFUNCTIONAL_GROUP': ('FUNCTIONAL-GROUPS', 'FUNCTIONAL-GROUP', 'functional_group_reference',
+                          'MCD_DB_FUNCTIONAL_GROUP'),
+    'eECU_BASE_VARIANT': ('BASE-VARIANTS', 'BASE-VARIANT', 'base_variant_reference', 'MCD_DB_ECU_BASE_VARIANT'),
+    'eECU_VARIANT': ('ECU-VARIANTS', 'ECU-VARIANT', 'ecu_variant_reference', 'MCD_DB_ECU_VARIANT'),
+}
+# Lists of a DIAG-LAYER-CONTAINER in the order of the ODX 2.2 schema; ECU-SHARED-DATAS is written by build_document.
+_LAYER_LISTS = ('PROTOCOLS', 'FUNCTIONAL-GROUPS', 'BASE-VARIANTS', 'ECU-VARIANTS')
 
 
 def _add_dops(ctx, parent, tag, keys, writer):
@@ -92,8 +104,123 @@ def build_document(ctx):
     communication.add_responses(ctx, esd, layer_data)
     state_charts.add_state_charts(ctx, esd, layer_data)
     special_data.sdgs(ctx, esd, layer_data)
+    _add_not_written(ctx, esd, ctx.without_place)
+    return root
+
+
+def _add_not_written(ctx, parent, keys):
+    for key in keys:
+        parent.append(ET.Comment(_comment_text(_NOT_WRITTEN.format(ctx.types[key], clean(ctx, key)))))
+
+
+def _pool_layer(ctx, layer_lookup, pool_id):
+    """Layer description of a pool's own layer (key #RtGen_DB_LAYER_DATA), or None."""
+    try:
+        descriptions = layer_lookup(pool_id) or []
+    except Exception:
+        # A broken layer object of another pool is an unknown parent, not an error of this pool.
+        ctx.report['layers_of_other_pool_not_loadable'] += 1
+        return None
+    for description in descriptions:
+        if description.get('key') == LAYER_DATA_KEY:
+            return description
+    return None
+
+
+def _layer_object(ctx, layer_data, field, type_name):
+    """The object that names the layer (base variant, variant, functional group), taken; None if missing."""
+    reference = layer_data.get(field) or {}
+    object_id = reference.get('object_id')
+    # An empty pool word stands for the pool that holds the reference (as in the reference resolver).
+    if (reference.get('pool_id') or ctx.pool_id) != ctx.pool_id or ctx.types.get(object_id) != type_name:
+        ctx.report['layer_object_missing'] += 1
+        return None
+    return ctx.take(object_id)
+
+
+def _add_layer(ctx, parent, tag, layer_data, obj, parent_layer):
+    """One layer element; the children in the order of the ODX 2.2 schema."""
+    element = identified(ctx, parent, tag, layer_data['layer_id'], obj)
+    # SHORT-NAME is the layer name, which every DOCREF to the layer names.
+    sub(ctx, element, 'SHORT-NAME', layer_data['layer_name'])
+    if obj is not None:
+        if obj.get('short_name') != layer_data['layer_name']:
+            ctx.report['layer_short_name_differs'] += 1
+        if obj.get('long_name') is not None:
+            sub(ctx, element, 'LONG-NAME', obj['long_name'], TI=obj.get('long_name_id') or None)
+        if obj.get('description') is not None:
+            add_desc(ctx, element, obj['description'], obj.get('description_id'))
+    communication.add_funct_classes(ctx, element, layer_data)
+    _add_diag_data_dictionary_spec(ctx, element, layer_data)
+    communication.add_diag_comms(ctx, element, layer_data)
+    communication.add_requests(ctx, element, layer_data)
+    communication.add_responses(ctx, element, layer_data)
+    state_charts.add_state_charts(ctx, element, layer_data)
+    variants.add_sub_components(ctx, element, layer_data)
+    special_data.sdgs(ctx, element, layer_data)
+    layers.add_comparam_refs(ctx, element, layer_data)
+    if tag == 'ECU-VARIANT' and obj is not None:
+        variants.add_variant_patterns(ctx, element, obj)
+    if tag == 'PROTOCOL':
+        layers.add_protocol_refs(ctx, element, layer_data)
+    layers.add_parent_refs(ctx, element, layer_data, parent_layer)
+    layers.check_shared_data_parents(ctx, layer_data)
+    return element
+
+
+def build_layer_document(ctx, layer_lookup):
+    """ODX root with the DIAG-LAYER-CONTAINER of a layer pool and one element per layer, in pool order.
+
+    layer_lookup(pool_id) returns the layer descriptions of a pool (ProjectPools.layers). A shared data
+    pool gets the document of build_document."""
+    if ctx.pool_id.endswith(_SHARED_DATA_EXTENSION):
+        return build_document(ctx)
+    project_data = ctx.take(PROJECT_DATA_KEY)
+    root = ET.Element('ODX', {'MODEL-VERSION': '2.2.0'})
+    container = sub(ctx, root, 'DIAG-LAYER-CONTAINER', ID=project_data['container_short_name'])
+    sub(ctx, container, 'SHORT-NAME', project_data['container_short_name'])
+    lists = {tag: sub(ctx, container, tag) for tag in _LAYER_LISTS}
+
+    def parent_layer(pool_id):
+        return _pool_layer(ctx, layer_lookup, pool_id)
+
+    def member_parents(pool_id):
+        return (parent_layer(pool_id) or {}).get('parent_layers') or []
+
+    base_variant = None
+    ecu_variants = {}
+    elements = {}  # layer name -> written layer element
+    for description in layer_lookup(ctx.pool_id) or []:
+        key = description['key']
+        layer_data = ctx.take(key)
+        kind = _LAYER_KINDS.get(layer_data.get('location_type'))
+        if kind is None:
+            # A layer of another kind (a multiple ECU job, say) has no element in these documents.
+            ctx.mark_without_place(key)
+            continue
+        list_tag, tag, field, type_name = kind
+        view = ctx.for_layer(layer_data['layer_name'])
+        obj = _layer_object(view, layer_data, field, type_name) if field else None
+        elements[layer_data['layer_name']] = _add_layer(view, lists[list_tag], tag, layer_data, obj, parent_layer)
+        if obj is None:
+            continue
+        if tag == 'BASE-VARIANT' and base_variant is None:
+            base_variant = obj
+        elif tag == 'BASE-VARIANT':
+            ctx.report['second_base_variant'] += 1
+        elif tag == 'ECU-VARIANT':
+            ecu_variants[layer_data[field]['object_id']] = obj
+        elif tag == 'FUNCTIONAL-GROUP':
+            variants.check_group_members(ctx, obj, member_parents)
+    if base_variant is not None:
+        variants.check_base_variant_patterns(ctx, base_variant, ecu_variants)
+    for tag in _LAYER_LISTS:
+        if not len(lists[tag]):
+            container.remove(lists[tag])
+    # Some marks are made for the whole pool, so each comment goes to the layer the key names; the others
+    # (a layer of another kind among them) go to the end of the container.
     for key in ctx.without_place:
-        esd.append(ET.Comment(_comment_text(_NOT_WRITTEN.format(ctx.types[key], clean(ctx, key)))))
+        _add_not_written(ctx, elements.get(ctx.naming_layer(key), container), [key])
     return root
 
 

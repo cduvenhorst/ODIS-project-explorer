@@ -164,6 +164,152 @@ class DumpOdxTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(root, 'out', 'P', 'odx', 'N.odx')))
 
 
+BV_POOL = '0.0.0@B.bv'
+FG_POOL = '0.0.0@G.fg'
+PR_POOL = '0.0.0@P.pr'
+LOCATIONS = {'base variant': 0x0101, 'variant': 0x0102, 'functional group': 0x0103, 'protocol': 0x0105}
+
+
+def located_layer_body(layer_id, name, location, target=None, parents=(), spec_pool=None):
+    """DB_LAYER_DATA with location type, layer object reference and parent pools; all lists empty otherwise."""
+    body = ObjectBytes().ascii(layer_id).ascii(name).ascii(None).ascii('STACK_' + name).ascii(spec_pool)
+    body.u16(LOCATIONS[location])
+    if target is not None:
+        body.ascii(target).ascii(None)
+    # The rest of layer_data_body() after its 22 header bytes (five string hashes and the location type);
+    # in it, the twelve 16 bit counts before the parent pools (24 bytes), then the parent pool count.
+    rest = layer_data_body()._data[22:]
+    body.raw(rest[:24]).u16(len(parents))
+    for pool_id in parents:
+        body.ascii(pool_id)
+    return body.raw(rest[26:])
+
+
+def ecu_tail_body(body, name):
+    """The name block of MCD_DB_ECU: short name, no texts, an OID, no text IDs, no locations."""
+    return body.ascii(name).unicode(None).unicode(None).ascii('OID-' + name).ascii(None).ascii(None).u16(0)
+
+
+def write_layers_project(folder, with_layer_pools=True):
+    """Pool L.sd; with layer pools also B.bv (base variant B, variants V1 and V2), P.pr, G.fg, C.cs and a
+    K.bv with a broken unit."""
+    pool_layer = '#RtGen_DB_LAYER_DATA'
+    project = project_data_body()
+    bodies = {
+        '0.0.0@L.sd': {pool_layer: named_layer_body('ESD_L', 'L'), '#RtGen_DB_PROJECT_DATA': project},
+    }
+    if with_layer_pools:
+        bodies[BV_POOL] = {
+            pool_layer: located_layer_body('BV_B', 'B', 'base variant', 'B', parents=('0.0.0@L.sd', FG_POOL)),
+            'LD_V1': located_layer_body('EV_V1_ID', 'V1', 'variant', 'EV_V1', parents=(BV_POOL,)),
+            'LD_V2': located_layer_body('EV_V2_ID', 'V2', 'variant', 'EV_V2', parents=(BV_POOL,)),
+            'B': ecu_tail_body(ObjectBytes().u16(0).u16(0), 'B'),
+            'EV_V1': ecu_tail_body(ObjectBytes().ascii('B').ascii(BV_POOL).absent(), 'V1'),
+            'EV_V2': ecu_tail_body(ObjectBytes().ascii('B').ascii(BV_POOL).absent(), 'V2'),
+            '#RtGen_DB_PROJECT_DATA': project}
+        bodies[PR_POOL] = {pool_layer: located_layer_body('PROT_P', 'P', 'protocol', spec_pool='0.0.0@SPEC.cp'),
+                           '#RtGen_DB_PROJECT_DATA': project}
+        bodies[FG_POOL] = {
+            pool_layer: located_layer_body('FG_G', 'G', 'functional group', 'DLC_G', parents=(PR_POOL,)),
+            'DLC_G': ecu_tail_body(ObjectBytes().u16(1).ascii('B').ascii('B').ascii(BV_POOL), 'G'),
+            '#RtGen_DB_PROJECT_DATA': project}
+        bodies['0.0.0@C.cs'] = {pool_layer: named_layer_body('CS_C', 'C'), '#RtGen_DB_PROJECT_DATA': project}
+        bodies['0.0.0@K.bv'] = {pool_layer: located_layer_body('BV_K', 'K', 'base variant', 'K'),
+                                '#RtGen_DB_PROJECT_DATA': project}
+    types = {'B': 'MCD_DB_ECU_BASE_VARIANT', 'EV_V1': 'MCD_DB_ECU_VARIANT', 'EV_V2': 'MCD_DB_ECU_VARIANT',
+             'DLC_G': 'MCD_DB_FUNCTIONAL_GROUP', '#RtGen_DB_PROJECT_DATA': 'DB_PROJECT_DATA'}
+    strings = ObjectBytes()
+    pools = {}
+    for pool_id, objects in bodies.items():
+        pools[pool_id] = {}
+        for key, body in objects.items():
+            strings = concat(strings, body)
+            pools[pool_id][key] = body.build(types.get(key, 'DB_LAYER_DATA'))
+    if with_layer_pools:
+        pools['0.0.0@K.bv']['UNIT_K_U1'] = unit_body().build('MCD_DB_UNIT')[:6]
+    write_project(folder, pools, strings.ascii_strings, strings.unicode_strings)
+
+
+class DumpLayerPoolTests(unittest.TestCase):
+    def setUp(self):
+        self.folder_handle = tempfile.TemporaryDirectory()
+        self.folder = self.folder_handle.name
+        self.addCleanup(self.folder_handle.cleanup)
+        write_layers_project(self.folder)
+
+    def test_writes_documents_for_layer_pools(self):
+        files, stdout = run_dump(self.folder)
+        self.assertEqual(sorted(files), ['odx/B.odx', 'odx/G.odx', 'odx/L.odx', 'odx/P.odx'])
+        self.assertTrue(files['odx/B.odx'].startswith(
+            '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Reconstructed by ODIS-project-explorer from pool '
+            '0.0.0@B.bv: '), files['odx/B.odx'][:200])
+        container = ET.fromstring(files['odx/B.odx'].encode('utf-8')).find('DIAG-LAYER-CONTAINER')
+        self.assertEqual([child.tag for child in container], ['SHORT-NAME', 'BASE-VARIANTS', 'ECU-VARIANTS'])
+        base, = container.find('BASE-VARIANTS')
+        self.assertEqual(base.attrib, {'ID': 'BV_B', 'OID': 'OID-B'})
+        self.assertEqual([(ref.get('ID-REF'), ref.get('DOCREF')) for ref in base.findall('PARENT-REFS/PARENT-REF')],
+                         [('ESD_L', 'L'), ('FG_G', 'G')])
+        variants = container.find('ECU-VARIANTS')
+        self.assertEqual([variant.get('ID') for variant in variants], ['EV_V1_ID', 'EV_V2_ID'])
+        for variant in variants:
+            ref, = variant.findall('PARENT-REFS/PARENT-REF')
+            self.assertEqual((ref.get('ID-REF'), ref.get('DOCREF')), ('BV_B', 'B'))
+        protocol = ET.fromstring(files['odx/P.odx'].encode('utf-8')).find('DIAG-LAYER-CONTAINER/PROTOCOLS/PROTOCOL')
+        self.assertEqual([child.tag for child in protocol], ['SHORT-NAME', 'COMPARAM-SPEC-REF', 'PROT-STACK-SNREF'])
+        group = ET.fromstring(files['odx/G.odx'].encode('utf-8')).find(
+            'DIAG-LAYER-CONTAINER/FUNCTIONAL-GROUPS/FUNCTIONAL-GROUP')
+        self.assertEqual(group.attrib, {'ID': 'FG_G', 'OID': 'OID-G'})
+        lines = stdout.splitlines()
+        for pool_id in (BV_POOL, FG_POOL, PR_POOL):
+            self.assertIn(pool_id + ': unresolvable references 0, empty references 0, replaced characters 0', lines)
+            self.assertFalse([line for line in lines if line.startswith(pool_id + ': ')
+                              and not line.startswith(pool_id + ': unresolvable')], lines)
+        # Shared data pools come first, then the layer pools.
+        self.assertLess(lines.index('0.0.0@L.sd: unresolvable references 0, empty references 0, '
+                                    'replaced characters 0'),
+                        lines.index(BV_POOL + ': unresolvable references 0, empty references 0, '
+                                              'replaced characters 0'))
+
+    def test_broken_layer_pool_is_skipped_others_written(self):
+        storage = StringStorage(self.folder)
+        with tempfile.TemporaryDirectory() as output_folder:
+            odx_folder = os.path.join(output_folder, 'odx')
+            os.makedirs(odx_folder)
+            stale = os.path.join(odx_folder, 'K.odx')
+            with open(stale, 'w') as handle:
+                handle.write('stale')
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
+                dumpODX.app_dumpODX(storage, self.folder, output_folder)
+            self.assertFalse(os.path.exists(stale))
+            self.assertEqual(sorted(os.listdir(odx_folder)), ['B.odx', 'G.odx', 'L.odx', 'P.odx'])
+        skipped = [line for line in stdout.getvalue().splitlines() if line.startswith('0.0.0@K.bv: ')]
+        self.assertEqual(len(skipped), 1, stdout.getvalue())
+        self.assertTrue(skipped[0].startswith('0.0.0@K.bv: skipped, cannot be loaded: '), skipped[0])
+
+    def test_shared_data_output_is_unchanged_by_layer_pools(self):
+        files, stdout = run_dump(self.folder)
+        with tempfile.TemporaryDirectory() as alone:
+            write_layers_project(alone, with_layer_pools=False)
+            alone_files, alone_stdout = run_dump(alone)
+        self.assertEqual(sorted(alone_files), ['odx/L.odx'])
+        self.assertEqual(files['odx/L.odx'], alone_files['odx/L.odx'])
+        sd_lines = [line for line in stdout.splitlines() if line.startswith('0.0.0@L.sd: ')]
+        self.assertEqual(sd_lines, alone_stdout.splitlines())
+
+    def test_other_counters_are_reported_in_one_line(self):
+        ctx = context({'UNIT_L_U1': ('MCD_DB_UNIT', {})})
+        ctx.report['unresolvable_references'] = 1
+        ctx.report['layer_object_missing'] = 2
+        ctx.report['comparam_without_subset'] = 1
+        ctx.report['base_variant_pattern_mismatch'] = 0
+        ctx.mark_without_place('UNIT_L_U1')
+        self.assertEqual(dumpODX.report_lines(ctx), [
+            '0.0.0@L.sd: unresolvable references 1, empty references 0, replaced characters 0',
+            '0.0.0@L.sd: other counters comparam_without_subset 1, layer_object_missing 2',
+            '0.0.0@L.sd: objects without a place in ODX MCD_DB_UNIT 1'])
+
+
 class ProjectPoolsTests(unittest.TestCase):
     def setUp(self):
         self.folder_handle = tempfile.TemporaryDirectory()
