@@ -24,6 +24,10 @@ def add_parent_refs(ctx, parent, layer_data, parent_layer):
 
     parent_layer(pool_id) returns {'layer_name', 'layer_id'} of the parent pool's layer or None."""
     pools = layer_data.get('parent_layers') or []
+    for field, _, _, _ in _NOT_INHERITED:
+        for entry in layer_data.get(field) or []:
+            if entry.get('map_key') not in pools:
+                ctx.report['not_inherited_without_parent'] += 1
     if not pools:
         return None
     refs = sub(ctx, parent, 'PARENT-REFS')
@@ -34,8 +38,10 @@ def add_parent_refs(ctx, parent, layer_data, parent_layer):
         else:
             id_ref = docref = layer_name(pool_id)
             ctx.report['unresolvable_references'] += 1
-        attributes = {'ID-REF': id_ref, 'DOCREF': docref, 'DOCTYPE': 'LAYER',
-                      XSI_TYPE: PARENT_REF_TYPES.get(os.path.splitext(pool_id)[1])}
+        ref_type = PARENT_REF_TYPES.get(os.path.splitext(pool_id)[1])
+        if ref_type is None:
+            ctx.report['unknown_parent_ref_type'] += 1
+        attributes = {'ID-REF': id_ref, 'DOCREF': docref, 'DOCTYPE': 'LAYER', XSI_TYPE: ref_type}
         ref = sub(ctx, refs, 'PARENT-REF', attributes=attributes)
         for field, list_tag, entry_tag, ref_tag in _NOT_INHERITED:
             names = [name for entry in layer_data.get(field) or [] if entry.get('map_key') == pool_id

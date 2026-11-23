@@ -139,6 +139,7 @@ class PoolLayerTests(unittest.TestCase):
                                       '</SDG-CAPTION></SDG></SDGS></P>')
         self.assertEqual(ctx.report['unresolvable_references'], 0)
 
+
 PARENTS = {
     '0.0.0@B.bv': {'layer_name': 'Base', 'layer_id': 'BASE_ID'},
     '0.0.0@L.sd': {'layer_name': 'Shared', 'layer_id': 'SHARED_ID'},
@@ -224,6 +225,24 @@ class ParentRefTests(unittest.TestCase):
             _, holder, result = parent_refs(data)
             self.assertIsNone(result)
             self.assertEqual(len(holder), 0)
+
+    def test_parent_pool_with_unknown_extension_is_reported(self):
+        ctx, _, result = parent_refs({'parent_layers': ['0.0.0@B.bv', '0.0.0@X.xx']},
+                                     lookup={'0.0.0@X.xx': {'layer_name': 'X', 'layer_id': 'X_ID'},
+                                             **PARENTS}.get)
+        self.assertEqual([ref.get(layers.XSI_TYPE) for ref in result], ['BASE-VARIANT-REF', None])
+        self.assertEqual(ctx.report['unknown_parent_ref_type'], 1)
+
+    def test_not_inherited_entry_without_parent_is_reported(self):
+        data = {'parent_layers': ['0.0.0@B.bv'],
+                'not_inherited_dops': entries(**{'0.0.0@B.bv': ['D1'], '0.0.0@L.sd': ['D2', 'D3']}),
+                'not_inherited_tables': entries(**{'0.0.0@F.fg': ['T1']})}
+        ctx, _, result = parent_refs(data)
+        self.assertEqual([element.get('SHORT-NAME') for element in result.iter('DOP-BASE-SNREF')], ['D1'])
+        self.assertEqual(ctx.report['not_inherited_without_parent'], 2)
+        ctx, _, result = parent_refs({'not_inherited_dops': entries(**{'0.0.0@B.bv': ['D1']})})
+        self.assertIsNone(result)
+        self.assertEqual(ctx.report['not_inherited_without_parent'], 1)
 
 
 if __name__ == '__main__':
