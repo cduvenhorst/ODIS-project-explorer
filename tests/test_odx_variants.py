@@ -111,6 +111,14 @@ class VariantPatternTests(unittest.TestCase):
         self.assertEqual(ctx.report['matching_parameter_pooled_reference'], 1)
 
 
+    def test_short_name_reference_without_name_is_not_written_and_reported(self):
+        ctx = context({}, pool_id=LAYER_POOL)
+        written = variants.add_variant_patterns(ctx, ET.Element('ECU-VARIANT'), {'variant_patterns': [
+            pattern(matching_parameter(None, '1'))]})
+        self.assertEqual(tags(written.find('ECU-VARIANT-PATTERN/MATCHING-PARAMETERS/MATCHING-PARAMETER')),
+                         ['EXPECTED-VALUE'])
+        self.assertEqual(ctx.report['snref_without_name'], 2)
+
 class BaseVariantPatternTests(unittest.TestCase):
     def base_variant(self, *entries):
         return {'ecu_variant_patterns': [{'map_key': name, 'ecu_variant_patterns': patterns}
@@ -218,6 +226,22 @@ class SubComponentTests(unittest.TestCase):
         self.assertEqual(ctx.report['sub_component_odx_link_not_written'], 2)
         self.assertEqual(ctx.report['sub_component_env_data_connectors_not_written'], 1)
         self.assertEqual(ctx.report['sub_component_dtc_names_not_written'], 1)
+
+    def test_connector_short_name_reference_without_name_is_not_written_and_reported(self):
+        ctx = context({'SC_V1_A': ('MCD_DB_SUB_COMPONENT', sub_component(
+            'A', sub_component_param_connectors=[param_connector(None, [(None, True)], [(None, False)],
+                                                                 short_name='PC')],
+            table_row_connectors=[table_row_connector('TB_V1_T', None, short_name='TC')],
+            diag_trouble_code_connectors=[dtc_connector('DOP_V1_D', None, short_name='DC')])),
+            'TB_V1_T': ('MCD_DB_TABLE', {}), 'DOP_V1_D': ('MCD_DB_DOP_DTC', {})},
+            pool_id=LAYER_POOL, pool_layers=['B', 'V1', 'V2']).for_layer('V1')
+        component = variants.add_sub_components(ctx, ET.Element('ECU-VARIANT'), {})[0]
+        connector = component.find('SUB-COMPONENT-PARAM-CONNECTORS/SUB-COMPONENT-PARAM-CONNECTOR')
+        # A reference list without any written reference is left out.
+        self.assertEqual(tags(connector), ['SHORT-NAME'])
+        self.assertEqual(tags(component.find('TABLE-ROW-CONNECTORS/TABLE-ROW-CONNECTOR')), ['SHORT-NAME', 'TABLE-REF'])
+        self.assertEqual(tags(component.find('DTC-CONNECTORS/DTC-CONNECTOR')), ['SHORT-NAME', 'DTC-DOP-REF'])
+        self.assertEqual(ctx.report['snref_without_name'], 5)
 
     def test_no_sub_components(self):
         ctx = context({'SC_L_Chart': ('MCD_DB_STATE_CHART', {})})

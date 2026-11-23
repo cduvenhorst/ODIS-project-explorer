@@ -4,6 +4,14 @@ from odx_export.elements import add_desc, add_names, add_ref, identified, sub
 _SUB_COMPONENT = 'MCD_DB_SUB_COMPONENT'
 
 
+def _add_name_ref(ctx, parent, tag, name, attribute='SHORT_NAME'):
+    """Append a reference by short name or short name path; one without a name is not written and is counted."""
+    if name is None:
+        ctx.report['snref_without_name'] += 1
+        return None
+    return sub(ctx, parent, tag, **{attribute: name})
+
+
 def _add_matching_parameters(ctx, parent, pattern):
     """Append MATCHING-PARAMETERS of a matching pattern; a pattern without parameters is reported."""
     parameters = [parameter for parameter in (pattern or {}).get('matching_parameters') or [] if parameter]
@@ -19,12 +27,12 @@ def _add_matching_parameters(ctx, parent, pattern):
         if reference.get('pool_id') is not None:
             # The pool names the service by short name; with a pool ID the name may be an object key.
             ctx.report['matching_parameter_pooled_reference'] += 1
-        sub(ctx, matching, 'DIAG-COMM-SNREF', SHORT_NAME=reference.get('object_id'))
+        _add_name_ref(ctx, matching, 'DIAG-COMM-SNREF', reference.get('object_id'))
         if parameter.get('response_parameter_is_short_name_path'):
-            sub(ctx, matching, 'OUT-PARAM-IF-SNPATHREF',
-                SHORT_NAME_PATH=parameter.get('response_parameter_short_name_path'))
+            _add_name_ref(ctx, matching, 'OUT-PARAM-IF-SNPATHREF', parameter.get('response_parameter_short_name_path'),
+                          'SHORT_NAME_PATH')
         else:
-            sub(ctx, matching, 'OUT-PARAM-IF-SNREF', SHORT_NAME=parameter.get('response_parameter_name'))
+            _add_name_ref(ctx, matching, 'OUT-PARAM-IF-SNREF', parameter.get('response_parameter_name'))
     return element
 
 
@@ -112,10 +120,12 @@ def _add_param_refs(ctx, parent, list_tag, tag, parameters):
     element = sub(ctx, parent, list_tag)
     for parameter in parameters:
         if parameter.get('is_name'):
-            sub(ctx, element, tag + '-SNREF', SHORT_NAME=parameter.get('name'))
+            _add_name_ref(ctx, element, tag + '-SNREF', parameter.get('name'))
         else:
             # The kernel looks the parameter up by short name path when the name flag is zero.
-            sub(ctx, element, tag + '-SNPATHREF', SHORT_NAME_PATH=parameter.get('name'))
+            _add_name_ref(ctx, element, tag + '-SNPATHREF', parameter.get('name'), 'SHORT_NAME_PATH')
+    if len(element) == 0:
+        parent.remove(element)
 
 
 def _add_param_connectors(ctx, parent, sub_component):
@@ -126,7 +136,7 @@ def _add_param_connectors(ctx, parent, sub_component):
     for connector in connectors:
         entry = sub(ctx, element, 'SUB-COMPONENT-PARAM-CONNECTOR')
         _add_connector_names(ctx, entry, connector)
-        sub(ctx, entry, 'DIAG-COMM-SNREF', SHORT_NAME=connector.get('diag_com_primitive_name'))
+        _add_name_ref(ctx, entry, 'DIAG-COMM-SNREF', connector.get('diag_com_primitive_name'))
         _add_param_refs(ctx, entry, 'OUT-PARAM-IF-REFS', 'OUT-PARAM-IF',
                         connector.get('sub_component_out_parameter_names'))
         _add_param_refs(ctx, entry, 'IN-PARAM-IF-REFS', 'IN-PARAM-IF',
@@ -150,7 +160,7 @@ def _add_table_row_connectors(ctx, parent, sub_component):
         entry = sub(ctx, element, 'TABLE-ROW-CONNECTOR')
         _add_connector_names(ctx, entry, connector)
         _add_linked_ref(ctx, entry, 'TABLE-REF', connector, 'table_reference', 'table')
-        sub(ctx, entry, 'TABLE-ROW-SNREF', SHORT_NAME=connector.get('table_row'))
+        _add_name_ref(ctx, entry, 'TABLE-ROW-SNREF', connector.get('table_row'))
 
 
 def _add_dtc_connectors(ctx, parent, sub_component):
@@ -162,7 +172,7 @@ def _add_dtc_connectors(ctx, parent, sub_component):
         entry = sub(ctx, element, 'DTC-CONNECTOR')
         _add_connector_names(ctx, entry, connector)
         _add_linked_ref(ctx, entry, 'DTC-DOP-REF', connector, 'dtc_dop_reference', 'dtc_dop')
-        sub(ctx, entry, 'DTC-SNREF', SHORT_NAME=connector.get('diag_trouble_code'))
+        _add_name_ref(ctx, entry, 'DTC-SNREF', connector.get('diag_trouble_code'))
 
 
 def _add_sub_component(ctx, parent, key):
