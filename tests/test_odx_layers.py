@@ -142,3 +142,92 @@ class PoolLayerTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+from odx_export import layers  # noqa: E402
+
+PARENTS = {
+    '0.0.0@B.bv': {'layer_name': 'Base', 'layer_id': 'BASE_ID'},
+    '0.0.0@L.sd': {'layer_name': 'Shared', 'layer_id': 'SHARED_ID'},
+    '0.0.0@P.pr': {'layer_name': 'Proto', 'layer_id': 'PROTO_ID'},
+    '0.0.0@F.fg': {'layer_name': 'Func', 'layer_id': 'FUNC_ID'},
+    '0.0.0@E.ev': {'layer_name': 'Variant', 'layer_id': 'VARIANT_ID'},
+}
+
+
+def entries(**by_pool):
+    return [{'map_key': pool, 'strings': names} for pool, names in by_pool.items()]
+
+
+def parent_refs(layer_data, ctx=None, lookup=PARENTS.get):
+    ctx = ctx or context({}, pool_id='0.0.0@C.ev')
+    holder = ET.Element('X')
+    result = layers.add_parent_refs(ctx, holder, layer_data, lookup)
+    return ctx, holder, result
+
+
+class ParentRefTests(unittest.TestCase):
+    def test_parent_ref_types_by_pool_extension(self):
+        _, _, result = parent_refs({'parent_layers': list(PARENTS)})
+        types = [ref.get(layers.XSI_TYPE) for ref in result]
+        self.assertEqual(types, ['BASE-VARIANT-REF', 'ECU-SHARED-DATA-REF', 'PROTOCOL-REF',
+                                 'FUNCTIONAL-GROUP-REF', 'ECU-VARIANT-REF'])
+
+    def test_parent_ref_id_is_parent_layer_id(self):
+        ctx, holder, result = parent_refs({'parent_layers': ['0.0.0@B.bv']})
+        self.assertEqual(result.tag, 'PARENT-REFS')
+        self.assertEqual(list(holder), [result])
+        ref, = result
+        self.assertEqual((ref.tag, ref.get('ID-REF'), ref.get('DOCREF'), ref.get('DOCTYPE')),
+                         ('PARENT-REF', 'BASE_ID', 'Base', 'LAYER'))
+        self.assertEqual(ctx.report['unresolvable_references'], 0)
+
+    def test_not_inherited_lists_in_schema_order_only_when_non_empty(self):
+        data = {'parent_layers': ['0.0.0@B.bv', '0.0.0@L.sd'],
+                'not_inherited_global_negative_responses': entries(**{'0.0.0@B.bv': ['G1']}),
+                'not_inherited_tables': entries(**{'0.0.0@B.bv': ['T1', 'T2']}),
+                'not_inherited_dops': entries(**{'0.0.0@B.bv': [], '0.0.0@L.sd': ['D1']}),
+                'not_inherited_diag_com_primitives': entries(**{'0.0.0@L.sd': ['S1'], '0.0.0@B.bv': ['S2']})}
+        _, _, result = parent_refs(data)
+        base, shared = result
+        self.assertEqual(xml(base),
+                         '<PARENT-REF xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                         'ID-REF="BASE_ID" DOCREF="Base" DOCTYPE="LAYER" xsi:type="BASE-VARIANT-REF">'
+                         '<NOT-INHERITED-DIAG-COMMS><NOT-INHERITED-DIAG-COMM>'
+                         '<DIAG-COMM-SNREF SHORT-NAME="S2" /></NOT-INHERITED-DIAG-COMM>'
+                         '</NOT-INHERITED-DIAG-COMMS>'
+                         '<NOT-INHERITED-TABLES><NOT-INHERITED-TABLE><TABLE-SNREF SHORT-NAME="T1" />'
+                         '</NOT-INHERITED-TABLE><NOT-INHERITED-TABLE><TABLE-SNREF SHORT-NAME="T2" />'
+                         '</NOT-INHERITED-TABLE></NOT-INHERITED-TABLES>'
+                         '<NOT-INHERITED-GLOBAL-NEG-RESPONSES><NOT-INHERITED-GLOBAL-NEG-RESPONSE>'
+                         '<GLOBAL-NEG-RESPONSE-SNREF SHORT-NAME="G1" /></NOT-INHERITED-GLOBAL-NEG-RESPONSE>'
+                         '</NOT-INHERITED-GLOBAL-NEG-RESPONSES></PARENT-REF>')
+        self.assertEqual([child.tag for child in shared],
+                         ['NOT-INHERITED-DIAG-COMMS', 'NOT-INHERITED-DOPS'])
+        self.assertEqual(shared.find('NOT-INHERITED-DOPS/NOT-INHERITED-DOP/DOP-BASE-SNREF').get('SHORT-NAME'), 'D1')
+
+    def test_parent_in_same_document_has_docref(self):
+        ctx = context({}, pool_id='0.0.0@B.bv')
+        _, _, result = parent_refs({'parent_layers': ['0.0.0@B.bv']}, ctx)
+        self.assertEqual(result[0].get('DOCREF'), 'Base')
+        self.assertEqual(result[0].get('DOCTYPE'), 'LAYER')
+
+    def test_unknown_parent_pool_is_reported(self):
+        ctx, _, result = parent_refs({'parent_layers': ['0.0.0@Q.bv']})
+        self.assertEqual(result[0].get('ID-REF'), 'Q')
+        self.assertEqual(result[0].get('DOCREF'), 'Q')
+        self.assertEqual(ctx.report['unresolvable_references'], 1)
+
+    def test_shared_data_parent_not_in_parents_is_reported(self):
+        ctx = context({})
+        layers.check_shared_data_parents(ctx, {'parent_layers': ['0.0.0@B.bv'],
+                                               'shared_data_parent_layers': ['0.0.0@B.bv', '0.0.0@L.sd']})
+        self.assertEqual(ctx.report['shared_data_parent_not_in_parents'], 1)
+        layers.check_shared_data_parents(ctx, {'parent_layers': ['0.0.0@B.bv']})
+        self.assertEqual(ctx.report['shared_data_parent_not_in_parents'], 1)
+
+    def test_no_parents_writes_nothing(self):
+        for data in ({}, {'parent_layers': []}):
+            _, holder, result = parent_refs(data)
+            self.assertIsNone(result)
+            self.assertEqual(len(holder), 0)
