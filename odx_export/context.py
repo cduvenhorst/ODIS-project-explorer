@@ -22,6 +22,8 @@ class PoolContext:
         self.key_name = key_name  # hash -> key name or None
         self.foreign_layers = foreign_layers  # pool_id -> layer names of another pool, or None
         self.written_caption_ids = set()  # SDG-CAPTION IDs already written in this layer
+        self.written_ids = set()  # IDs written with elements.identified in this layer
+        self.duplicate_ids = []  # (layer, tag, ID) of each ID written a second time in its layer; shared
         self.used = set()
         self.report = Counter()
         self.without_place = []
@@ -38,10 +40,11 @@ class PoolContext:
         self._caches['length_key_owners'] = owners
 
     def for_layer(self, layer):
-        """View of one layer of the pool with its own caption IDs; everything else is shared."""
+        """View of one layer of the pool with its own caption IDs and written IDs; everything else is shared."""
         view = copy.copy(self)
         view.layer = layer
         view.written_caption_ids = set()
+        view.written_ids = set()
         return view
 
     def naming_layer(self, object_key):

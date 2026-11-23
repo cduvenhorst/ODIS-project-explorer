@@ -12,6 +12,7 @@ from collections import Counter
 
 import dumpODX
 from classes.StringStorage import StringStorage
+from odx_export.elements import identified
 from odx_export.pool_source import ProjectPools, resolve_unpooled_references
 from tests import support
 from tests.odx_support import context
@@ -152,6 +153,16 @@ class DumpOdxTests(unittest.TestCase):
             '0.0.0@L.sd: unresolvable references 2, empty references 0, replaced characters 1',
             '0.0.0@L.sd: unused objects DB_DOP_SIMPLE_BASE 1, MCD_DB_UNIT 1',
             '0.0.0@L.sd: objects without a place in ODX MCD_DB_TABLE_PARAMETER 2'])
+
+    def test_reports_each_duplicate_id(self):
+        ctx = context({}, pool_id='0.0.0@B.bv', pool_layers=['B', 'V1'])
+        view = ctx.for_layer('V1')
+        for tag in ('REQUEST', 'POS-RESPONSE'):
+            identified(view, ET.Element('X'), tag, 'X', {})
+        self.assertEqual(dumpODX.report_lines(ctx), [
+            '0.0.0@B.bv: unresolvable references 0, empty references 0, replaced characters 0',
+            '0.0.0@B.bv: other counters duplicate_ids 1',
+            '0.0.0@B.bv: duplicate ID X in layer V1 (POS-RESPONSE)'])
 
     def test_main_writes_into_project_folder(self):
         with tempfile.TemporaryDirectory() as root:

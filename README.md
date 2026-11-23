@@ -353,6 +353,7 @@ The layer contents are written as for shared data pools; the rules above apply.
 - **Checked instead of written:** ODX 2.2 has no member list of a functional group, the members' `PARENT-REFS` carry it; every member whose pool does not name the group's pool as parent is counted. The variant patterns that a base variant repeats are compared with those of its variants, and shared data parents that are not among the parents are counted.
 
 IDs are unique per layer, not per document: two variants of one pool may both have a request `Q1`.
+An ID that the source data gives twice in one layer (a request and a response, say) is written twice and reported per case with `duplicate ID <ID> in layer <layer> (<element>)`.
 A reference to an object of another layer gets `DOCREF` (the layer name) and `DOCTYPE="LAYER"`, also when both layers stand in the same document.
 An object without a place in ODX is named in a comment at the end of the layer element whose name its key follows, otherwise at the end of the container.
 

@@ -31,7 +31,16 @@ def sub(ctx, parent, tag, text=None, attributes=None, **named):
 
 
 def identified(ctx, parent, tag, element_id, obj, **attributes):
-    """Append an element with ID and, when the object has one, OID."""
+    """Append an element with ID and, when the object has one, OID.
+
+    An ID the source data gives twice in one layer is written as it is and reported. Every element with an
+    object key of its own goes through here, as do SDG-CAPTION, the layer elements and the fields, MUX and
+    ENV-DATA; the parameter IDs of parameters.py (<owner ID>.<short name>) do not."""
+    if element_id in ctx.written_ids:
+        ctx.report['duplicate_ids'] += 1
+        ctx.duplicate_ids.append((ctx.layer, tag, element_id))
+    else:
+        ctx.written_ids.add(element_id)
     oid = obj.get('unique_object_id') if obj else None
     return sub(ctx, parent, tag, attributes={'ID': element_id, 'OID': oid or None}, **attributes)
 

@@ -2,7 +2,7 @@
 import unittest
 import xml.etree.ElementTree as ET
 
-from odx_export import data_objects, layers
+from odx_export import communication, data_objects, layers
 from odx_export.elements import add_ref
 from odx_export.special_data import sdgs
 from tests.odx_support import context, xml
@@ -174,6 +174,22 @@ class PoolLayerTests(unittest.TestCase):
         # The given owner is the object being written, so it lies in the view's layer.
         coded_type['length_key_parameter'] = {'short_name': 'LEN', 'unique_object_id': 'P-9'}
         self.assertEqual(length_key_ref('V2', 'S9'), '<LENGTH-KEY-REF ID-REF="S9.LEN" />')
+
+
+    def test_id_given_twice_in_one_layer_is_written_twice_and_reported(self):
+        message = {'short_name': 'X', 'request_parameters': None}
+        response = {'short_name': 'X', 'response_type': 'ePOSITIVE_RESPONSE', 'response_parameters': None}
+        pool = layer_pool({'REQ_V1_X': (REQUEST, message), 'RSP_V1_X': ('MCD_DB_RESPONSE', response),
+                           'REQ_V2_X': (REQUEST, message)})
+        for layer in ('V1', 'V2'):
+            view = pool.for_layer(layer)
+            element = ET.Element(layer)
+            communication.add_requests(view, element, {})
+            communication.add_responses(view, element, {})
+            self.assertEqual([child.get('ID') for child in element.iter() if child.get('ID')],
+                             ['X', 'X'] if layer == 'V1' else ['X'])
+        self.assertEqual(pool.report['duplicate_ids'], 1)
+        self.assertEqual(pool.duplicate_ids, [('V1', 'POS-RESPONSE', 'X')])
 
 
 PARENTS = {

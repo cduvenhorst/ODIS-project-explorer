@@ -23,8 +23,8 @@ _MAIN_COUNTERS = ('unresolvable_references', 'empty_references', 'replaced_chara
 
 # Messages for a written Pool
 ### ctx = PoolContext of the Pool after its document was built
-### returns the counter line, and the lines for other non-zero counters, unused objects and objects without a
-### place in ODX if there are any
+### returns the counter line, and the lines for other non-zero counters, unused objects, IDs given twice in one
+### layer and objects without a place in ODX if there are any
 def report_lines(ctx) -> list[str]:
     report = ctx.report
     lines = ['{}: unresolvable references {}, empty references {}, replaced characters {}'.format(
@@ -35,6 +35,8 @@ def report_lines(ctx) -> list[str]:
     unused = ctx.unused()
     if unused:
         lines.append('{}: unused objects {}'.format(ctx.pool_id, _type_counts(unused)))
+    for layer, tag, element_id in ctx.duplicate_ids:
+        lines.append('{}: duplicate ID {} in layer {} ({})'.format(ctx.pool_id, element_id, layer, tag))
     without_place = Counter(ctx.types[key] for key in ctx.without_place)
     if without_place:
         lines.append('{}: objects without a place in ODX {}'.format(ctx.pool_id, _type_counts(without_place)))
