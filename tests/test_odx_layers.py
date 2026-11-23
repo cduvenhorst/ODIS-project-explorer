@@ -143,8 +143,8 @@ class PoolLayerTests(unittest.TestCase):
         names = {7: 'CAPTION_V1_7'}
         caption = {'short_name': 'CAP', 'long_name': None, 'description': None,
                    'long_name_id': '', 'description_id': '', 'unique_object_id': ''}
-        ctx = layer_pool({'CAPTION_V1_7': ('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', caption)},
-                         key_name=names.get).for_layer('V2')
+        pool = layer_pool({'CAPTION_V1_7': ('MCD_DB_SPECIAL_DATA_GROUP_CAPTION', caption)}, key_name=names.get)
+        ctx = pool.for_layer('V2')
         group = {'items': [], 'semantic_information': '', 'caption': caption,
                  'caption_reference': {'object_key': 7, 'pool_id': LAYER_POOL}}
         parent = ET.Element('P')
@@ -153,6 +153,9 @@ class PoolLayerTests(unittest.TestCase):
         self.assertEqual(xml(parent), '<P><SDGS>' + ref + ref + '</SDGS></P>')
         self.assertEqual(ctx.written_caption_ids, set())
         self.assertEqual(ctx.report['unresolvable_references'], 0)
+        # Only its own layer writes the caption; until it does, the caption stays unused.
+        self.assertEqual(ctx.unused(), {'MCD_DB_SPECIAL_DATA_GROUP_CAPTION': 1})
+        sdgs(pool.for_layer('V1'), ET.Element('P'), {'special_data_groups': [group]})
         self.assertEqual(ctx.unused(), {})
 
     def test_length_key_of_another_layer_is_referenced_with_docref(self):
