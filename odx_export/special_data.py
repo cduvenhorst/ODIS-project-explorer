@@ -46,10 +46,13 @@ def _write_caption(ctx, parent, group):
         return
     object_key = reference['object_key']
     name = ctx.key_name(object_key) if ctx.key_name else None
-    parts = split_key(name, ctx.layer) if name is not None else None
+    parts = split_key(name, ctx.target_layer(ctx.pool_id, name)) if name is not None else None
     if caption == NOT_RESOLVABLE or parts is None:
         # ODX form from the standard; no original document to compare (survey)
         ctx.report['unresolvable_references'] += 1
+        if parts is None and name in ctx.types:
+            # A caption of this pool whose key follows no naming rule is reported here, not as unused.
+            ctx.used.add(name)
         sub(ctx, parent, 'SDG-CAPTION-REF',
             ID_REF=name if name is not None else 'hash %d' % object_key)
         return

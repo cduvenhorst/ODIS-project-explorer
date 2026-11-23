@@ -70,7 +70,9 @@ def length_key_owners(ctx):
     for key, obj in ctx.objects.items():
         if not isinstance(obj, dict):
             continue
-        parts = split_key(key, ctx.layer)
+        # Every layer of the pool, since all views share the result
+        layer = ctx.naming_layer(key)
+        parts = split_key(key, layer) if layer is not None else None
         owner_id = parts[1] if parts else key
         for field in _PARAMETER_FIELDS:
             for parameter in obj.get(field) or []:

@@ -14,7 +14,7 @@ from classes.StringStorage import StringStorage
 from odx_export.pool_source import ProjectPools
 from tests import support
 from tests.odx_support import context
-from tests.support import REPOSITORY_ROOT, concat, unit_body, write_project, write_raw_pool
+from tests.support import REPOSITORY_ROOT, ObjectBytes, concat, unit_body, write_project, write_raw_pool
 from tests.test_vw_layouts_project import layer_data_body, project_data_body
 
 L_POOL = '0.0.0@L.sd'
@@ -35,6 +35,42 @@ def write_test_project(folder):
                   bodies.ascii_strings, bodies.unicode_strings)
     broken = unit_body().build('MCD_DB_UNIT')[:6]
     write_raw_pool(folder, B_POOL, [(struct.pack('<L', support.string_hash('UNIT_B_U3', 'A')), [broken])])
+
+
+def named_layer_body(layer_id, name):
+    """layer_data_body() with the given layer ID and layer name."""
+    body = layer_data_body()
+    named = ObjectBytes().ascii(layer_id).ascii(name)
+    # The first eight bytes of layer_data_body() are the two string hashes replaced here.
+    named = concat(named, ObjectBytes().raw(body._data[8:]))
+    named.ascii_strings += body.ascii_strings[2:]
+    named.unicode_strings += body.unicode_strings
+    return named
+
+
+def write_layer_project(folder):
+    """Layer pools B (base variant B, variant V1, one broken unit) and D (D, V2, one unit), one pool each
+    of E.ev, G.fg, P.pr, L.sd and C.cs, and a data file of an F.fg without key file."""
+    layers = {name: named_layer_body('ID_' + name, name) for name in ('B', 'V1', 'D', 'V2', 'E', 'G', 'P', 'L', 'C')}
+    bodies = unit_body()
+    for body in layers.values():
+        bodies = concat(bodies, body)
+
+    def layer_pool(name, extra=None):
+        objects = {'#RtGen_DB_LAYER_DATA': layers[name].build('DB_LAYER_DATA')}
+        objects.update(extra or {})
+        return objects
+
+    broken = unit_body().build('MCD_DB_UNIT')[:6]
+    write_project(folder, {
+        '0.0.0@B.bv': layer_pool('B', {'LD_V1': layers['V1'].build('DB_LAYER_DATA'), 'UNIT_V1_U1': broken}),
+        '0.0.0@D.bv': layer_pool('D', {'LD_V2': layers['V2'].build('DB_LAYER_DATA'),
+                                       'UNIT_V2_U1': unit_body().build('MCD_DB_UNIT')}),
+        '0.0.0@E.ev': layer_pool('E'), '0.0.0@G.fg': layer_pool('G'), '0.0.0@P.pr': layer_pool('P'),
+        '0.0.0@L.sd': layer_pool('L'), '0.0.0@C.cs': layer_pool('C')},
+        bodies.ascii_strings, bodies.unicode_strings)
+    with open(os.path.join(folder, '0.0.0@F.fg.db'), 'wb'):
+        pass
 
 
 def run_dump(project_folder):
@@ -165,6 +201,62 @@ class ProjectPoolsTests(unittest.TestCase):
     def test_key_name(self):
         self.assertEqual(self.pools.key_name(support.string_hash('UNIT_L_U1', 'A')), 'UNIT_L_U1')
         self.assertIsNone(self.pools.key_name(7))
+
+    def layer_pools(self):
+        folder_handle = tempfile.TemporaryDirectory()
+        self.addCleanup(folder_handle.cleanup)
+        write_layer_project(folder_handle.name)
+        return ProjectPools(folder_handle.name, StringStorage(folder_handle.name), dumpODX.pbl_record_manager)
+
+    def test_layer_pools_sorted_by_extension_set(self):
+        self.assertEqual(self.layer_pools().layer_pools(),
+                         ['0.0.0@B.bv', '0.0.0@D.bv', '0.0.0@E.ev', '0.0.0@G.fg', '0.0.0@P.pr'])
+        self.assertEqual(self.pools.layer_pools(), [])
+
+    def test_layers_lists_layer_data_without_loading_other_objects(self):
+        pools = self.layer_pools()
+        # Pool B holds a broken unit, so loading all of its objects fails.
+        with self.assertRaises(Exception):
+            pools.context('0.0.0@B.bv')
+        layers = pools.layers('0.0.0@B.bv')
+        self.assertEqual(sorted(layers, key=lambda layer: layer['key']), [
+            {'key': '#RtGen_DB_LAYER_DATA', 'layer_name': 'B', 'layer_id': 'ID_B',
+             'location_type': 'eMULTIPLE_ECU_JOB', 'parent_layers': []},
+            {'key': 'LD_V1', 'layer_name': 'V1', 'layer_id': 'ID_V1',
+             'location_type': 'eMULTIPLE_ECU_JOB', 'parent_layers': []}])
+        self.assertIs(pools.layers('0.0.0@B.bv'), layers)
+        self.assertEqual(pools.layers('0.0.0@X.bv'), [])
+        self.assertEqual(pools.layers('0.0.0@F.fg'), [])
+
+    def test_broken_layer_object_of_another_pool_falls_back_to_pool_layer_name(self):
+        folder_handle = tempfile.TemporaryDirectory()
+        self.addCleanup(folder_handle.cleanup)
+        write_layer_project(folder_handle.name)
+        broken = named_layer_body('ID_K', 'K').build('DB_LAYER_DATA')[:6]
+        write_raw_pool(folder_handle.name, '0.0.0@K.bv',
+                       [(struct.pack('<L', support.string_hash('#RtGen_DB_LAYER_DATA', 'A')), [broken])])
+        pools = ProjectPools(folder_handle.name, StringStorage(folder_handle.name), dumpODX.pbl_record_manager)
+        with self.assertRaises(Exception):
+            pools.layers('0.0.0@K.bv')
+        ctx = pools.context('0.0.0@D.bv')
+        self.assertEqual(ctx.foreign_layers('0.0.0@K.bv'), ['K'])
+
+    def test_context_sets_pool_layers(self):
+        pools = self.layer_pools()
+        # Read from the type map before the context loads the whole pool
+        layers = list(pools.layers('0.0.0@D.bv'))
+        ctx = pools.context('0.0.0@D.bv')
+        self.assertEqual(sorted(ctx.pool_layers), ['D', 'V2'])
+        # Pool order: the order in which the context holds the layer objects.
+        self.assertEqual([layer['key'] for layer in layers],
+                         [key for key, type_name in ctx.types.items() if type_name == 'DB_LAYER_DATA'])
+        self.assertEqual(ctx.pool_layers, [layer['layer_name'] for layer in layers])
+        self.assertEqual(pools.layers('0.0.0@D.bv'), layers)
+        self.assertEqual(ctx.layer, 'D')
+        self.assertEqual(sorted(ctx.foreign_layers('0.0.0@B.bv')), ['B', 'V1'])
+        self.assertEqual(ctx.foreign_layers('0.0.0@L.sd'), ['L'])
+        self.assertEqual(ctx.foreign_layers('0.0.0@X.sd'), ['X'])
+        self.assertEqual(ctx.target_layer('0.0.0@B.bv', 'UNIT_V1_U1'), 'V1')
 
     def test_strict_loading_raises(self):
         with self.assertRaises(Exception):

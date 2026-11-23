@@ -3,7 +3,7 @@ import math
 import re
 import xml.etree.ElementTree as ET
 
-from odx_export.naming import layer_name, split_key
+from odx_export.naming import split_key
 
 XSI_TYPE = '{http://www.w3.org/2001/XMLSchema-instance}type'
 
@@ -91,8 +91,9 @@ def add_ref(ctx, parent, tag, reference):
     pool_id = reference.get('pool_id')
     if pool_id is None:
         return sub(ctx, parent, tag[:-len('-REF')] + '-SNREF', SHORT_NAME=object_id)
-    own = pool_id == ctx.pool_id
-    layer = layer_name(pool_id)
+    layer = ctx.target_layer(pool_id, object_id)
+    # Without DOCREF only within the layer being written, also between layers of one pool
+    own = pool_id == ctx.pool_id and layer == ctx.layer
     parts = split_key(object_id, layer)
     exists = ctx.target_type(reference) is not None
     if exists and parts is not None:
