@@ -96,11 +96,13 @@ class ProjectPools:
     def __resolve_variant_references(self, pool_id, objects, types):
         """Fill in the pool of the references without one in a .ev pool; Counter of the informative counters.
 
-        Many references of .ev pools carry no pool ID. Like the kernel (ObjectLoader.
-        load_DOP_by_reference_without_PoolID: own variant, base variant, protocol), such a reference points
-        into the own pool if it holds the object, else into the first pool of the parent chain that does:
-        parent_layers breadth first from the pool's own layer, each pool once, by type map only. A name that
-        no pool holds (a short name in a matching pattern, say) stays without pool. Other pools are unchanged."""
+        Many references of .ev pools carry no pool ID. Modelled on upstream's
+        ObjectLoader.load_DOP_by_reference_without_PoolID (own variant, base variant, protocol); here by type
+        map along the breadth-first parent chain (parent_layers from the pool's own layer, shared data parents
+        included): such a reference points into the own pool if it holds the object, else into the first pool
+        of the chain that does, each pool once.
+        A name that no pool holds (a short name in a matching pattern, say) stays without pool. Other pools are
+        unchanged."""
         if not pool_id.endswith('.ev'):
             return Counter()
         chain = self.__parent_chain(pool_id)
