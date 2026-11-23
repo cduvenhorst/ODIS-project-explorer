@@ -245,5 +245,127 @@ class ParentRefTests(unittest.TestCase):
         self.assertEqual(ctx.report['not_inherited_without_parent'], 1)
 
 
+SUBSET = '0.0.0@SUB_A.cs'
+
+
+def dop(pool_id, name='DOP_SUB_A_SUB_A.DOP_X'):
+    return {'object_id': name, 'pool_id': pool_id}
+
+
+def simple(short_name, value, data_type='eA_UINT32', pool_id=SUBSET, protocol=None):
+    return {'short_name': short_name, 'parameter_type': data_type, 'protocol_short_name': protocol,
+            'default_value': {'data_type': data_type, 'value': value},
+            'dop_base_reference': dop(pool_id) if pool_id else None, 'parameters': []}
+
+
+def complex_param(short_name, parameters, protocol=None):
+    return {'short_name': short_name, 'parameter_type': 'eSTRUCTURE', 'protocol_short_name': protocol,
+            'default_value': None, 'dop_base_reference': None, 'parameters': parameters}
+
+
+def comparam_refs(params, ctx=None):
+    ctx = ctx or context({}, pool_id='0.0.0@B.bv')
+    holder = ET.Element('X')
+    result = layers.add_comparam_refs(ctx, holder, {'layer_com_params': params})
+    return ctx, holder, result
+
+
+class ComparamRefTests(unittest.TestCase):
+    def test_simple_comparam_ref_from_dop_pool(self):
+        ctx, holder, result = comparam_refs([simple('CP_Speed', 125000), simple('CP_Mode', 2)])
+        self.assertEqual(list(holder), [result])
+        self.assertEqual(xml(result),
+                         '<COMPARAM-REFS>'
+                         '<COMPARAM-REF ID-REF="SUB_A.CP_Speed" DOCREF="SUB_A" DOCTYPE="COMPARAM-SUBSET">'
+                         '<SIMPLE-VALUE>125000</SIMPLE-VALUE></COMPARAM-REF>'
+                         '<COMPARAM-REF ID-REF="SUB_A.CP_Mode" DOCREF="SUB_A" DOCTYPE="COMPARAM-SUBSET">'
+                         '<SIMPLE-VALUE>2</SIMPLE-VALUE></COMPARAM-REF></COMPARAM-REFS>')
+        self.assertEqual(layers.comparam_pool(simple('CP_Speed', 1)), SUBSET)
+        self.assertEqual(sum(ctx.report.values()), 0)
+
+    def test_bytefield_value_is_hex(self):
+        _, _, result = comparam_refs([simple('CP_Bytes', bytearray(b'>\x00\xab'), 'eA_BYTEFIELD')])
+        self.assertEqual(result.find('COMPARAM-REF/SIMPLE-VALUE').text, '3E00AB')
+
+    def test_complex_comparam_pool_from_sub_parameters(self):
+        entry = complex_param('CP_Table', [
+            complex_param('CP_Row', [simple('CP_Cell1', 1), simple('CP_Cell2', 2)]),
+            simple('CP_Last', 3, pool_id=None)])
+        self.assertEqual(layers.comparam_pool(entry), SUBSET)
+        _, _, result = comparam_refs([entry])
+        ref, = result
+        self.assertEqual((ref.get('ID-REF'), ref.get('DOCREF'), ref.get('DOCTYPE')),
+                         ('SUB_A.CP_Table', 'SUB_A', 'COMPARAM-SUBSET'))
+
+    def test_complex_value_nested_in_list_order(self):
+        entry = complex_param('CP_Table', [
+            simple('CP_First', 1),
+            complex_param('CP_Row', [simple('CP_Cell1', bytearray(b'\x01'), 'eA_BYTEFIELD'),
+                                     simple('CP_Cell2', 'Text', 'eA_ASCIISTRING')]),
+            {**simple('CP_Empty', None), 'default_value': None},
+            simple('CP_Last', 4)])
+        ctx, _, result = comparam_refs([entry])
+        self.assertEqual(xml(result[0]),
+                         '<COMPARAM-REF ID-REF="SUB_A.CP_Table" DOCREF="SUB_A" DOCTYPE="COMPARAM-SUBSET">'
+                         '<COMPLEX-VALUE><SIMPLE-VALUE>1</SIMPLE-VALUE>'
+                         '<COMPLEX-VALUE><SIMPLE-VALUE>01</SIMPLE-VALUE><SIMPLE-VALUE>Text</SIMPLE-VALUE>'
+                         '</COMPLEX-VALUE><SIMPLE-VALUE>4</SIMPLE-VALUE></COMPLEX-VALUE></COMPARAM-REF>')
+        self.assertEqual(ctx.report['comparam_value_missing'], 1)
+
+    def test_comparam_without_unique_subset_is_reported(self):
+        no_pool = complex_param('CP_None', [simple('CP_Cell', 1, pool_id=None)])
+        two_pools = complex_param('CP_Two', [simple('CP_Cell1', 1),
+                                             complex_param('CP_Row', [simple('CP_Cell2', 2,
+                                                                             pool_id='0.0.0@SUB_B.cs')])])
+        empty_reference = {**simple('CP_Empty', 1), 'dop_base_reference': {}}
+        for entry in (no_pool, two_pools, empty_reference):
+            self.assertIsNone(layers.comparam_pool(entry))
+        ctx, holder, result = comparam_refs([no_pool, simple('CP_Speed', 1), two_pools, empty_reference])
+        self.assertEqual([ref.get('ID-REF') for ref in result], ['SUB_A.CP_Speed'])
+        self.assertEqual(ctx.report['comparam_without_subset'], 3)
+        ctx, holder, result = comparam_refs([no_pool])
+        self.assertIsNone(result)
+        self.assertEqual(len(holder), 0)
+        self.assertEqual(ctx.report['comparam_without_subset'], 1)
+
+    def test_protocol_snref_only_when_set(self):
+        _, _, result = comparam_refs([simple('CP_A', 1, protocol='PROTO_X'), simple('CP_B', 2, protocol=''),
+                                      simple('CP_C', 3),
+                                      complex_param('CP_D', [simple('CP_Cell', 4)], protocol='PROTO_Y')])
+        self.assertEqual([[child.tag for child in ref] for ref in result],
+                         [['SIMPLE-VALUE', 'PROTOCOL-SNREF'], ['SIMPLE-VALUE'], ['SIMPLE-VALUE'],
+                          ['COMPLEX-VALUE', 'PROTOCOL-SNREF']])
+        self.assertEqual(result[0].find('PROTOCOL-SNREF').get('SHORT-NAME'), 'PROTO_X')
+        self.assertEqual(result[3].find('PROTOCOL-SNREF').get('SHORT-NAME'), 'PROTO_Y')
+
+    def test_simple_comparam_without_value_is_reported(self):
+        ctx, _, result = comparam_refs([{**simple('CP_A', 1), 'default_value': None}])
+        self.assertEqual(xml(result[0]),
+                         '<COMPARAM-REF ID-REF="SUB_A.CP_A" DOCREF="SUB_A" DOCTYPE="COMPARAM-SUBSET" />')
+        self.assertEqual(ctx.report['comparam_value_missing'], 1)
+
+    def test_no_comparams_writes_nothing(self):
+        for data in ({}, {'layer_com_params': []}):
+            holder = ET.Element('X')
+            self.assertIsNone(layers.add_comparam_refs(context({}), holder, data))
+            self.assertEqual(len(holder), 0)
+
+    def test_protocol_spec_ref_and_stack_snref(self):
+        ctx = context({}, pool_id='0.0.0@P.pr')
+        holder = ET.Element('PROTOCOL')
+        layers.add_protocol_refs(ctx, holder, {'com_param_spec_pool_id': '0.0.0@SPEC_A.cp',
+                                               'protocol_stack_short_name': 'PS_STACK_A',
+                                               'protocol_type': 'TYPE_A'})
+        self.assertEqual(xml(holder),
+                         '<PROTOCOL><COMPARAM-SPEC-REF ID-REF="SPEC_A" DOCREF="SPEC_A" DOCTYPE="COMPARAM-SPEC" />'
+                         '<PROT-STACK-SNREF SHORT-NAME="PS_STACK_A" /></PROTOCOL>')
+        for data, tags in (({}, []), ({'com_param_spec_pool_id': '', 'protocol_stack_short_name': None}, []),
+                           ({'protocol_stack_short_name': 'PS_STACK_A'}, ['PROT-STACK-SNREF']),
+                           ({'com_param_spec_pool_id': '0.0.0@SPEC_A.cp'}, ['COMPARAM-SPEC-REF'])):
+            holder = ET.Element('PROTOCOL')
+            layers.add_protocol_refs(ctx, holder, data)
+            self.assertEqual([child.tag for child in holder], tags)
+
+
 if __name__ == '__main__':
     unittest.main()
