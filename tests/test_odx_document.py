@@ -2,6 +2,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 from odx_export.document import build_document, build_layer_document, write_document
@@ -195,6 +196,41 @@ class DocumentTests(unittest.TestCase):
             ET.parse(path)
         self.assertIn('xsi:type=', text)
         self.assertEqual(text.count('xmlns:xsi='), 1)
+
+    def test_write_document_streams_into_the_file(self):
+        def with_xsi():
+            objects = full_objects()
+            objects['DOP_L_S1'] = ('MCD_DB_PARAMETER_STRUCTURE',
+                                   structures.structure(4, [structures.parameter('A')]))
+            return build_document(context(objects))
+
+        def without_xsi():
+            root = ET.Element('ODX', {'MODEL-VERSION': '2.2.0'})
+            ET.SubElement(ET.SubElement(root, 'A'), 'B', {'X': 'y & <z>'}).text = 'text'
+            root.append(ET.Comment(' note '))
+            return root
+
+        for build in (with_xsi, without_xsi):
+            with self.subTest(build=build.__name__):
+                # The former form: the whole document as one string, written after the header.
+                reference = build()
+                ET.indent(reference, '  ')
+                if build is without_xsi:
+                    reference.attrib = {'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+                                        **reference.attrib}
+                expected = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+                            '<!-- Reconstructed by ODIS-project-explorer from pool ' + OWN + ': '
+                            'equivalent in content, not identical to the original ODX document -->\n'
+                            + ET.tostring(reference, encoding='unicode') + '\n')
+                self.assertEqual(('xsi:type=' in expected), build is with_xsi)
+                root = build()
+                with tempfile.TemporaryDirectory() as folder:
+                    path = os.path.join(folder, 'L.odx')
+                    with mock.patch('odx_export.document.ET.tostring', side_effect=AssertionError):
+                        write_document(root, path, OWN)
+                    with open(path, 'rb') as handle:
+                        data = handle.read()
+                self.assertEqual(data, expected.encode('utf-8'))
 
     def test_failed_write_leaves_no_file(self):
         root = ET.Element('ODX')

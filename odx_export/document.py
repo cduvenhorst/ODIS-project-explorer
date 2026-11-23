@@ -240,7 +240,7 @@ def write_document(root, path, pool_id):
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             handle.write('<!--' + _comment_text(_HEADER.format(pool_id)) + '-->\n')
-            handle.write(ET.tostring(root, encoding='unicode'))
+            ET.ElementTree(root).write(handle, encoding='unicode')
             handle.write('\n')
     except BaseException:
         if os.path.exists(path):
