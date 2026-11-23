@@ -91,6 +91,9 @@ def _add_value(ctx, parent, parameter):
         for sub_parameter in parameter.get('parameters') or []:
             _add_value(ctx, complex_value, sub_parameter)
         return
+    if parameter.get('parameters'):
+        # Only a structure has a place for sub-parameter values; those of a simple parameter are counted.
+        ctx.report['comparam_sub_parameters_not_written'] += len(parameter['parameters'])
     value = parameter.get('default_value') or {}
     text = format_value(value.get('value'), value.get('data_type'))
     if text is None:

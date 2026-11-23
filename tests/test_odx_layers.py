@@ -396,6 +396,13 @@ class ComparamRefTests(unittest.TestCase):
                          '<COMPARAM-REF ID-REF="SUB_A.CP_A" DOCREF="SUB_A" DOCTYPE="COMPARAM-SUBSET" />')
         self.assertEqual(ctx.report['comparam_value_missing'], 1)
 
+    def test_sub_parameters_of_simple_comparam_are_reported(self):
+        entry = {**simple('CP_A', 1), 'parameters': [simple('CP_Sub1', 2), simple('CP_Sub2', 3)]}
+        ctx, _, result = comparam_refs([complex_param('CP_Table', [entry])])
+        self.assertEqual(xml(result[0].find('COMPLEX-VALUE')),
+                         '<COMPLEX-VALUE><SIMPLE-VALUE>1</SIMPLE-VALUE></COMPLEX-VALUE>')
+        self.assertEqual(ctx.report['comparam_sub_parameters_not_written'], 2)
+
     def test_no_comparams_writes_nothing(self):
         for data in ({}, {'layer_com_params': []}):
             holder = ET.Element('X')
