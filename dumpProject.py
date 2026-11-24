@@ -158,9 +158,9 @@ def app_dumpProject(string_storage, project_folder_path, output_folder_path, ove
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Dump all Objects from all Pools of an MCD Project')
-    parser.add_argument('project_folder_path', help='MCD Project (folder containing .db and .key files)')
-    parser.add_argument('output_folder_path', help='Main output folder, in which another folder with the name of the Project will be added')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='Dump all Objects from all Pools of an MCD Project')
+    parser.add_argument('--project', dest='project_folder_path', required=True, help='MCD Project (folder containing .db and .key files)')
+    parser.add_argument('--output', dest='output_folder_path', required=True, help='Main output folder, in which another folder with the name of the Project will be added')
     args = parser.parse_args()
     
     # The project_folder_path argument must be a path to a folder

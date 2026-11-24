@@ -276,7 +276,8 @@ class DumpAllProjectsTest(unittest.TestCase):
             if truncate:
                 with open(os.path.join(project, 'A.sd.db'), 'r+b') as handle:
                     handle.truncate(4)
-            return subprocess.run([sys.executable, '-B', 'dumpAllProjects.py', projects, os.path.join(root, 'out')],
+            return subprocess.run([sys.executable, '-B', 'dumpAllProjects.py', '--projects', projects,
+                                   '--output', os.path.join(root, 'out')],
                                   cwd=REPOSITORY_ROOT, capture_output=True, text=True)
 
     def test_dump_all_projects_exits_nonzero_on_error(self):
@@ -294,7 +295,8 @@ class DumpAllProjectsTest(unittest.TestCase):
             write_project(project, {'A.sd': {'UNIT_ONE': unit_record()}}, unit.ascii_strings, unit.unicode_strings)
             with open(os.path.join(project, 'A.sd.db'), 'r+b') as handle:
                 handle.truncate(4)
-            command = [sys.executable, '-B', 'dumpAllProjects.py', projects, os.path.join(root, 'out')]
+            command = [sys.executable, '-B', 'dumpAllProjects.py', '--projects', projects,
+                       '--output', os.path.join(root, 'out')]
             for run in (1, 2):
                 result = subprocess.run(command, cwd=REPOSITORY_ROOT, capture_output=True, text=True)
                 self.assertEqual(1, result.returncode, 'run {}: {}'.format(run, result.stderr))

@@ -56,9 +56,9 @@ def app_dumpAllProjects(project_folder_path, output_folder_path) -> bool:
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Dump all Objects from all Pools of all MCD Projects')
-    parser.add_argument('projects_folder_path', help='MCD Projects (folder containing folders containing .db and .key files)')
-    parser.add_argument('output_folder_path', help='Main output folder, in which other folders with the names of the Projects will be added')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='Dump all Objects from all Pools of all MCD Projects')
+    parser.add_argument('--projects', dest='projects_folder_path', required=True, help='MCD Projects (folder containing folders containing .db and .key files)')
+    parser.add_argument('--output', dest='output_folder_path', required=True, help='Main output folder, in which other folders with the names of the Projects will be added')
     args = parser.parse_args()
     
     # The projects_folder_path argument must be a path to a folder

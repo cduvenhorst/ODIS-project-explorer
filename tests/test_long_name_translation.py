@@ -43,7 +43,7 @@ class LongNameTranslationWithoutJpypeTests(unittest.TestCase):
 
     def test_dump_hsqldb_without_jpype_exits_with_message(self):
         code = ("import sys; sys.modules['jpype'] = None; "
-                "sys.argv = ['dumpHSQLDB.py', 'a', 'b', 'c']; "
+                "sys.argv = ['dumpHSQLDB.py', '--database-folder', 'a', '--database-name', 'b', '--output', 'c']; "
                 "exec(compile(open('dumpHSQLDB.py').read(), 'dumpHSQLDB.py', 'exec'))")
         result = subprocess.run([sys.executable, '-B', '-c', code], cwd=REPOSITORY_ROOT,
                                 capture_output=True, text=True)

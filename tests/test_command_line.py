@@ -25,6 +25,35 @@ SUBCOMMAND_SCRIPTS = {
 
 TRANSLATION_SCRIPTS = ('dumpDTC.py',)
 
+# Scripts without subcommands: the required options as (name, value) pairs, the option whose absence
+# is tested and the message printed when the project folder does not exist
+SINGLE_COMMAND_SCRIPTS = {
+    'dumpAllProjects.py': {
+        'options': lambda root: [('--projects', os.path.join(root, 'PP')), ('--output', os.path.join(root, 'out'))],
+        'omitted': '--output',
+        'missing_folder': MISSING_PROJECTS,
+    },
+    'dumpODX.py': {
+        'options': lambda root: [('--project', os.path.join(root, 'P')), ('--output', os.path.join(root, 'out'))],
+        'omitted': '--output',
+        'missing_folder': MISSING_PROJECT,
+    },
+    'dumpProject.py': {
+        'options': lambda root: [('--project', os.path.join(root, 'P')), ('--output', os.path.join(root, 'out'))],
+        'omitted': '--output',
+        'missing_folder': MISSING_PROJECT,
+    },
+    'parseMWB.py': {
+        'options': lambda root: [('--project', os.path.join(root, 'P')), ('--base-variant', BASE_VARIANT),
+                                 ('--ecu-variant', 'EV_Example'), ('--did', 'F40C'), ('--response', 'C0E4')],
+        'omitted': '--did',
+        'missing_folder': MISSING_PROJECT,
+    },
+}
+
+# dumpHSQLDB.py starts a JVM, so it is run with stand-ins for the Java modules
+HSQLDB_OPTIONS = [('--database-folder', 'DB'), ('--database-name', 'name'), ('--output', 'out')]
+
 
 def run_script(*arguments):
     return subprocess.run([sys.executable, '-B', *arguments],
@@ -43,6 +72,15 @@ def required_options(command, root):
 
 def flatten(options):
     return [part for pair in options for part in pair]
+
+
+def run_dump_hsqldb(*arguments):
+    code = ("import sys; from unittest import mock; "
+            "sys.modules.update({name: mock.MagicMock() for name in ('jpype', 'jpype.imports', 'java', 'java.sql')}); "
+            "sys.argv = " + repr(['dumpHSQLDB.py', *arguments]) + "; "
+            "exec(compile(open('dumpHSQLDB.py').read(), 'dumpHSQLDB.py', 'exec'))")
+    return subprocess.run([sys.executable, '-B', '-c', code],
+                          cwd=REPOSITORY_ROOT, capture_output=True, text=True)
 
 
 def all_subcommands():
@@ -117,6 +155,64 @@ class CommandLineTests(unittest.TestCase):
                 result = run_script('dumpFlash.py', command, *flatten(required_options(command, root)),
                                     '--workspace', os.path.join(root, 'W'), '--hexdump')
                 self.assertNotEqual(2, result.returncode, result.stderr)
+
+    def test_single_command_positional_form_is_rejected(self):
+        for script, spec in SINGLE_COMMAND_SCRIPTS.items():
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as root:
+                options = spec['options'](root)
+                result = run_script(script, *[value for _, value in options])
+                self.assertEqual(2, result.returncode, result.stderr)
+                self.assertIn('the following arguments are required: ' + options[0][0], result.stderr)
+                self.assertFalse(os.path.exists(os.path.join(root, 'out')))
+
+    def test_single_command_missing_required_option_is_named(self):
+        for script, spec in SINGLE_COMMAND_SCRIPTS.items():
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as root:
+                options = [pair for pair in spec['options'](root) if pair[0] != spec['omitted']]
+                result = run_script(script, *flatten(options))
+                self.assertEqual(2, result.returncode, result.stderr)
+                self.assertIn('the following arguments are required: ' + spec['omitted'], result.stderr)
+
+    def test_single_command_named_form_reaches_the_dump(self):
+        for script, spec in SINGLE_COMMAND_SCRIPTS.items():
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as root:
+                result = run_script(script, *flatten(spec['options'](root)))
+                self.assertNotEqual(2, result.returncode, result.stderr)
+                self.assertIn(spec['missing_folder'], result.stdout + result.stderr)
+
+    def test_single_command_options_are_not_abbreviations(self):
+        for script, spec in SINGLE_COMMAND_SCRIPTS.items():
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as root:
+                options = [(name[:-1], value) if name == spec['omitted'] else (name, value)
+                           for name, value in spec['options'](root)]
+                result = run_script(script, *flatten(options))
+                self.assertEqual(2, result.returncode, result.stderr)
+
+    def test_parse_mwb_translation_options_are_accepted(self):
+        with tempfile.TemporaryDirectory() as root:
+            result = run_script('parseMWB.py', *flatten(SINGLE_COMMAND_SCRIPTS['parseMWB.py']['options'](root)),
+                                '--translation-database', os.path.join(root, 'db'),
+                                '--translation-language', 'en_US')
+            self.assertNotEqual(2, result.returncode, result.stderr)
+
+    def test_dump_hsqldb_positional_form_is_rejected(self):
+        result = run_dump_hsqldb(*[value for _, value in HSQLDB_OPTIONS])
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn('the following arguments are required: --database-folder', result.stderr)
+
+    def test_dump_hsqldb_missing_required_option_is_named(self):
+        result = run_dump_hsqldb(*flatten([pair for pair in HSQLDB_OPTIONS if pair[0] != '--output']))
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn('the following arguments are required: --output', result.stderr)
+
+    def test_dump_hsqldb_named_form_reaches_the_dump(self):
+        result = run_dump_hsqldb(*flatten(HSQLDB_OPTIONS))
+        self.assertNotEqual(2, result.returncode, result.stderr)
+        self.assertIn('Input path must be folder', result.stderr)
+
+    def test_dump_hsqldb_options_are_not_abbreviations(self):
+        result = run_dump_hsqldb('--database-folder', 'DB', '--database-name', 'name', '--outp', 'out')
+        self.assertEqual(2, result.returncode, result.stderr)
 
 
 if __name__ == '__main__':

@@ -73,10 +73,10 @@ def dump_database(db_folder_path, db_name, output_folder_path):
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Dump all tables of an HSQLDB database')
-    parser.add_argument('db_folder_path', help='Folder containing .data, .inf, .properties, .script files)')
-    parser.add_argument('db_name', help='Database name (without any extension)')
-    parser.add_argument('output_folder_path', help='Folder where to dump all tables, in a separate folder for the database')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='Dump all tables of an HSQLDB database')
+    parser.add_argument('--database-folder', dest='db_folder_path', required=True, help='Folder containing .data, .inf, .properties, .script files)')
+    parser.add_argument('--database-name', dest='db_name', required=True, help='Database name (without any extension)')
+    parser.add_argument('--output', dest='output_folder_path', required=True, help='Folder where to dump all tables, in a separate folder for the database')
     args = parser.parse_args()
     
     # Input folder

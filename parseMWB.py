@@ -1516,14 +1516,14 @@ def app_parseMWB(object_loader, long_name_translation, project_folder_path, base
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('project_folder_path', help='MCD Project (folder containing .db and .key files)')
-    parser.add_argument('base_variant_filename', help='Filename of BASE-VARIANT (.bv.db) whose MWB to parse')
-    parser.add_argument('ecu_variant_name', help='Name of desired ECU-VARIANT')
-    parser.add_argument('did', help='Desired UDS DID, specified as two HEX bytes')
-    parser.add_argument('response', help='Bytes of UDS response, written in HEX (without the positive response byte, DID, etc.)')
-    parser.add_argument('translation_database_folder_path', help='Folder containing the translation database (e.g. ".../DIDB/db")', nargs='?')
-    parser.add_argument('translation_language', help='Language for translations (e.g. "en_US")', nargs='?')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='')
+    parser.add_argument('--project', dest='project_folder_path', required=True, help='MCD Project (folder containing .db and .key files)')
+    parser.add_argument('--base-variant', dest='base_variant_filename', required=True, help='Filename of BASE-VARIANT (.bv.db) whose MWB to parse')
+    parser.add_argument('--ecu-variant', dest='ecu_variant_name', required=True, help='Name of desired ECU-VARIANT')
+    parser.add_argument('--did', dest='did', required=True, help='Desired UDS DID, specified as two HEX bytes')
+    parser.add_argument('--response', dest='response', required=True, help='Bytes of UDS response, written in HEX (without the positive response byte, DID, etc.)')
+    parser.add_argument('--translation-database', dest='translation_database_folder_path', default=None, help='Folder containing the translation database (e.g. ".../DIDB/db")')
+    parser.add_argument('--translation-language', dest='translation_language', default=None, help='Language for translations (e.g. "en_US")')
     args = parser.parse_args()
     
     # The project_folder_path argument must be a path to a folder

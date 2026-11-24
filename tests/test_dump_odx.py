@@ -169,7 +169,8 @@ class DumpOdxTests(unittest.TestCase):
             project = os.path.join(root, 'P')
             os.mkdir(project)
             write_test_project(project)
-            result = subprocess.run([sys.executable, '-B', 'dumpODX.py', project, os.path.join(root, 'out')],
+            result = subprocess.run([sys.executable, '-B', 'dumpODX.py', '--project', project,
+                                     '--output', os.path.join(root, 'out')],
                                     cwd=REPOSITORY_ROOT, capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertTrue(os.path.isfile(os.path.join(root, 'out', 'P', 'odx', 'L.odx')))

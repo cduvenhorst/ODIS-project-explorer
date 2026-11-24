@@ -59,7 +59,7 @@ python3 -m unittest discover -s tests -t . -v
 
 For usage info of each script, call them with argument '**-h**' (or just look at the source code).
 
-The scripts with the commands `basevariant`, `project` and `projects` take every folder, file and name as a named option (`--project`, `--projects`, `--base-variant`, `--output` and so on); the positional form is not accepted, and options cannot be abbreviated.
+Every script takes each folder, file and name as a named option (`--project`, `--projects`, `--base-variant`, `--output` and so on), after its command where it has one (`basevariant`, `project` or `projects`); the positional form is not accepted, and options cannot be abbreviated.
 
 The scripts which have the option of text translation (`dumpDTC` and `parseMWB`) will need a database.
   - Take a look in your ODIS data folder (somewhere around `C:/ProgramData`), there should be a `DIDB/db` folder.
@@ -135,10 +135,10 @@ or unhandled fields in handled object types (which I hardcoded since they were t
 
 > [!TIP]
 > ```powershell
-> python dumpProject.py "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/Projects"
+> python dumpProject.py --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/Projects"
 > ```
 > ```powershell
-> python dumpAllProjects.py "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Projects"
+> python dumpAllProjects.py --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/Projects"
 > ```
 
 Keys that are names, hash keys without a string (shown as `hash <n>`) and multi-part records are read too; inline flash data in a multi-part record is only dumped as its length.
@@ -338,7 +338,7 @@ Some forms follow the ODX standard only, since no original document was availabl
 
 > [!TIP]
 > ```powershell
-> python dumpODX.py "C:/path/to/project" "O:/ODX"
+> python dumpODX.py --project "C:/path/to/project" --output "O:/ODX"
 > ```
 
 #### Other layers
@@ -387,7 +387,7 @@ It probably took the most amount of work, apart from the object loaders.
 
 > [!TIP]
 > ```powershell
-> python parseMWB.py "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_EnginContrModul1UDS.bv" "EV_ECM25TFS0118U0907404C_001" 0xF40C C0E4 "C:/ProgramData/OE/DIDB/db" en_US
+> python parseMWB.py --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_EnginContrModul1UDS.bv" --ecu-variant "EV_ECM25TFS0118U0907404C_001" --did 0xF40C --response C0E4 --translation-database "C:/ProgramData/OE/DIDB/db" --translation-language en_US
 > ```
 
 A DID can be defined by several services; every entry of the DID is used to parse the response, and each is preceded by a `Services:` line (not for VW).
@@ -404,7 +404,7 @@ If you encounter problems, check out the [following chapter](#hsqldb).
 
 > [!TIP]
 > ```powershell
-> python dumpHSQLDB.py "C:/ProgramData/OE/DIDB/db" "didb_Base-en_US" "O:\HSQLDB"
+> python dumpHSQLDB.py --database-folder "C:/ProgramData/OE/DIDB/db" --database-name "didb_Base-en_US" --output "O:\HSQLDB"
 > ```
 
 ## HSQLDB
