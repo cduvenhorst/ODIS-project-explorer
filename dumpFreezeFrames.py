@@ -368,26 +368,26 @@ def dumpFreezeFrames_projects(projects_folder_path, output_folder_path):
 
 # Handle usage as script
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Dump Freeze Frame (DTC extended data) definitions')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='Dump Freeze Frame (DTC extended data) definitions')
     subparsers = parser.add_subparsers(dest='command', required=True)
     
     # All Freeze Frames from all ECU-VARIANTs in a BASE-VARIANT of a project
-    parser_basevariant = subparsers.add_parser('basevariant', help='Dump Freeze Frames for all ECU-VARIANTs in a BASE-VARIANT')
-    parser_basevariant.add_argument('project_folder_path', help='MCD project (folder containing .db and .key files)')
-    parser_basevariant.add_argument('base_variant_filename', help='Filename of BASE-VARIANT (.bv.db file)')
-    parser_basevariant.add_argument('output_folder_path', help='Path of folder where to write the dump files, in a separate folder for the project and BASE-VARIANT')
+    parser_basevariant = subparsers.add_parser('basevariant', help='Dump Freeze Frames for all ECU-VARIANTs in a BASE-VARIANT', allow_abbrev=False)
+    parser_basevariant.add_argument('--project', dest='project_folder_path', required=True, help='MCD project (folder containing .db and .key files)')
+    parser_basevariant.add_argument('--base-variant', dest='base_variant_filename', required=True, help='Filename of BASE-VARIANT (.bv.db file)')
+    parser_basevariant.add_argument('--output', dest='output_folder_path', required=True, help='Path of folder where to write the dump files, in a separate folder for the project and BASE-VARIANT')
     parser_basevariant.set_defaults(func=dumpFreezeFrames_basevariant)
     
     # All Freeze Frames from all ECU-VARIANTs in all BASE-VARIANTs of a project
-    parser_project = subparsers.add_parser('project', help='Dump Freeze Frames for all ECU-VARIANTs in all BASE-VARIANTs of a project')
-    parser_project.add_argument('project_folder_path', help='MCD project (folder containing .db and .key files)')
-    parser_project.add_argument('output_folder_path', help='Path of folder where to write the dump files, in a separate folder for the project and each BASE-VARIANT')
+    parser_project = subparsers.add_parser('project', help='Dump Freeze Frames for all ECU-VARIANTs in all BASE-VARIANTs of a project', allow_abbrev=False)
+    parser_project.add_argument('--project', dest='project_folder_path', required=True, help='MCD project (folder containing .db and .key files)')
+    parser_project.add_argument('--output', dest='output_folder_path', required=True, help='Path of folder where to write the dump files, in a separate folder for the project and each BASE-VARIANT')
     parser_project.set_defaults(func=dumpFreezeFrames_project)
     
     # All Freeze Frames from all ECU-VARIANTs in all BASE-VARIANTs of all projects
-    parser_all_projects = subparsers.add_parser('projects', help='Dump Freeze Frames for all ECU-VARIANTs in all BASE-VARIANTs of all projects')
-    parser_all_projects.add_argument('projects_folder_path', help='MCD projects (folder containing folders containing .db and .key files)')
-    parser_all_projects.add_argument('output_folder_path', help='Path of folder where to write the dump files, in a separate folder for each project')
+    parser_all_projects = subparsers.add_parser('projects', help='Dump Freeze Frames for all ECU-VARIANTs in all BASE-VARIANTs of all projects', allow_abbrev=False)
+    parser_all_projects.add_argument('--projects', dest='projects_folder_path', required=True, help='MCD projects (folder containing folders containing .db and .key files)')
+    parser_all_projects.add_argument('--output', dest='output_folder_path', required=True, help='Path of folder where to write the dump files, in a separate folder for each project')
     parser_all_projects.set_defaults(func=dumpFreezeFrames_projects)
     
     # Parse the provided arguments and call the appropriate function based on the command

@@ -204,22 +204,22 @@ def dumpFlash_projects(projects_folder_path, output_folder_path, workspace_folde
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Dump flash data, seed key programs and decoded flash containers as binary files and copy the other project files unchanged')
+    parser = argparse.ArgumentParser(allow_abbrev=False, description='Dump flash data, seed key programs and decoded flash containers as binary files and copy the other project files unchanged')
     subparsers = parser.add_subparsers(dest='command', required=True)
     
     # All flash data of one project
-    parser_project = subparsers.add_parser('project', help='Dump the flash data of a project')
-    parser_project.add_argument('project_folder_path', help='MCD project (folder containing .db and .key files)')
-    parser_project.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for the project, plus the other project files copied unchanged to <output>/<project>/')
-    parser_project.add_argument('workspace_folder_path', nargs='?', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
+    parser_project = subparsers.add_parser('project', help='Dump the flash data of a project', allow_abbrev=False)
+    parser_project.add_argument('--project', dest='project_folder_path', required=True, help='MCD project (folder containing .db and .key files)')
+    parser_project.add_argument('--output', dest='output_folder_path', required=True, help='Path of folder where to write the dump files, below "flash" and in a separate folder for the project, plus the other project files copied unchanged to <output>/<project>/')
+    parser_project.add_argument('--workspace', dest='workspace_folder_path', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
     parser_project.add_argument('--hexdump', action='store_true', help='Also write a text hexdump next to each dumped file')
     parser_project.set_defaults(func=dumpFlash_project)
     
     # All flash data of all projects
-    parser_all_projects = subparsers.add_parser('projects', help='Dump the flash data of all projects')
-    parser_all_projects.add_argument('projects_folder_path', help='MCD projects (folder containing folders containing .db and .key files)')
-    parser_all_projects.add_argument('output_folder_path', help='Path of folder where to write the dump files, below "flash" and in a separate folder for each project, plus the other project files copied unchanged to <output>/<project>/')
-    parser_all_projects.add_argument('workspace_folder_path', nargs='?', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
+    parser_all_projects = subparsers.add_parser('projects', help='Dump the flash data of all projects', allow_abbrev=False)
+    parser_all_projects.add_argument('--projects', dest='projects_folder_path', required=True, help='MCD projects (folder containing folders containing .db and .key files)')
+    parser_all_projects.add_argument('--output', dest='output_folder_path', required=True, help='Path of folder where to write the dump files, below "flash" and in a separate folder for each project, plus the other project files copied unchanged to <output>/<project>/')
+    parser_all_projects.add_argument('--workspace', dest='workspace_folder_path', default=None, help='PIDT workspace folder "vehicle-platform" (optional)')
     parser_all_projects.add_argument('--hexdump', action='store_true', help='Also write a text hexdump next to each dumped file')
     parser_all_projects.set_defaults(func=dumpFlash_projects)
     

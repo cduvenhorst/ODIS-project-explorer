@@ -37,10 +37,15 @@ class DumpFlashTest(unittest.TestCase):
         os.chdir(support.REPOSITORY_ROOT)
         self.addCleanup(os.chdir, previous)
 
-    def run_main(self, *argv):
+    def run_main(self, command, source, output, *extra):
+        # Takes the folders in command line order and passes them as named options
+        source_option = '--projects' if command == 'projects' else '--project'
+        argv = [command, source_option, source, '--output', output]
+        for item in extra:
+            argv.extend([item] if item.startswith('--') else ['--workspace', item])
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
-            code = dumpFlash.main(list(argv))
+            code = dumpFlash.main(argv)
         return code, stdout.getvalue()
 
     def overview_rows(self):

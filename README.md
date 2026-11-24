@@ -59,6 +59,8 @@ python3 -m unittest discover -s tests -t . -v
 
 For usage info of each script, call them with argument '**-h**' (or just look at the source code).
 
+The scripts with the commands `basevariant`, `project` and `projects` take every folder, file and name as a named option (`--project`, `--projects`, `--base-variant`, `--output` and so on); the positional form is not accepted, and options cannot be abbreviated.
+
 The scripts which have the option of text translation (`dumpDTC` and `parseMWB`) will need a database.
   - Take a look in your ODIS data folder (somewhere around `C:/ProgramData`), there should be a `DIDB/db` folder.
   - It must contain a .data file with name `didb_Base-...`, where '...' is a language like 'en_US'.
@@ -166,13 +168,13 @@ An ECU variant with a KWP2000 pattern (`MB_Identification_Read`, `DCX_Identifica
 
 > [!TIP]
 > ```powershell
-> python dumpECUVariantPatterns.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/Patterns"
+> python dumpECUVariantPatterns.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/Patterns"
 > ```
 > ```powershell
-> python dumpECUVariantPatterns.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/Patterns"
+> python dumpECUVariantPatterns.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/Patterns"
 > ```
 > ```powershell
-> python dumpECUVariantPatterns.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Patterns"
+> python dumpECUVariantPatterns.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/Patterns"
 > ```
 
 ### `dumpDTC`
@@ -182,13 +184,13 @@ It will only dump the objects necessary for DTCs (= diagnostic trouble codes) - 
 
 > [!TIP]
 > ```powershell
-> python dumpDTC.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/DTCs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpDTC.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/DTCs" --translation-database "C:/ProgramData/OE/DIDB/db" --translation-language en_US
 > ```
 > ```powershell
-> python dumpDTC.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/DTCs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpDTC.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/DTCs" --translation-database "C:/ProgramData/OE/DIDB/db" --translation-language en_US
 > ```
 > ```powershell
-> python dumpDTC.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/DTCs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpDTC.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/DTCs" --translation-database "C:/ProgramData/OE/DIDB/db" --translation-language en_US
 > ```
 
 ### `dumpFreezeFrames`
@@ -201,13 +203,13 @@ A variant with neither a multiplexer nor an environment data description gets no
 
 > [!TIP]
 > ```powershell
-> python dumpFreezeFrames.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/FFs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpFreezeFrames.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/FFs"
 > ```
 > ```powershell
-> python dumpFreezeFrames.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/FFs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpFreezeFrames.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/FFs"
 > ```
 > ```powershell
-> python dumpFreezeFrames.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/FFs" "C:/ProgramData/OE/DIDB/db" en_US
+> python dumpFreezeFrames.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/FFs"
 > ```
 
 ### `dumpAdaptations`
@@ -218,13 +220,13 @@ Besides the VW service, every other 0x2E service with the adaptation layout is d
 
 > [!TIP]
 > ```powershell
-> python dumpAdaptations.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/ADPs"
+> python dumpAdaptations.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/ADPs"
 > ```
 > ```powershell
-> python dumpAdaptations.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/ADPs"
+> python dumpAdaptations.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/ADPs"
 > ```
 > ```powershell
-> python dumpAdaptations.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/ADPs"
+> python dumpAdaptations.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/ADPs"
 > ```
 
 ### `dumpCoding`
@@ -245,19 +247,19 @@ If the output file `VRC_<variant>.c` already exists, the variant is skipped (`Al
 
 > [!TIP]
 > ```powershell
-> python dumpCoding.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/VRCs"
+> python dumpCoding.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/VRCs"
 > ```
 > ```powershell
-> python dumpCoding.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/VRCs"
+> python dumpCoding.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/VRCs"
 > ```
 > ```powershell
-> python dumpCoding.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/VRCs" EV_Example
+> python dumpCoding.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/VRCs" --ecu-variant EV_Example
 > ```
 > ```powershell
-> python dumpCoding.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/VRCs"
+> python dumpCoding.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/VRCs"
 > ```
 
-With the optional last argument `basevariant` dumps only that ECU-VARIANT (or the BASE-VARIANT, by its own name).
+With the optional `--ecu-variant` option `basevariant` dumps only that ECU-VARIANT (or the BASE-VARIANT, by its own name).
 Besides its coding entries, the file then also contains the coding table rows that the variant's other non-VW MWB and adaptation services address by row reference, so one file shows everything that is coded.
 These related rows are only added when the coding service is not the VW service and uses a row reference: they are the rows of the same coding table that the variant's measurement and adaptation services address.
 An unknown name prints `Available ECU-VARIANTs:` with the list, fails with a `RuntimeError` and writes nothing.
@@ -286,7 +288,7 @@ If it does not fit, nothing is written, not even a folder, and the exit code is 
 The output folder must not be inside the source folder, and none of the folders written for a project (`<output>/<project>`, `<output>/flash`, `<output>/mcr`) may contain or lie inside the project folder; otherwise the script stops immediately with exit code 1 (`Output folder must not overlap the source folder`).
 Read errors do not stop the run; they are noted in the overview and reported on stderr, and the exit code is 1. Errors when copying project files are only reported on stderr and counted (exit code 1); the overview does not mention them.
 
-Both commands accept a PIDT workspace folder as an optional third argument.
+Both commands accept a PIDT workspace folder with the optional `--workspace` option.
 Each sub folder of the workspace that contains `flash-data/flash-data` or `mcr-data` is a vehicle platform.
 For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` files and `*.pcc` packages (any depth below `mcr-data`) are read in addition to the project data.
 - `project` uses `<workspace>/mapping.properties` (lines `pidt-vehicle-platform.<folder>=<regular expression>`) to select the platforms whose expression matches the whole project name.
@@ -301,13 +303,13 @@ For every platform, the ODX flash documents in `*.pdx` packages, loose `*.odx` f
 
 > [!TIP]
 > ```powershell
-> python dumpFlash.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/Flash" --hexdump
+> python dumpFlash.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/Flash" --hexdump
 > ```
 > ```powershell
-> python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash"
+> python dumpFlash.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/Flash"
 > ```
 > ```powershell
-> python dumpFlash.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/Flash" "D:/PIDT/workspace"
+> python dumpFlash.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/Flash" --workspace "D:/PIDT/workspace"
 > ```
 
 ### ODX export
@@ -369,13 +371,13 @@ This is by far the most important and non-standardized part of UDS diagnostics, 
 
 > [!TIP]
 > ```powershell
-> python dumpMWB.py basevariant "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "0.0.0@BV_DashBoardUDS.bv" "O:/MWBs"
+> python dumpMWB.py basevariant --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --base-variant "0.0.0@BV_DashBoardUDS.bv" --output "O:/MWBs"
 > ```
 > ```powershell
-> python dumpMWB.py project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" "O:/MWBs"
+> python dumpMWB.py project --project "C:/ProgramData/OE/MCD-Projects-E/VWMCD/AU21X" --output "O:/MWBs"
 > ```
 > ```powershell
-> python dumpMWB.py projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" "O:/MWBs"
+> python dumpMWB.py projects --projects "C:/ProgramData/OE/MCD-Projects-E/VWMCD" --output "O:/MWBs"
 > ```
 
 ### `parseMWB`
