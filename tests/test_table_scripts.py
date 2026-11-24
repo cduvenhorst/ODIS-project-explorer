@@ -294,3 +294,7 @@ class PorscheCodingScriptTest(unittest.TestCase):
         self.assertEqual(list(data[0]), ['did', 'long_name', 'long_name_id', 'services', 'flat_layout'])
         self.assertEqual(data[0]['flat_layout']['fields'][0]['byte_position'], 0)
         self.assertEqual(data[0]['flat_layout']['byte_length'], 1)
+
+    def test_base_variant_without_extension_gives_message(self):
+        with self.assertRaisesRegex(RuntimeError, r'A BASE-VARIANT database must be provided \(\.bv\.db\)'):
+            dumpCoding.dump_codings_for_base_variant(None, 'P', 'duvi', 'out')

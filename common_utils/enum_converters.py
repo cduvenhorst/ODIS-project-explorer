@@ -287,7 +287,8 @@ def get_mcd_value_data_type_enum(value):
 
 
 def get_db_file_type(pool_id):
-    db_file_type = pool_id.rsplit('.', 1)[1]
+    # upstream: rsplit('.', 1)[1] raised IndexError for a name without extension, before the callers could report a wrong file
+    db_file_type = pool_id.rpartition('.')[2]
     match db_file_type:
         case 'vi':
             return 'Vehicle Information Table'

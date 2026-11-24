@@ -23,6 +23,10 @@ class EnumConverterTests(unittest.TestCase):
         self.assertEqual(enum_converters.get_object_type_enum(0x030B),
                          enum_converters.get_object_type_enum(0x030A))
 
+    def test_db_file_type_of_name_without_extension_is_unknown(self):
+        self.assertEqual('Unknown (duvi)', enum_converters.get_db_file_type('duvi'))
+        self.assertEqual('Base Variant', enum_converters.get_db_file_type('0.0.0@B.bv'))
+
 
 if __name__ == '__main__':
     unittest.main()
