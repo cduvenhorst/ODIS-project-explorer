@@ -43,7 +43,7 @@ Therefore, JPype will need to be installed:
 pip install jpype1
 ```
 
-JPype1 is only needed for translations (the optional translation database and language arguments) and for `dumpHSQLDB.py`; all other scripts work without it.
+JPype1 is only needed for translations (the optional `--translation-database` and `--translation-language` options) and for `dumpHSQLDB.py`; all other scripts work without it.
 
 On macOS, `bin/pbl_macos.dylib` (universal arm64 + x86_64) is used automatically instead of `bin/pbl.dll`.
 It is built from the PBL sources in the `third_party/pbl` submodule; to rebuild it:
@@ -59,7 +59,7 @@ python3 -m unittest discover -s tests -t . -v
 
 For usage info of each script, call them with argument '**-h**' (or just look at the source code).
 
-Every script takes each folder, file and name as a named option (`--project`, `--projects`, `--base-variant`, `--output` and so on), after its command where it has one (`basevariant`, `project` or `projects`); the positional form is not accepted, and options cannot be abbreviated.
+Every script in the repository root takes each folder, file and name as a named option (`--project`, `--projects`, `--base-variant`, `--output` and so on), after its command where it has one (`basevariant`, `project` or `projects`); the positional form is not accepted, and options cannot be abbreviated.
 
 The scripts which have the option of text translation (`dumpDTC` and `parseMWB`) will need a database.
   - Take a look in your ODIS data folder (somewhere around `C:/ProgramData`), there should be a `DIDB/db` folder.
