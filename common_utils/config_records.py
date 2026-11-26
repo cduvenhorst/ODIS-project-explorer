@@ -17,6 +17,9 @@ CONFIG_INFO_LISTS = ('unknown_1', 'unknown_2', 'unknown_3')
 # Get the PoolIDs of a project: the names of its .key files without the .key extension, sorted
 ### project_folder_path = project path (folder with .db and .key files)
 def project_pool_ids(project_folder_path):
+    # A missing folder has no pools; reading the project fails with its own message
+    if not os.path.isdir(project_folder_path):
+        return []
     return sorted(name[:-len('.key')] for name in os.listdir(project_folder_path) if name.endswith('.key'))
 
 

@@ -89,6 +89,10 @@ class ConfigDataIndexTests(unittest.TestCase):
                 open(os.path.join(folder, name), 'w').close()
             self.assertEqual(['A.ec', 'B.bv'], project_pool_ids(folder))
 
+    def test_project_pool_ids_of_missing_folder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual([], project_pool_ids(os.path.join(folder, 'missing')))
+
 
 def odx_link(id_reference='DOP__L_16', document_reference='DLC_L'):
     return {'#OBJECT_TYPE': 'DB_ODX_LINK', 'id_reference': id_reference,

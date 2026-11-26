@@ -10,6 +10,7 @@ from classes.StringStorage import StringStorage
 from classes.ObjectLoader import ObjectLoader
 
 from common_utils.coding_layout import flatten_coding_entry
+from common_utils.config_records import ConfigRecordSource
 from common_utils.layer_chain import load_layer_data
 from common_utils.table_entries import CODING_SERVICE_NAMES, KIND_CODING, TableEntryReader
 from dumpMWB import JSON_ByteArrayEncoder, get_protocol_layer_data_list, get_ecu_variant_map, get_ecu_variant_layer_data
@@ -21,9 +22,36 @@ pbl_dll_path = os.path.join(os.path.abspath(os.getcwd()), 'bin/pbl.dll')
 pbl_record_manager = PblRecordManager(pbl_dll_path)
 
 
+# Print the note about the configuration data that cannot be assigned to a variant (database older than version 0012)
+def print_config_source_notes(config_source, debug_info_indentation_level):
+    if config_source.has_numeric_case_maps:
+        object_printer.print_indented(debug_info_indentation_level, 'Configuration records skipped: database older than version 0012')
+
+
+# Build the source of the configuration records of a project and print its notes
+# A failure is reported and gives None: the configuration records must not cost the Coding output
+### returns ConfigRecordSource, or None if it could not be built
+def build_config_source(object_loader, project_folder_path, debug_info_indentation_level):
+    try:
+        config_source = ConfigRecordSource(object_loader, project_folder_path)
+        print_config_source_notes(config_source, debug_info_indentation_level)
+    except Exception as e:
+        print_config_failure(e, debug_info_indentation_level)
+        return None
+    return config_source
+
+
+# Print the line for a failure while reading or writing the configuration records
+def print_config_failure(error, debug_info_indentation_level):
+    object_printer.print_indented(debug_info_indentation_level, 'Configuration records failed: {}'.format(error))
+
+
 # desired_ecu_variant = name of one ECU-VARIANT (or of the BASE-VARIANT) to dump alone, together with the Coding table
 #                       rows its other services address; None dumps every variant with its Coding service only
-def dump_codings_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0, desired_ecu_variant = None):
+# config_source       = ConfigRecordSource for CONFIG_<variant>.json; None builds one for the project (and reports
+#                       its notes), the project run passes one source for all BASE-VARIANTs
+# write_config        = False writes no CONFIG files (the project run could not build its source)
+def dump_codings_for_base_variant(object_loader, project_folder_path, base_variant_filename, output_folder_path, overwrite = False, debug_info_indentation_level = 0, desired_ecu_variant = None, config_source = None, write_config = True):
     # The PoolID simply refers to the file's name (without extension)
     pool_id = base_variant_filename
     if base_variant_filename.endswith('.db'):
@@ -33,28 +61,39 @@ def dump_codings_for_base_variant(object_loader, project_folder_path, base_varia
     if enum_converters.get_db_file_type(pool_id) != 'Base Variant':
         raise RuntimeError('A BASE-VARIANT database must be provided (.bv.db)')
     
-    # Only UDS base variants are dumped; the protocol layers follow from the parent layers of the base variant
+    if config_source is None and write_config:
+        config_source = build_config_source(object_loader, project_folder_path, debug_info_indentation_level)
+    
+    # Only UDS base variants get a VRC; the protocol layers follow from the parent layers of the base variant
+    # A base variant that is not UDS still gets its CONFIG files
     protocol_layer_data_list = get_protocol_layer_data_list(object_loader, project_folder_path, pool_id)
     if protocol_layer_data_list is None:
         object_printer.print_indented(debug_info_indentation_level, 'Not UDS')
+    
+    try:
+        # Load the Object with ID '#RtGen_DB_PROJECT_DATA', which contains info about the ECU-VARIANTs included in the BASE-VARIANT
+        db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
+        
+        # At least one ECU-VARIANT should exist
+        ecu_variant_map = get_ecu_variant_map(db_project_data)
+        # A base variant that is not UDS only gets its CONFIG files: no variant headers and no 'Has no ECU-VARIANTs' line, as before
+        if ecu_variant_map is None and protocol_layer_data_list is not None:
+            object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
+        
+        # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
+        base_variant_name = db_project_data['base_variant_reference']['object_id']
+        
+        # The output folder will be named like the BASE-VARIANT
+        base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)
+        
+        # Load the layer data for the BASE-VARIANT, which is contained in the current file
+        base_variant_layer_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_LAYER_DATA')
+    except Exception as e:
+        # For a UDS base variant a failure ends the run, as before; without UDS only the CONFIG files are lost
+        if protocol_layer_data_list is not None:
+            raise
+        print_config_failure(e, debug_info_indentation_level)
         return
-    
-    # Load the Object with ID '#RtGen_DB_PROJECT_DATA', which contains info about the ECU-VARIANTs included in the BASE-VARIANT
-    db_project_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_PROJECT_DATA')
-    
-    # At least one ECU-VARIANT should exist
-    ecu_variant_map = get_ecu_variant_map(db_project_data)
-    if ecu_variant_map is None:
-        object_printer.print_indented(debug_info_indentation_level, 'Has no ECU-VARIANTs')
-    
-    # Get the BASE-VARIANT's name from the "project data" (could get from filename too)
-    base_variant_name = db_project_data['base_variant_reference']['object_id']
-    
-    # The output folder will be named like the BASE-VARIANT
-    base_variant_output_folder_path = os.path.join(output_folder_path, base_variant_name)
-    
-    # Load the layer data for the BASE-VARIANT, which is contained in the current file
-    base_variant_layer_data = object_loader.load_object_by_id(project_folder_path, pool_id, '#RtGen_DB_LAYER_DATA')
     
     # Add the BASE-VARIANT at the front of the map to also get its Coding
     if ecu_variant_map is not None:
@@ -79,16 +118,46 @@ def dump_codings_for_base_variant(object_loader, project_folder_path, base_varia
     
     # Go through each ECU-VARIANT referenced by the BASE-VARIANT (and the BASE-VARIANT itself)
     for ecu_variant_name in ecu_variant_map:
-        if ecu_variant_name == base_variant_name:
-            object_printer.print_indented(debug_info_indentation_level, 'BASE-VARIANT {}'.format(ecu_variant_name))
-        else:
-            object_printer.print_indented(debug_info_indentation_level, 'ECU-VARIANT {}'.format(ecu_variant_name))
+        if protocol_layer_data_list is not None:
+            if ecu_variant_name == base_variant_name:
+                object_printer.print_indented(debug_info_indentation_level, 'BASE-VARIANT {}'.format(ecu_variant_name))
+            else:
+                object_printer.print_indented(debug_info_indentation_level, 'ECU-VARIANT {}'.format(ecu_variant_name))
         
         # The Coding will be dumped into a file named like the ECU-VARIANT
         # The .c extension is only used for highlighting and block folding in a code editor
         ecu_variant_output_file_path = os.path.join(base_variant_output_folder_path, 'VRC_' + ecu_variant_name + '.c')
         # The flat layout of each entry is also written as JSON, next to the .c file
         ecu_variant_json_file_path = os.path.join(base_variant_output_folder_path, 'VRC_' + ecu_variant_name + '.json')
+        
+        # The configuration records that apply to the variant are dumped before (and independent of) the Coding
+        # A variant without configuration data gets no file
+        ecu_variant_config_file_path = os.path.join(base_variant_output_folder_path, 'CONFIG_' + ecu_variant_name + '.json')
+        if config_source is None:
+            pass
+        elif not overwrite and os.path.isfile(ecu_variant_config_file_path):
+            # Without UDS there is no variant header above the line, so the line names the file
+            if protocol_layer_data_list is None:
+                object_printer.print_indented(debug_info_indentation_level + 1, 'CONFIG already done, skipping: {}'.format(os.path.basename(ecu_variant_config_file_path)))
+            else:
+                object_printer.print_indented(debug_info_indentation_level + 1, 'CONFIG already done, skipping')
+        else:
+            # A failure here must not cost the Coding output of the variant
+            try:
+                config_entries = config_source.entries_for_variant(base_variant_name, ecu_variant_name)
+                if config_entries:
+                    if not os.path.isdir(base_variant_output_folder_path):
+                        os.makedirs(base_variant_output_folder_path)
+                    # Serialise first, so a failure leaves no partial file
+                    config_json = json.dumps(config_entries, indent=2, cls=JSON_ByteArrayEncoder)
+                    with open(ecu_variant_config_file_path, 'w', encoding='utf-8') as ecu_variant_config_file:
+                        ecu_variant_config_file.write(config_json)
+            except Exception as e:
+                print_config_failure(e, debug_info_indentation_level + 1)
+        
+        # Without UDS there is no Coding to dump
+        if protocol_layer_data_list is None:
+            continue
         
         # Only dump the Coding if the file doesn't already exist (or if overwriting is allowed)
         if not overwrite and (os.path.exists(ecu_variant_output_file_path) and os.path.isfile(ecu_variant_output_file_path)):
@@ -147,6 +216,9 @@ def dump_codings_for_base_variant(object_loader, project_folder_path, base_varia
 
 
 def dump_codings_for_all_base_variants_in_project(object_loader, project_folder_path, output_folder_path, overwrite = False, debug_info_indentation_level = 0):
+    # One source for the whole project: it indexes the configuration data of all pools once
+    config_source = build_config_source(object_loader, project_folder_path, debug_info_indentation_level)
+    
     # Go through each file (Pool) in the project folder
     for current_filename in os.listdir(project_folder_path):
         # The PoolID simply refers to the file's name (without extension)
@@ -165,7 +237,7 @@ def dump_codings_for_all_base_variants_in_project(object_loader, project_folder_
         object_printer.print_indented(debug_info_indentation_level, 'Dumping {}'.format(PoolID))
         
         # Dump the Coding with the other function
-        dump_codings_for_base_variant(object_loader, project_folder_path, PoolID, output_folder_path, overwrite, debug_info_indentation_level + 1)
+        dump_codings_for_base_variant(object_loader, project_folder_path, PoolID, output_folder_path, overwrite, debug_info_indentation_level + 1, config_source = config_source, write_config = config_source is not None)
 
 
 def dump_codings_for_all_base_variants_in_all_projects(project_folder_path, output_folder_path, debug_info_indentation_level = 0):

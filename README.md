@@ -95,7 +95,7 @@ For each project it writes `DIR/<installation>-<project>.json` (installation is 
 The scripts that work on `.bv` pools (`dumpMWB`, `parseMWB`, `dumpCoding`, `dumpAdaptations`, `dumpFreezeFrames`, `dumpDTC` and `dumpECUVariantPatterns`) check per base variant whether it is UDS.
 A base variant counts as UDS if a protocol layer in its parent layer chain has a `protocol_type` starting with `ISO_15765_3` or `ISO_14229`.
 A project that contains the protocol pool `0.0.0@PR_UDSOnCAN.pr` counts every base variant as UDS.
-Any other base variant prints `Not UDS` and is skipped.
+Any other base variant prints `Not UDS` and is skipped; `dumpCoding` is the exception, it still writes the `CONFIG_<variant>.json` files of such a base variant (see `dumpCoding`).
 
 Services (coding, adaptations, measurement values) and DTC DOPs are looked up including those inherited along the parent layers: the variant's own entries come first, then those of each parent layer in turn (including what that parent inherits itself), where a name that is already present is skipped, and NOT-INHERITED lists are respected.
 
@@ -244,6 +244,19 @@ The flat layout is the coding as a list of fields, without the nesting of the st
   - `note` explains what is missing: no BYTE-POSITION (the position is `null`; a parameter in the row itself without position starts at the beginning of the coding data), a parameter type that is not expected in a coding structure, or a DOP that is not available or not expanded.
 
 If the output file `VRC_<variant>.c` already exists, the variant is skipped (`Already done, skipping`) without looking at the `.json` file; to get the `.json` files for an older output folder, dump with overwrite (`basevariant` always overwrites).
+
+Per variant (the BASE-VARIANT first, then its ECU-VARIANTs) it also writes `CONFIG_<variant>.json`, the configuration records of the variant, independent of the Coding service.
+The file is an array with one entry per configuration data object (`short_name`, `long_name`, `long_name_id`, `records`); each record has `short_name`, `long_name`, `long_name_id`, `byte_length`, `read_services`, `write_services`, `connectors`, `data_records` (names only) and `fields`, one flat field per configuration item.
+Each entry of `connectors` has `read_service`, `write_service`, `size`, `read_parameter_values` and `write_parameter_values`.
+A field has the keys of the flat layout above (`default` is the default value of an option item), plus `item_kind` (`configuration_id`, `data_id`, `option` or `system`), `item_values` and `system_parameter_name`; each entry of `item_values` has `physical_value`, `key`, `meaning` and `meaning_id`.
+`note` of a field can also carry the reason why its data type could not be resolved (for example an ODX link to a layer that is not in the project).
+The configuration data that apply to a variant are those of the project's ECU configuration pools which are valid for the whole BASE-VARIANT, followed by those valid for the ECU-VARIANT itself, each group sorted by `short_name`; the BASE-VARIANT gets the first group only.
+A variant without configuration data gets no file.
+With `basevariant --ecu-variant`, only the file of that variant is written.
+For a BASE-VARIANT that is not UDS, `dumpCoding` prints `Not UDS` and writes only these files, no `VRC_` files.
+In databases older than version 0012, configuration data cannot be assigned to a variant if their base variants are keyed by numbers; these configuration data are skipped, and the script prints `Configuration records skipped: database older than version 0012` once (per project, or per `basevariant` run). The other configuration data are still written.
+An existing `CONFIG_<variant>.json` is skipped (`CONFIG already done, skipping`) unless overwriting is allowed; this check is independent of the `VRC_` files.
+A failure while reading or writing the configuration records prints `Configuration records failed: <reason>` and does not stop the `VRC_` output.
 
 > [!TIP]
 > ```powershell
