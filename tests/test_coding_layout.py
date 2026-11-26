@@ -1,6 +1,6 @@
 import unittest
 
-from common_utils.coding_layout import flatten_coding_entry
+from common_utils.coding_layout import apply_dop, flatten_coding_entry
 
 
 def dop(bit_length=8, bit_mask=None, compu_category='IDENTICAL', compu_scales=None,
@@ -144,6 +144,35 @@ class FlattenCodingEntryTest(unittest.TestCase):
         result = flatten_coding_entry(entry({'#error': 'x'}))
         self.assertEqual(result, {'byte_length': None, 'note': 'Structure not available',
                                   'fields': []})
+
+
+class ApplyDopTests(unittest.TestCase):
+    @staticmethod
+    def blank_field():
+        return {'bit_length': None, 'bit_mask': None, 'values': [], 'note': None,
+                '_standard_length': False}
+
+    def test_texttable_dop_sets_values(self):
+        field = self.blank_field()
+        apply_dop(field, {'type': 'DOP', 'bit_length': 2, 'bit_mask': None,
+                          'diag_coded_type': 'STANDARD-LENGTH-TYPE', 'compu_category': 'TEXTTABLE',
+                          'compu_scales': [{'lower_limit': 0, 'upper_limit': 0,
+                                            'long_name': 'off', 'long_name_id': 'ID_off'}]})
+        self.assertEqual(field['bit_length'], 2)
+        self.assertIs(field['_standard_length'], True)
+        self.assertEqual(field['values'], [{'lower_limit': 0, 'upper_limit': 0,
+                                            'text': 'off', 'text_id': 'ID_off'}])
+
+    def test_error_dop_sets_note(self):
+        field = self.blank_field()
+        apply_dop(field, {'#error': 'x'})
+        self.assertEqual(field['note'], 'DOP not available')
+        self.assertIsNone(field['bit_length'])
+
+    def test_structure_dop_is_not_expanded(self):
+        field = self.blank_field()
+        apply_dop(field, {'type': 'STRUCTURE'})
+        self.assertEqual(field['note'], 'STRUCTURE not expanded')
 
 
 if __name__ == '__main__':

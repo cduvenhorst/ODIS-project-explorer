@@ -56,27 +56,36 @@ def _flatten_structure(structure, base, fields):
         parameter_type = parameter['parameter_type']
         if parameter_type not in LEAF_PARAMETER_TYPES:
             field['note'] = 'Parameter type {} not expected in coding structure'.format(parameter_type)
-        elif '#error' in dop:
-            field['note'] = 'DOP not available'
-        elif dop.get('type') != 'DOP':
-            field['note'] = '{} not expanded'.format(dop.get('type'))
         else:
-            field['bit_length'] = dop.get('bit_length')
-            field['bit_mask'] = dop.get('bit_mask')
-            field['_standard_length'] = dop.get('diag_coded_type') == 'STANDARD-LENGTH-TYPE'
-            if dop.get('compu_category') == 'TEXTTABLE':
-                field['values'] = [{'lower_limit': scale['lower_limit'],
-                                    'upper_limit': scale['upper_limit'],
-                                    'text': scale['long_name'],
-                                    'text_id': scale['long_name_id']}
-                                   for scale in dop['compu_scales']]
-            if parameter_type in ('VALUE', 'RESERVED'):
-                field['default'] = parameter.get('default_value')
-            else:
-                field['default'] = parameter.get('constant')
+            apply_dop(field, dop)
+            if field['note'] is None:
+                if parameter_type in ('VALUE', 'RESERVED'):
+                    field['default'] = parameter.get('default_value')
+                else:
+                    field['default'] = parameter.get('constant')
         if field['note'] is None and field['byte_position'] is None:
             field['note'] = NO_POSITION_NOTE
         fields.append(field)
+
+
+def apply_dop(field, dop):
+    # Sets note, bit_length, bit_mask, values and _standard_length of a flat field from a DOP read by parse_dop
+    ### field: dict with the flat layout keys, changed in place
+    ### dop: the parsed DOP
+    if '#error' in dop:
+        field['note'] = 'DOP not available'
+    elif dop.get('type') != 'DOP':
+        field['note'] = '{} not expanded'.format(dop.get('type'))
+    else:
+        field['bit_length'] = dop.get('bit_length')
+        field['bit_mask'] = dop.get('bit_mask')
+        field['_standard_length'] = dop.get('diag_coded_type') == 'STANDARD-LENGTH-TYPE'
+        if dop.get('compu_category') == 'TEXTTABLE':
+            field['values'] = [{'lower_limit': scale['lower_limit'],
+                                'upper_limit': scale['upper_limit'],
+                                'text': scale['long_name'],
+                                'text_id': scale['long_name_id']}
+                               for scale in dop['compu_scales']]
 
 
 def _computed_length(fields):
